@@ -1,0 +1,151 @@
+.results {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    max-width: 500px;
+    margin: 0 auto;
+    text-align: center;
+    animation: fadeIn 0.5s ease;
+}
+
+.celebration {
+    font-size: 5rem;
+    animation: bounce 1s ease infinite;
+}
+
+@keyframes bounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-20px);
+    }
+}
+
+.title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+}
+
+.podium {
+    width: 100%;
+    padding: 24px;
+}
+
+.podium h3 {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+}
+
+.rankingList {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rankItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-glass);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.rankItem.place1 {
+    background: rgba(255, 215, 0, 0.15);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.rankItem.place2 {
+    background: rgba(192, 192, 192, 0.1);
+    border: 1px solid rgba(192, 192, 192, 0.2);
+}
+
+.rankItem.place3 {
+    background: rgba(205, 127, 50, 0.1);
+    border: 1px solid rgba(205, 127, 50, 0.2);
+}
+
+.position {
+    font-size: 1.2rem;
+    min-width: 32px;
+}
+
+.playerName {
+    flex: 1;
+    text-align: left;
+    font-weight: 500;
+}
+
+.finalScore {
+    font-weight: 700;
+    color: var(--accent-secondary);
+}
+
+.stats {
+    display: flex;
+    gap: 32px;
+}
+
+.statItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.statValue {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--accent-primary);
+}
+
+.statLabel {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.actions .btn {
+    width: 100%;
+}
+
+.waitingHost {
+    color: var(--text-secondary);
+    padding: 16px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

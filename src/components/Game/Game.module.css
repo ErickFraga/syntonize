@@ -1,0 +1,237 @@
+.game {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 24px;
+    height: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+@media (max-width: 900px) {
+    .game {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        order: -1;
+    }
+}
+
+.mainContent {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.roundInfo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px;
+}
+
+.roundNumber {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--bg-glass);
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+}
+
+.seerInfo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.seerLabel {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.seerName {
+    font-weight: 600;
+    color: var(--accent-secondary);
+}
+
+.spectrumCard {
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.cardConcepts {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.leftConcept {
+    color: var(--spectrum-left);
+}
+
+.rightConcept {
+    color: var(--spectrum-right);
+}
+
+.clueDisplay {
+    text-align: center;
+    padding: 16px;
+    background: var(--bg-glass);
+    border-radius: var(--radius-md);
+}
+
+.clueLabel {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-right: 8px;
+}
+
+.clueText {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent-secondary);
+}
+
+.seerControls,
+.playerControls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 24px;
+    background: var(--bg-glass);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.seerHint,
+.guessHint {
+    text-align: center;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.clueInput {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    max-width: 500px;
+}
+
+.clueInput .input {
+    flex: 1;
+}
+
+.waitingOthers {
+    color: var(--success);
+    font-weight: 500;
+}
+
+.waitingClue {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 32px;
+}
+
+.waitingClue p {
+    color: var(--text-secondary);
+}
+
+.waitingAnimation {
+    display: flex;
+    gap: 8px;
+}
+
+.waitingAnimation span {
+    width: 12px;
+    height: 12px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    animation: bounce 1.4s ease-in-out infinite;
+}
+
+.waitingAnimation span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.waitingAnimation span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.waitingAnimation span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+
+    0%,
+    80%,
+    100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+
+    40% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+}
+
+.resultsPanel {
+    padding: 24px;
+    background: var(--bg-glass);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.resultsPanel h3 {
+    text-align: center;
+    margin-bottom: 16px;
+    color: var(--text-secondary);
+}
+
+.scoresGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.scoreItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-glass);
+    border-radius: var(--radius-md);
+}
+
+.playerScoreName {
+    flex: 1;
+    font-weight: 500;
+}
+
+.playerScoreLabel {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.playerScoreValue {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--success);
+    min-width: 40px;
+    text-align: right;
+}
+
+.sidebar {
+    position: sticky;
+    top: 100px;
+    height: fit-content;
+}

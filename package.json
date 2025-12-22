@@ -3,22 +3,29 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "tsx server/index.ts",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_ENV=production tsx server/index.ts",
     "lint": "next lint"
   },
   "dependencies": {
+    "nanoid": "^5.1.6",
+    "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18",
-    "next": "14.2.35"
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.2",
+    "tsx": "^4.21.0",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/uuid": "^10.0.0",
     "eslint": "^8",
-    "eslint-config-next": "14.2.35"
+    "eslint-config-next": "14.2.35",
+    "ts-node": "^10.9.2",
+    "typescript": "^5"
   }
 }

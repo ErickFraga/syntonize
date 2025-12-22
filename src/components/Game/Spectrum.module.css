@@ -1,0 +1,197 @@
+.spectrum {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px 0;
+}
+
+.bar {
+    position: relative;
+    height: 60px;
+    border-radius: var(--radius-lg);
+    overflow: visible;
+    cursor: default;
+}
+
+.bar.interactive {
+    cursor: pointer;
+}
+
+.gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right,
+            var(--spectrum-left) 0%,
+            #8b5cf6 50%,
+            var(--spectrum-right) 100%);
+    border-radius: var(--radius-lg);
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.2),
+        0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Target zone */
+.targetZone {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    pointer-events: none;
+    z-index: 10;
+    animation: scaleIn 0.5s ease;
+}
+
+.targetBullseye,
+.targetClose,
+.targetAcceptable {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+}
+
+.targetAcceptable {
+    width: 80px;
+    height: 80px;
+    background: var(--spectrum-acceptable);
+    opacity: 0.4;
+}
+
+.targetClose {
+    width: 50px;
+    height: 50px;
+    background: var(--spectrum-close);
+    opacity: 0.6;
+}
+
+.targetBullseye {
+    width: 24px;
+    height: 24px;
+    background: var(--spectrum-bullseye);
+    box-shadow: 0 0 20px var(--spectrum-bullseye);
+}
+
+.targetCenter {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 0 10px white;
+}
+
+@keyframes scaleIn {
+    from {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+    }
+
+    to {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+}
+
+/* Player markers */
+.playerMarker {
+    position: absolute;
+    top: -30px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 5;
+    animation: dropIn 0.3s ease backwards;
+}
+
+@keyframes dropIn {
+    from {
+        transform: translateX(-50%) translateY(-20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+
+.markerDot {
+    width: 12px;
+    height: 12px;
+    background: var(--accent-secondary);
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.markerLabel {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+}
+
+/* Guess pointer */
+.guessPointer {
+    position: absolute;
+    bottom: -40px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 20;
+    transition: left 0.1s ease;
+}
+
+.guessPointer.dragging {
+    transition: none;
+}
+
+.pointerArrow {
+    font-size: 24px;
+    color: var(--accent-primary);
+    text-shadow: 0 0 10px var(--accent-primary);
+    animation: pulse 1s infinite;
+}
+
+.pointerLabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-primary);
+    background: var(--bg-tertiary);
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--accent-primary);
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-4px);
+    }
+}
+
+/* Scale */
+.scale {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
