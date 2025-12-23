@@ -148,7 +148,7 @@ export function createRoom(hostId: string, hostNickname: string, code: string): 
         roundHistory: [],
         seerOrder: [hostId],
         currentSeerIndex: 0,
-        targetScore: 100,
+        targetScore: 30,
         maxRounds: 0, // 0 = unlimited
         timePerClue: 60,
         timePerGuess: 30,

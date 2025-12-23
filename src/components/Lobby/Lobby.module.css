@@ -89,6 +89,12 @@
     font-weight: 600;
 }
 
+.playerActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .statusDot {
     width: 10px;
     height: 10px;
@@ -99,6 +105,25 @@
 .statusDot.online {
     background: var(--success);
     box-shadow: 0 0 8px var(--success);
+}
+
+.kickBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.kickBtn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--error);
 }
 
 .hostControls {

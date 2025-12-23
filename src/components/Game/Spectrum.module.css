@@ -36,7 +36,8 @@
     top: 50%;
     transform: translate(-50%, -50%);
     width: 80px;
-    height: 80px;
+    height: 100%;
+    overflow: hidden;
     pointer-events: none;
     z-index: 10;
     animation: scaleIn 0.5s ease;
@@ -144,12 +145,12 @@
 /* Guess pointer */
 .guessPointer {
     position: absolute;
-    bottom: -40px;
+    top: -20px;
+    bottom: -20px;
     transform: translateX(-50%);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
     z-index: 20;
     transition: left 0.1s ease;
 }
@@ -158,32 +159,42 @@
     transition: none;
 }
 
-.pointerArrow {
-    font-size: 24px;
-    color: var(--accent-primary);
-    text-shadow: 0 0 10px var(--accent-primary);
-    animation: pulse 1s infinite;
+.pointerBar {
+    width: 14px;
+    height: 100%;
+    background: var(--guess-color, var(--accent-primary));
+    border: 1px solid #ffffff88;
+    border-radius: 999px;
+    box-shadow:
+        0 0 12px rgba(255, 255, 255, 0.6),
+        0 0 20px var(--guess-color, var(--accent-primary)),
+        0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .pointerLabel {
+    position: absolute;
+    top: -24px;
     font-size: 12px;
     font-weight: 600;
     color: var(--accent-primary);
-    background: var(--bg-tertiary);
-    padding: 4px 12px;
-    border-radius: var(--radius-full);
-    border: 1px solid var(--accent-primary);
+    white-space: nowrap;
 }
 
 @keyframes pulse {
 
     0%,
     100% {
-        transform: translateY(0);
+        box-shadow:
+            0 0 12px rgba(255, 255, 255, 0.6),
+            0 0 20px var(--guess-color, var(--accent-primary)),
+            0 4px 12px rgba(0, 0, 0, 0.4);
     }
 
     50% {
-        transform: translateY(-4px);
+        box-shadow:
+            0 0 20px rgba(255, 255, 255, 0.8),
+            0 0 30px var(--guess-color, var(--accent-primary)),
+            0 4px 12px rgba(0, 0, 0, 0.4);
     }
 }
 

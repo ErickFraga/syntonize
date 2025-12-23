@@ -17,29 +17,21 @@
     z-index: 100;
 }
 
-.roomInfo {
+.brand {
     display: flex;
     align-items: center;
     gap: 8px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
-.roomCode {
-    font-weight: 600;
-    color: var(--text-secondary);
-}
-
-.copyBtn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-    padding: 4px 8px;
-    border-radius: var(--radius-sm);
-    transition: background var(--transition-fast);
-}
-
-.copyBtn:hover {
-    background: var(--bg-glass-hover);
+.brand svg {
+    color: var(--primary);
+    -webkit-text-fill-color: initial;
 }
 
 .leaveBtn {

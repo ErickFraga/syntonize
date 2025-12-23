@@ -55,6 +55,8 @@ export interface ServerToClientEvents {
     'room:state': (room: Room) => void
     'room:playerJoined': (player: Player) => void
     'room:playerLeft': (playerId: string) => void
+    'room:kicked': () => void
+    'room:restored': (data: { room: Room; sessionToken: string }) => void
     'room:error': (message: string) => void
     'game:roundStart': (round: GameRound) => void
     'game:clueGiven': (clue: string) => void
@@ -62,17 +64,22 @@ export interface ServerToClientEvents {
     'game:roundResult': (round: GameRound) => void
     'game:finished': (room: Room) => void
     'game:timerUpdate': (timer: TimerUpdate) => void
+    'game:playerReady': (playerId: string) => void
+    'game:allReady': () => void
 }
 
 export interface ClientToServerEvents {
-    'room:create': (nickname: string, callback: (result: { success: boolean; code?: string; error?: string }) => void) => void
-    'room:join': (code: string, nickname: string, callback: (result: { success: boolean; error?: string }) => void) => void
+    'room:create': (nickname: string, callback: (result: { success: boolean; code?: string; sessionToken?: string; error?: string }) => void) => void
+    'room:join': (code: string, nickname: string, callback: (result: { success: boolean; sessionToken?: string; error?: string }) => void) => void
     'room:leave': () => void
     'room:rejoin': (code: string, callback: (result: { success: boolean; error?: string }) => void) => void
+    'room:info': (code: string, callback: (result: { success: boolean; hostName?: string; playerCount?: number; error?: string }) => void) => void
+    'room:kickPlayer': (playerId: string, callback: (result: { success: boolean; error?: string }) => void) => void
     'game:start': () => void
     'game:giveClue': (clue: string) => void
     'game:submitGuess': (position: number) => void
     'game:requestState': () => void
+    'game:ready': () => void
 }
 
 // Scoring constants

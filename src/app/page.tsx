@@ -1,19 +1,42 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useGameState } from '@/hooks/useGameState'
 import styles from './page.module.css'
 
+// SVG Icons
+const SparklesIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+  </svg>
+)
+
+const RocketIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+    <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+    <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
+    <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+  </svg>
+)
+
 export default function Home() {
   const router = useRouter()
-  const { createRoom, joinRoom, error, isConnected } = useGameState()
+  const { createRoom, joinRoom, error, isConnected, sessionRestored } = useGameState()
 
   const [nickname, setNickname] = useState('')
   const [roomCode, setRoomCode] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [isJoining, setIsJoining] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
+
+  // Redirect to room if session was restored
+  useEffect(() => {
+    if (sessionRestored) {
+      router.push(`/room/${sessionRestored}`)
+    }
+  }, [sessionRestored, router])
 
   const handleCreateRoom = async () => {
     if (!nickname.trim()) {
@@ -83,11 +106,6 @@ export default function Home() {
         </div>
 
         <div className={`glass ${styles.card}`}>
-          <div className={styles.connectionStatus}>
-            <span className={`${styles.statusDot} ${isConnected ? styles.connected : ''}`} />
-            {isConnected ? 'Conectado' : 'Conectando...'}
-          </div>
-
           <div className={styles.form}>
             <div className={styles.inputGroup}>
               <label htmlFor="nickname">Seu Nickname</label>
@@ -107,7 +125,17 @@ export default function Home() {
               onClick={handleCreateRoom}
               disabled={!isConnected || isCreating}
             >
-              {isCreating ? 'Criando...' : '✨ Criar Sala'}
+              {isCreating ? (
+                <>
+                  <div className={styles.btnSpinner} />
+                  Criando...
+                </>
+              ) : (
+                <>
+                  <SparklesIcon />
+                  Criar Sala
+                </>
+              )}
             </button>
 
             <div className={styles.divider}>
@@ -132,7 +160,17 @@ export default function Home() {
               onClick={handleJoinRoom}
               disabled={!isConnected || isJoining}
             >
-              {isJoining ? 'Entrando...' : '🚀 Entrar na Sala'}
+              {isJoining ? (
+                <>
+                  <div className={styles.btnSpinner} />
+                  Entrando...
+                </>
+              ) : (
+                <>
+                  <RocketIcon />
+                  Entrar na Sala
+                </>
+              )}
             </button>
           </div>
         </div>

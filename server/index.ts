@@ -47,6 +47,24 @@ interface TimerState {
 }
 const timerStates = new Map<string, TimerState>()
 
+// Ready players for next round (per room)
+const readyPlayers = new Map<string, Set<string>>() // roomCode -> Set of playerIds
+const nextRoundTimeouts = new Map<string, NodeJS.Timeout>() // roomCode -> timeout
+
+// Session token mapping for reconnection
+interface SessionToken {
+    token: string
+    roomCode: string
+    nickname: string
+    createdAt: number
+}
+const sessionTokens = new Map<string, SessionToken>() // token -> session
+
+// Generate unique session token
+function generateSessionToken(): string {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 12)}`
+}
+
 app.prepare().then(() => {
     const httpServer = createServer((req, res) => {
         const parsedUrl = parse(req.url!, true)
@@ -61,10 +79,48 @@ app.prepare().then(() => {
     })
 
     io.on('connection', (socket) => {
-        console.log('Client connected:', socket.id)
+        const sessionToken = socket.handshake.auth?.sessionToken as string | undefined
+        console.log('Client connected:', socket.id, 'token:', sessionToken ? sessionToken.slice(0, 15) + '...' : 'none')
+
+        // Try to restore session from token
+        if (sessionToken) {
+            const session = sessionTokens.get(sessionToken)
+            if (session) {
+                const room = rooms.get(session.roomCode)
+                if (room) {
+                    // Find player by nickname (since socket ID changed)
+                    const existingPlayer = room.players.find(p => p.nickname === session.nickname)
+                    if (existingPlayer) {
+                        // Update player's socket ID
+                        const oldId = existingPlayer.id
+                        existingPlayer.id = socket.id
+                        existingPlayer.isConnected = true
+
+                        // Update mappings
+                        playerRooms.delete(oldId)
+                        playerRooms.set(socket.id, session.roomCode)
+
+                        socket.join(session.roomCode)
+
+                        // Emit restored event to trigger redirect
+                        socket.emit('room:restored', { room, sessionToken })
+                        io.to(session.roomCode).emit('room:state', room)
+
+                        // Resync timer if game is in progress
+                        resyncTimerForSocket(socket, session.roomCode)
+
+                        console.log(`Session restored for ${session.nickname} in room ${session.roomCode}`)
+                    }
+                } else {
+                    // Room no longer exists, clear session
+                    sessionTokens.delete(sessionToken)
+                    console.log(`Session expired - room ${session.roomCode} no longer exists`)
+                }
+            }
+        }
 
         // Create room
-        socket.on('room:create', (nickname: string, callback: (result: { success: boolean; code?: string; error?: string }) => void) => {
+        socket.on('room:create', (nickname: string, callback: (result: { success: boolean; code?: string; sessionToken?: string; error?: string }) => void) => {
             try {
                 const code = generateRoomCode(getExistingCodes())
                 const room = createRoom(socket.id, nickname, code)
@@ -73,7 +129,16 @@ app.prepare().then(() => {
                 playerRooms.set(socket.id, code)
                 socket.join(code)
 
-                callback({ success: true, code })
+                // Generate and save session token
+                const newToken = generateSessionToken()
+                sessionTokens.set(newToken, {
+                    token: newToken,
+                    roomCode: code,
+                    nickname,
+                    createdAt: Date.now()
+                })
+
+                callback({ success: true, code, sessionToken: newToken })
                 socket.emit('room:state', room)
 
                 console.log(`Room ${code} created by ${nickname}`)
@@ -83,8 +148,25 @@ app.prepare().then(() => {
             }
         })
 
+        // Get room info (for invite page)
+        socket.on('room:info', (code: string, callback: (result: { success: boolean; hostName?: string; playerCount?: number; error?: string }) => void) => {
+            const room = rooms.get(code.toUpperCase())
+
+            if (!room) {
+                callback({ success: false, error: 'Sala não encontrada' })
+                return
+            }
+
+            const host = room.players.find(p => p.isHost)
+            callback({
+                success: true,
+                hostName: host?.nickname || 'Alguém',
+                playerCount: room.players.length
+            })
+        })
+
         // Join room
-        socket.on('room:join', (code: string, nickname: string, callback: (result: { success: boolean; error?: string }) => void) => {
+        socket.on('room:join', (code: string, nickname: string, callback: (result: { success: boolean; sessionToken?: string; error?: string }) => void) => {
             const room = rooms.get(code.toUpperCase())
 
             if (!room) {
@@ -117,7 +199,16 @@ app.prepare().then(() => {
             playerRooms.set(socket.id, room.code)
             socket.join(room.code)
 
-            callback({ success: true })
+            // Generate and save session token
+            const newToken = generateSessionToken()
+            sessionTokens.set(newToken, {
+                token: newToken,
+                roomCode: room.code,
+                nickname,
+                createdAt: Date.now()
+            })
+
+            callback({ success: true, sessionToken: newToken })
             io.to(room.code).emit('room:state', room)
             socket.to(room.code).emit('room:playerJoined', player)
 
@@ -158,7 +249,59 @@ app.prepare().then(() => {
 
         // Leave room
         socket.on('room:leave', () => {
+            // Clear session token on intentional leave
+            if (sessionToken) {
+                sessionTokens.delete(sessionToken)
+            }
             handlePlayerLeave(socket.id)
+        })
+
+        // Host kicks a player
+        socket.on('room:kickPlayer', (targetPlayerId: string, callback: (result: { success: boolean; error?: string }) => void) => {
+            const roomCode = playerRooms.get(socket.id)
+            if (!roomCode) {
+                callback({ success: false, error: 'Sala não encontrada' })
+                return
+            }
+
+            const room = rooms.get(roomCode)
+            if (!room) {
+                callback({ success: false, error: 'Sala não encontrada' })
+                return
+            }
+
+            const hostPlayer = room.players.find(p => p.id === socket.id)
+            if (!hostPlayer?.isHost) {
+                callback({ success: false, error: 'Apenas o host pode remover jogadores' })
+                return
+            }
+
+            const targetPlayer = room.players.find(p => p.id === targetPlayerId)
+            if (!targetPlayer) {
+                callback({ success: false, error: 'Jogador não encontrado' })
+                return
+            }
+
+            if (targetPlayer.isHost) {
+                callback({ success: false, error: 'Não é possível remover o host' })
+                return
+            }
+
+            // Clear session token for kicked player
+            Array.from(sessionTokens.entries()).forEach(([token, session]) => {
+                if (session.roomCode === roomCode && session.nickname === targetPlayer.nickname) {
+                    sessionTokens.delete(token)
+                }
+            })
+
+            // Remove player
+            handlePlayerLeave(targetPlayerId)
+
+            // Notify the kicked player
+            io.to(targetPlayerId).emit('room:kicked')
+
+            callback({ success: true })
+            console.log(`Host kicked ${targetPlayer.nickname} from room ${roomCode}`)
         })
 
         // Start game
@@ -190,7 +333,7 @@ app.prepare().then(() => {
             io.to(room.code).emit('room:state', room)
             io.to(room.code).emit('game:roundStart', room.currentRound!)
 
-            startClueTimer(room.code)
+            // No timer for clue phase - unlimited time
 
             console.log(`Game started in room ${roomCode}`)
         })
@@ -259,6 +402,49 @@ app.prepare().then(() => {
             }
         })
 
+        // Player ready for next round
+        socket.on('game:ready', () => {
+            const roomCode = playerRooms.get(socket.id)
+            if (!roomCode) return
+
+            const room = rooms.get(roomCode)
+            if (!room || !room.currentRound || room.currentRound.phase !== 'revealed') return
+
+            // Initialize ready set for this room if needed
+            if (!readyPlayers.has(roomCode)) {
+                readyPlayers.set(roomCode, new Set())
+            }
+
+            const ready = readyPlayers.get(roomCode)!
+            ready.add(socket.id)
+
+            io.to(roomCode).emit('game:playerReady', socket.id)
+
+            // Check if all connected players are ready (including seer)
+            const connectedPlayers = room.players.filter(p => p.isConnected)
+            if (ready.size >= connectedPlayers.length) {
+                // Cancel the auto-advance timeout
+                const timeout = nextRoundTimeouts.get(roomCode)
+                if (timeout) {
+                    clearTimeout(timeout)
+                    nextRoundTimeouts.delete(roomCode)
+                }
+
+                // Clear ready state
+                readyPlayers.delete(roomCode)
+
+                // Emit all ready event
+                io.to(roomCode).emit('game:allReady')
+
+                // Start next round immediately
+                if (room.status === 'playing') {
+                    startNewRound(room)
+                    io.to(roomCode).emit('room:state', room)
+                    io.to(roomCode).emit('game:roundStart', room.currentRound)
+                }
+            }
+        })
+
         // Disconnect
         socket.on('disconnect', () => {
             console.log('Client disconnected:', socket.id)
@@ -278,19 +464,10 @@ app.prepare().then(() => {
                 player.isConnected = false
             }
 
-            // Notify others of disconnection
+            // Notify others of disconnection - player stays in room but marked offline
             io.to(room.code).emit('room:state', room)
 
-            // If room is waiting, remove player after delay
-            if (room.status === 'waiting') {
-                setTimeout(() => {
-                    const currentRoom = rooms.get(roomCode)
-                    const currentPlayer = currentRoom?.players.find(p => p.id === playerId)
-                    if (currentPlayer && !currentPlayer.isConnected) {
-                        handlePlayerLeave(playerId)
-                    }
-                }, 30000) // 30 second grace period
-            }
+            console.log(`${player?.nickname || 'Player'} is now offline in room ${roomCode}`)
         }
 
         function handlePlayerLeave(playerId: string) {
@@ -432,16 +609,24 @@ app.prepare().then(() => {
                 io.to(roomCode).emit('game:finished', room)
                 console.log(`Game finished in room ${roomCode}. Winner: ${room.winnerId}`)
             } else {
-                // Auto-start next round after 5 seconds
-                setTimeout(() => {
+                // Clear any previous ready state
+                readyPlayers.delete(roomCode)
+
+                // Auto-start next round after 20 seconds (or earlier if all players ready)
+                const timeout = setTimeout(() => {
+                    nextRoundTimeouts.delete(roomCode)
+                    readyPlayers.delete(roomCode)
+
                     const currentRoom = rooms.get(roomCode)
                     if (currentRoom && currentRoom.status === 'playing') {
                         startNewRound(currentRoom)
                         io.to(roomCode).emit('room:state', currentRoom)
                         io.to(roomCode).emit('game:roundStart', currentRoom.currentRound)
-                        startClueTimer(roomCode)
+                        // No timer for clue phase - unlimited time
                     }
-                }, 5000)
+                }, 20000)
+
+                nextRoundTimeouts.set(roomCode, timeout)
             }
         }
     })

@@ -5,38 +5,38 @@
   --bg-tertiary: #1a1a3a;
   --bg-glass: rgba(255, 255, 255, 0.05);
   --bg-glass-hover: rgba(255, 255, 255, 0.1);
-  
+
   --text-primary: #ffffff;
   --text-secondary: #a0a0c0;
   --text-muted: #606080;
-  
+
   --accent-primary: #7c3aed;
   --accent-secondary: #a855f7;
   --accent-gradient: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
-  
+
   --success: #22c55e;
   --warning: #f59e0b;
   --error: #ef4444;
-  
+
   /* Spectrum colors */
   --spectrum-left: #3b82f6;
   --spectrum-right: #ef4444;
   --spectrum-bullseye: #22c55e;
   --spectrum-close: #84cc16;
   --spectrum-acceptable: #eab308;
-  
+
   /* Shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.5);
-  
+
   /* Border radius */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 20px;
   --radius-full: 9999px;
-  
+
   /* Transitions */
   --transition-fast: 150ms ease;
   --transition-normal: 300ms ease;
@@ -59,7 +59,7 @@ body {
 }
 
 body {
-  background: 
+  background:
     radial-gradient(ellipse at 20% 0%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
     radial-gradient(ellipse at 80% 100%, rgba(236, 72, 153, 0.1) 0%, transparent 50%),
     var(--bg-primary);
@@ -150,6 +150,7 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -157,9 +158,12 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
@@ -170,6 +174,7 @@ body {
     opacity: 0;
     transform: translateX(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -181,6 +186,7 @@ body {
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -188,9 +194,12 @@ body {
 }
 
 @keyframes glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: var(--shadow-glow);
   }
+
   50% {
     box-shadow: 0 0 40px rgba(124, 58, 237, 0.8);
   }

@@ -11,8 +11,11 @@ interface GameProps {
     currentPlayer: Player | null
     isSeer: boolean
     timer: number
+    isReady: boolean
+    readyPlayers: Set<string>
     onGiveClue: (clue: string) => void
     onSubmitGuess: (position: number) => void
+    onSetReady: () => void
 }
 
 export default function Game({
@@ -20,8 +23,11 @@ export default function Game({
     currentPlayer,
     isSeer,
     timer,
+    isReady,
+    readyPlayers,
     onGiveClue,
-    onSubmitGuess
+    onSubmitGuess,
+    onSetReady
 }: GameProps) {
     const round = room.currentRound
     const [clue, setClue] = useState('')
@@ -183,8 +189,11 @@ export default function Game({
                                 .filter(p => round.scores[p.id] !== undefined)
                                 .sort((a, b) => (round.scores[b.id] || 0) - (round.scores[a.id] || 0))
                                 .map(player => (
-                                    <div key={player.id} className={styles.scoreItem}>
-                                        <span className={styles.playerScoreName}>{player.nickname}</span>
+                                    <div key={player.id} className={`${styles.scoreItem} ${readyPlayers.has(player.id) ? styles.ready : ''}`}>
+                                        <span className={styles.playerScoreName}>
+                                            {player.nickname}
+                                            {readyPlayers.has(player.id) && ' ✓'}
+                                        </span>
                                         <span className={styles.playerScoreLabel}>
                                             {getScoreLabel(round.scores[player.id] || 0)}
                                         </span>
@@ -193,6 +202,19 @@ export default function Game({
                                         </span>
                                     </div>
                                 ))}
+                        </div>
+
+                        <div className={styles.readySection}>
+                            {isReady ? (
+                                <p className={styles.readyStatus}>✓ Você está pronto! Aguardando outros...</p>
+                            ) : (
+                                <button className="btn btn-primary" onClick={onSetReady}>
+                                    Pronto para próxima rodada
+                                </button>
+                            )}
+                            <span className={styles.readyCount}>
+                                {readyPlayers.size}/{room.players.filter(p => p.isConnected).length} prontos
+                            </span>
                         </div>
                     </div>
                 )}

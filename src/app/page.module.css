@@ -34,29 +34,6 @@
   animation: scaleIn 0.5s ease;
 }
 
-.connectionStatus {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  justify-content: center;
-  margin-bottom: 24px;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.statusDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  transition: background var(--transition-normal);
-}
-
-.statusDot.connected {
-  background: var(--success);
-  box-shadow: 0 0 8px var(--success);
-}
-
 .form {
   display: flex;
   flex-direction: column;
@@ -73,6 +50,21 @@
   font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
+}
+
+.btnSpinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .divider {
