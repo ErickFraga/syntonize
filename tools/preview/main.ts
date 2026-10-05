@@ -12,6 +12,7 @@ import Results from '../../src/components/Results/Results.tsx'
 import TeamGame from '../../src/components/TeamGame/TeamGame.tsx'
 import TeamResults from '../../src/components/TeamResults/TeamResults.tsx'
 import Logo from '../../src/components/ui/Logo.tsx'
+import Dial from '../../src/components/Dial/Dial.tsx'
 
 const g = globalThis as any
 const css = readFileSync('../../src/app/globals.css', 'utf8') + '\n' + g.__cssRegistry.join('\n')
@@ -84,6 +85,26 @@ const teamRevealed = round('revealed', {
     teamPlay: teamPlay({ guess: 58, needle: 58, lockedBy: 'p3', side: 'right', sideBy: 'p2', zone: 3, points: [3, 1], sideCorrect: true }),
 })
 
+// Frozen frames of the screen opening on the reveal (--lid-angle is a preview-only hook in Dial.module.css).
+const revealedMarkers = [
+    { id: 'p2', name: 'Bia', colorIndex: 1, position: 60 },
+    { id: 'p3', name: 'Caio', colorIndex: 2, position: 71 },
+    { id: 'p4', name: 'Duda', colorIndex: 3, position: 30, dim: true },
+]
+const lidFrame = (angle: number, label: string, markers: typeof revealedMarkers = []) =>
+    jsx('section', {
+        className: 'card-solid',
+        style: { padding: '16px', '--lid-angle': `${angle}deg` },
+        children: [
+            jsx(Dial, { target: 62, covered: true, needle: null, markers }),
+            jsx('p', { style: { textAlign: 'center', margin: '8px 0 0', color: 'var(--text-2)' }, children: label }),
+        ],
+    })
+const lidFrames = jsx('div', {
+    style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', maxWidth: '1200px', margin: '0 auto' },
+    children: [lidFrame(0, 'tampa fechada (0°)'), lidFrame(45, '45°'), lidFrame(90, '90°'), lidFrame(140, '140°'), lidFrame(180, 'aberta (180°) + marcadores', revealedMarkers)],
+})
+
 const screens: Record<string, { node: any; mobile?: boolean }> = {
     home: { node: jsx(Home, {}) },
     join: { node: jsx(JoinPage, {}) },
@@ -135,6 +156,7 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
     'team-results': {
         node: page(jsx(TeamResults, { room: teamRoom(null, { teamScores: [11, 9], winnerTeam: 0, roundHistory: [teamRevealed, teamRevealed, teamRevealed] }), me: players[2], isHost: true, onPlayAgain: noop, onBackToLobby: noop, onLeave: noop })),
     },
+    'dial-lid': { node: page(lidFrames) },
     results: {
         node: page(jsx(Results, { room: room('finished', null, { roundHistory: [revealed, revealed, revealed], winnerId: 'p2' }), me: players[1], isHost: true, onPlayAgain: noop, onBackToLobby: noop, onLeave: noop })),
     },

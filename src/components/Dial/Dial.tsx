@@ -19,7 +19,11 @@ interface DialProps {
     target: number | null
     /** Draw the opaque "screen" over the face (target hidden from this viewer). */
     covered?: boolean
-    /** Animate the wedge in (reveal moment). */
+    /**
+     * Reveal moment. The screen already swings open by itself as soon as
+     * `covered` turns false (one render before this flag), and the markers wait
+     * for it; kept so callers can keep flagging the moment.
+     */
     revealing?: boolean
     /** Controlled needle position; null hides the needle. */
     needle: number | null
@@ -39,6 +43,9 @@ const R = 184
 const MARGIN_X = 30
 const MARGIN_Y = 46
 const VB = { x: -MARGIN_X, y: -MARGIN_Y, w: 400 + MARGIN_X * 2, h: 232 + MARGIN_Y }
+
+// Clip for the screen: it turns around the hub and disappears below the face line.
+const LID_CLIP = { x: VB.x, y: VB.y, w: VB.w, h: CY - VB.y }
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
 
@@ -92,7 +99,6 @@ function wedgeZones(target: number) {
 export default function Dial({
     target,
     covered = false,
-    revealing = false,
     needle,
     onNeedleChange,
     onNeedleCommit,
@@ -105,6 +111,11 @@ export default function Dial({
     const [dragging, setDragging] = useState(false)
     const needleRef = useRef(needle)
     needleRef.current = needle
+    // Remember whether this viewer had the screen, so it can swing open on the
+    // reveal even after `covered` turns false (the Seer never had one).
+    const hadCover = useRef(covered)
+    if (covered) hadCover.current = true
+    const lidOpening = !covered && hadCover.current
 
     const positionFromPointer = useCallback((clientX: number, clientY: number): number => {
         const svg = svgRef.current
@@ -194,6 +205,9 @@ export default function Dial({
                     <stop offset="0" stopColor="#2a2752" />
                     <stop offset="1" stopColor="#1a1838" />
                 </linearGradient>
+                <clipPath id="dialLidClip">
+                    <rect x={LID_CLIP.x} y={LID_CLIP.y} width={LID_CLIP.w} height={LID_CLIP.h} />
+                </clipPath>
                 <filter id="dialShadow" x="-10%" y="-10%" width="120%" height="130%">
                     <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#000" floodOpacity="0.45" />
                 </filter>
@@ -205,7 +219,7 @@ export default function Dial({
 
             {/* Target wedge: 2 | 3 | 4 | 3 | 2 */}
             {zones.length > 0 && (
-                <g className={`${styles.wedge} ${revealing ? styles.revealing : ''}`} style={{ transformOrigin: `${CX}px ${CY}px` }}>
+                <g className={styles.wedge}>
                     {zones.map((z, i) => {
                         const [tx, ty] = pt((z.from + z.to) / 2, R * 0.68)
                         return (
@@ -223,11 +237,13 @@ export default function Dial({
                 </g>
             )}
 
-            {/* Screen that hides the target */}
-            {covered && (
-                <g className={styles.cover}>
-                    <path d={FACE} fill="url(#dialCover)" />
-                    <text x={CX} y={CY - 78} className={styles.coverMark}>?</text>
+            {/* Screen that hides the target; on the reveal it turns around the hub and goes behind the face */}
+            {(covered || hadCover.current) && (
+                <g className={styles.cover} clipPath="url(#dialLidClip)">
+                    <g className={`${styles.lid} ${lidOpening ? styles.lidOpen : ''}`} style={{ transformOrigin: `${CX}px ${CY}px` }}>
+                        <path d={FACE} fill="url(#dialCover)" className={styles.lidFace} />
+                        <text x={CX} y={CY - 78} className={styles.coverMark}>?</text>
+                    </g>
                 </g>
             )}
 
@@ -252,7 +268,7 @@ export default function Dial({
                 const [ax, ay] = pt(m.position, R + 24)
                 const color = playerColor(m.colorIndex)
                 return (
-                    <g key={m.id} className={`${styles.marker} ${m.dim ? styles.markerDim : ''}`} style={{ animationDelay: `${0.15 + i * 0.08}s` }}>
+                    <g key={m.id} className={`${styles.marker} ${m.dim ? styles.markerDim : ''}`} style={{ animationDelay: `${(lidOpening ? 0.75 : 0.15) + i * 0.08}s` }}>
                         <line x1={CX} y1={CY} x2={x1.toFixed(1)} y2={y1.toFixed(1)} stroke={color} className={styles.markerLine} />
                         <circle cx={ax.toFixed(1)} cy={ay.toFixed(1)} r="14" fill={color} className={styles.markerDot} />
                         <text x={ax.toFixed(1)} y={ay.toFixed(1)} className={styles.markerText}>
