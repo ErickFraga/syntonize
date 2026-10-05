@@ -1,0 +1,52 @@
+# Testes, tipagem, lint e build do Next em cada PR e em cada push na main e na release.
+# O `next build` só rodava no deploy do Render; aqui ele quebra antes do merge.
+name: CI
+
+on:
+  push:
+    branches: [main, release]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Testes, tipagem, lint e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # metadataBase do layout (og:image). Só precisa ser uma URL válida no build
+      # da CI; em produção vem de RENDER_EXTERNAL_URL ou do SITE_URL real.
+      SITE_URL: https://syntonize.example.com
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Testes
+        run: npm test
+
+      - name: Tipagem do servidor
+        run: npm run typecheck:server
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      # Depois do build: o `next-env.d.ts` (tipos de CSS modules e imagens) é
+      # gerado pelo Next e fica fora do git.
+      - name: Tipagem do cliente
+        run: npm run typecheck

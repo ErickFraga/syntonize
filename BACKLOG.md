@@ -11,7 +11,6 @@ completo · **P3** polimento.
 | Branch | Item | Prioridade |
 |---|---|---|
 | `claude/feature-persistencia` | Persistência das salas (sobreviver a reinício/sono do Render) | P1 |
-| `claude/feature-ci` | CI no GitHub Actions + remoção das dependências não usadas | P1 |
 | `claude/feature-cartas-personalizadas` | Cartas personalizadas do anfitrião | P3 |
 
 Já na `main` (PRs #2–#6, #8, #10, #11): modo em equipes, internacionalização,
@@ -20,14 +19,13 @@ com o nome do anfitrião e quantos estão na sala), QR code no lobby, chat e
 reações, animação da tampa, design "Cozy, versão madura". A PR #12 corrige o
 `target` do `tsconfig.json` para o `next build` passar no Render.
 
-Ao fechar cada PR: rodar `npm test`, `npm run typecheck`, `npm run typecheck:server`
-e conferir o visual das telas novas contra os mocks do canvas.
+Ao fechar cada PR: CI verde (testes, tipagem, lint e build rodam sozinhos no
+GitHub Actions) e conferir o visual das telas novas contra os mocks do canvas.
 
 ## P1 — vale fazer antes de divulgar
 
-- [ ] **Validar o build e uma partida real no deploy.** O `next build` nunca rodou
-      nos ambientes de nuvem (registro npm bloqueado); o Render é o teste de verdade.
-      Falta também uma partida completa com 3+ celulares no deploy (livre e em equipes).
+- [ ] **Validar uma partida real no deploy.** O `next build` agora roda na CI de cada
+      PR (PR #13); falta uma partida completa com 3+ celulares no deploy (livre e em equipes).
 - [ ] **Conferir o visual das telas novas contra o canvas.** Lobby em equipes,
       "esquerda ou direita", chat no celular, QR e Open Graph; aplicar o que ficou de
       fora do design (botão Confirmar, Embaralhar times, pílula de idioma, rótulo
