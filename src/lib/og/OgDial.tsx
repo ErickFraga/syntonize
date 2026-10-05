@@ -5,23 +5,24 @@
 
 import { SCORING } from '../../../shared/types.ts'
 
-// Mirrors globals.css (dial tokens) and Dial.tsx.
+// Mirrors globals.css (tema Noturno) and Dial.module.css.
 export const OG_COLORS = {
-    bg: '#0d0b1f',
-    bg2: '#141231',
-    base: '#0f0e22',
-    faceTop: '#fbf6ec',
-    faceBottom: '#e9dfcc',
-    ink: '#1b1a2e',
-    zone2: '#ffd166',
-    zone3: '#ff9f1c',
-    zone4: '#ef476f',
-    needle: '#d62828',
-    teal: '#2ee6d6',
-    violet: '#8f7bff',
-    pink: '#ff5d8f',
-    text: '#f4f1ff',
-    text2: '#b9b4d9',
+    bg: '#271A3A',
+    surface: '#36254F',
+    line: '#140A22',
+    bezel: '#46315F',
+    face: '#FFFDF8',
+    ink: '#3B1F5C',
+    zone2: '#FFD96A',
+    zone3: '#FFBE7D',
+    zone4: '#FF6F9C',
+    needle: '#FF6F9C',
+    sky: '#8CCBFF',
+    pink: '#FF6F9C',
+    pink2: '#FFA8C5',
+    text: '#FFF1E0',
+    text2: '#CDB8EA',
+    onAccent: '#1B0F2B',
 } as const
 
 const CX = 200
@@ -100,21 +101,15 @@ export function OgDial({ width, target = 64, needle = 63 }: OgDialProps) {
     return (
         <div style={{ position: 'relative', display: 'flex', width, height }}>
             <svg width={width} height={height} viewBox={`${VB.x} ${VB.y} ${VB.w} ${VB.h}`} xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stopColor={OG_COLORS.faceTop} />
-                        <stop offset="1" stopColor={OG_COLORS.faceBottom} />
-                    </linearGradient>
-                </defs>
-                <path d={sectorPath(0, 100, R + 10)} fill={OG_COLORS.base} />
-                <path d={sectorPath(0, 100, R)} fill="url(#face)" />
+                <path d={sectorPath(0, 100, R + 10)} fill={OG_COLORS.bezel} stroke={OG_COLORS.line} strokeWidth={2} />
+                <path d={sectorPath(0, 100, R)} fill={OG_COLORS.face} />
                 {zones.map((z, i) => (
                     <path
                         key={i}
                         d={sectorPath(clamp(z.from, 0, 100), clamp(z.to, 0, 100), R)}
                         fill={ZONE_FILL[z.points]}
-                        stroke="rgba(27, 26, 46, 0.35)"
-                        strokeWidth={1}
+                        stroke={OG_COLORS.ink}
+                        strokeWidth={1.5}
                     />
                 ))}
                 {TICKS.map((t, i) => (
@@ -124,7 +119,8 @@ export function OgDial({ width, target = 64, needle = 63 }: OgDialProps) {
                         y1={t.y1.toFixed(1)}
                         x2={t.x2.toFixed(1)}
                         y2={t.y2.toFixed(1)}
-                        stroke={t.big ? OG_COLORS.ink : 'rgba(27, 26, 46, 0.45)'}
+                        stroke={OG_COLORS.ink}
+                        strokeOpacity={t.big ? 1 : 0.45}
                         strokeWidth={t.big ? 2.5 : 1.5}
                         strokeLinecap="round"
                     />
@@ -133,11 +129,11 @@ export function OgDial({ width, target = 64, needle = 63 }: OgDialProps) {
                 <path
                     d={`M${(CX - nx).toFixed(2)} ${(CY - ny).toFixed(2)} L${needleTip[0].toFixed(2)} ${needleTip[1].toFixed(2)} L${(CX + nx).toFixed(2)} ${(CY + ny).toFixed(2)} Z`}
                     fill={OG_COLORS.needle}
-                    stroke="#ffffff"
+                    stroke={OG_COLORS.face}
                     strokeWidth={1.5}
                     strokeLinejoin="round"
                 />
-                <circle cx={CX} cy={CY} r={16} fill={OG_COLORS.ink} stroke={OG_COLORS.teal} strokeWidth={3} />
+                <circle cx={CX} cy={CY} r={16} fill={OG_COLORS.ink} stroke={OG_COLORS.face} strokeWidth={2} />
                 <circle cx={CX} cy={CY} r={5} fill={OG_COLORS.needle} />
             </svg>
             {zones.map((z, i) => {

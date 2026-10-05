@@ -45,7 +45,7 @@ function joinHeadline(locale: Locale, host: string): { line1: string; line2: str
 /** `info` null means the room was not found (or the lookup failed). */
 export function inviteCopy(locale: Locale, info: PublicRoomInfo | null, code: string): OgCopy {
     const home = homeCopy(locale)
-    const codeChip = code ? translate(locale, 'room.codeIs', { code }) : home.chips[0]
+    const codeChip = code ? `${translate(locale, 'room.codeLabel')} ${code}` : home.chips[0]
     if (!info) return { ...home, chips: [codeChip, home.chips[1]] }
     const players = translate(locale, 'meta.joinPlayers', { count: info.playerCount })
     return {
