@@ -42,6 +42,7 @@ export const en: Dictionary = {
     'home.or': 'or',
     'home.joinTitle': 'Join a room',
     'home.joinText': 'Ask whoever created it for the 6-letter code.',
+    'home.joinQrHint': 'Or point your camera at the host’s QR code.',
     'home.codeAria': 'Room code',
     'home.codeLength': 'Room codes have 6 characters',
     'home.join': 'Join',
@@ -116,6 +117,7 @@ export const en: Dictionary = {
 
     'qr.label': 'Invite QR code for room {code}',
     'qr.expand': 'Enlarge QR code',
+    'qr.expandShort': 'Enlarge',
     'qr.expandLabel': 'Enlarge invite QR code for room {code}',
     'qr.dialog': 'Room QR code',
     'qr.close': 'Close',

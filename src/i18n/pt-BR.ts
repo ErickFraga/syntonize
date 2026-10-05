@@ -51,6 +51,7 @@ export const ptBR = {
     'home.or': 'ou',
     'home.joinTitle': 'Entrar em uma sala',
     'home.joinText': 'Pede o código de 6 letras para quem criou.',
+    'home.joinQrHint': 'Ou aponte a câmera para o QR code do anfitrião.',
     'home.codeAria': 'Código da sala',
     'home.codeLength': 'O código da sala tem 6 caracteres',
     'home.join': 'Entrar',
@@ -129,6 +130,7 @@ export const ptBR = {
     // ---------- QR code ----------
     'qr.label': 'QR code do convite para a sala {code}',
     'qr.expand': 'Ampliar QR code',
+    'qr.expandShort': 'Ampliar',
     'qr.expandLabel': 'Ampliar QR code do convite para a sala {code}',
     'qr.dialog': 'QR code da sala',
     'qr.close': 'Fechar',

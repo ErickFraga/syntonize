@@ -117,7 +117,7 @@ export default function Home() {
 
           <form className={styles.entryCard} onSubmit={handleJoin}>
             <h2>{t('home.joinTitle')}</h2>
-            <p className="muted">{t('home.joinText')}</p>
+            <p className="muted">{t('home.joinText')} {t('home.joinQrHint')}</p>
             <div className={styles.joinRow}>
               <input
                 className="input input-code"

@@ -89,7 +89,7 @@ export default function QrCode({ value, code, className }: QrCodeProps) {
         <>
             <button className={`${styles.thumb} ${className ?? ''}`} onClick={() => setOpen(true)} title={t('qr.expand')} aria-label={t('qr.expandLabel', { code })}>
                 <QrSvg value={value} />
-                <span className={styles.thumbHint}><ExpandIcon /></span>
+                <span className={styles.thumbHint} aria-hidden="true"><ExpandIcon size={11} /> {t('qr.expandShort')}</span>
             </button>
             {open && <QrFullscreen value={value} code={code} onClose={() => setOpen(false)} />}
         </>
