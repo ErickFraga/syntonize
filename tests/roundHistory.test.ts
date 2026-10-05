@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { makeHarness, makeRoom, startGame, type Harness } from './helpers.ts'
 import { LIMITS, TEAM_RULES, type Room, type GameRound, type RoundHistory } from '../shared/types.ts'
 import { roomViewFor, historyViewFor } from '../shared/gameLogic.ts'
+import { SNAPSHOT_VERSION, decodeSnapshot, encodeSnapshot } from '../server/roomStore.ts'
 
 // With fixedRng the target is always 50 (see helpers.ts).
 const TARGET = 50
@@ -246,5 +247,27 @@ describe('round history: skipped rounds', () => {
         assert.equal(h.manager.backToLobby(ids[0]).success, true)
         assert.deepEqual(room.skippedRounds, [])
         assert.deepEqual(room.roundHistory, [])
+    })
+})
+
+describe('round history: rooms saved before it existed', () => {
+    test('a snapshot without skippedRounds and roster loads with empty defaults and keeps playing', () => {
+        const { h, ids, room } = ffa()
+        const [ana, bia, caio] = ids
+        playFfaRound(h, room, { [bia]: 40, [caio]: 60 })
+        h.clock.advance(1000)
+        h.manager.forceNextRound(ana)
+
+        // What the persistence build wrote before this change: no skippedRounds, no roster.
+        const old = JSON.parse(encodeSnapshot({ version: SNAPSHOT_VERSION, savedAt: 0, room, sessions: [], timer: null }))
+        delete old.room.skippedRounds
+        for (const r of [...old.room.roundHistory, old.room.currentRound]) delete r.roster
+
+        const decoded = decodeSnapshot(JSON.stringify(old))!
+        assert.deepEqual(decoded.room.skippedRounds, [])
+        assert.deepEqual(decoded.room.roundHistory[0].roster, [])
+        assert.deepEqual(decoded.room.currentRound?.roster, [])
+        assert.equal(decoded.room.roundHistory[0].targetPosition, TARGET, 'the rest is kept')
+        assert.deepEqual(historyViewFor(decoded.room).skipped, [])
     })
 })
