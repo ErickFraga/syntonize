@@ -56,7 +56,7 @@ export default function TeamColumns({ room, me, isHost, onSetTeam, onKickPlayer 
                             {short && <li className={styles.placeholder}>{t('teams.needs', { min: TEAM_RULES.MIN_PER_TEAM })}</li>}
                         </ul>
                         {me && me.team !== team && (
-                            <button className="btn btn-secondary btn-sm btn-block" onClick={() => onSetTeam(me.id, team)}>
+                            <button className={`btn btn-secondary btn-sm btn-block ${styles.joinBtn}`} onClick={() => onSetTeam(me.id, team)}>
                                 {t('teams.join', { team: t(teamKey(team)) })}
                             </button>
                         )}
