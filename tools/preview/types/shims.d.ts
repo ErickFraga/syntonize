@@ -38,3 +38,6 @@ declare module 'next/headers' {
   export function cookies(): { get(name: string): { value: string } | undefined }
   export function headers(): { get(name: string): string | null }
 }
+declare module 'react-dom' {
+  export function createPortal(children: import('react').ReactNode, container: Element | DocumentFragment): import('react').ReactElement
+}

@@ -6,6 +6,7 @@
     "baseUrl": ".",
     "paths": {
       "react": ["./shims/react.ts"],
+      "react-dom": ["./shims/react-dom.ts"],
       "react/jsx-runtime": ["./shims/jsx-runtime.ts"],
       "react/jsx-dev-runtime": ["./shims/jsx-runtime.ts"],
       "next/navigation": ["./shims/next-navigation.ts"],
