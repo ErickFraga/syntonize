@@ -1,0 +1,20 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Deploy em um clique: https://render.com/deploy?repo=https://github.com/ErickFraga/syntonize
+#
+# O Syntonize precisa de um processo Node vivo (Socket.io + salas em memória),
+# por isso é um "web service" e deve rodar com uma única instância.
+services:
+  - type: web
+    name: syntonize
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Não definir NODE_ENV=production aqui: o build do Next precisa das
+      # devDependencies, e o script `npm start` já exporta NODE_ENV sozinho.

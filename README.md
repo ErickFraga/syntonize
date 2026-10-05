@@ -27,6 +27,23 @@ npm start          # PORT=3000 por padrão
 
 Requer Node **22.18+** (os testes usam o suporte nativo a TypeScript do Node).
 
+## Deploy de graça (Render)
+
+O projeto tem um [`render.yaml`](./render.yaml) pronto para o plano gratuito do Render:
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/ErickFraga/syntonize)
+
+Ou, no painel do Render: **New → Blueprint**, escolha este repositório e confirme.
+Cada push na branch configurada faz um deploy novo.
+
+O que esperar do plano free:
+
+- O serviço dorme após 15 minutos sem ninguém conectado e leva uns 50 s para
+  acordar no primeiro acesso. As salas ficam em memória, então somem quando
+  ele dorme (só acontece quando não há partida rolando).
+- Mantenha **uma única instância**: duas instâncias teriam salas diferentes.
+- A porta vem da variável `PORT`, que o Render define sozinho.
+
 ## Testes e checagens
 
 ```bash
