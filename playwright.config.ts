@@ -51,7 +51,7 @@ export default defineConfig<PrintOptions>({
         : {
               command: serverCommand,
               url: baseURL,
-              env: { PORT: String(PORT), REDIS_URL: '', NEXT_TELEMETRY_DISABLED: '1' },
+              env: { PORT: String(PORT), REDIS_URL: '', NEXT_TELEMETRY_DISABLED: '1', RATE_LIMIT_CREATE_ROOM: '1000' },
               reuseExistingServer: !process.env.CI,
               timeout: 180_000,
               stdout: 'ignore',

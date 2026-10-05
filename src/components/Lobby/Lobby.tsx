@@ -28,6 +28,7 @@ interface LobbyProps {
 const MODES: Array<{ value: GameMode; label: TranslationKey }> = [
     { value: 'ffa', label: 'lobby.modeFfa' },
     { value: 'teams', label: 'lobby.modeTeams' },
+    { value: 'coop', label: 'lobby.modeCoop' },
 ]
 
 const SETTING_LABELS: Record<NumericSetting, { title: TranslationKey; hint: TranslationKey; format: (v: number, t: Translator['t']) => string }> = {
@@ -43,6 +44,7 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
     const [copied, setCopied] = useState<'code' | 'link' | null>(null)
     const connected = room.players.filter(p => p.isConnected).length
     const teams = room.settings.mode === 'teams'
+    const coop = room.settings.mode === 'coop'
     const teamsReady = !teams || ([0, 1] as TeamId[]).every(t => room.players.filter(p => p.team === t && p.isConnected).length >= TEAM_RULES.MIN_PER_TEAM)
     // Guests get only the count (`roomViewFor`), the host gets the cards.
     const customCount = room.customCardCount ?? room.settings.customCards.length
@@ -161,7 +163,7 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
                         <div className={styles.setting}>
                             <div className={styles.settingText}>
                                 <span className={styles.settingTitle}>{t('lobby.mode')}</span>
-                                <span className={styles.settingHint}>{teams ? t('lobby.modeHintTeams') : t('lobby.modeHintFfa')}</span>
+                                <span className={styles.settingHint}>{teams ? t('lobby.modeHintTeams') : coop ? t('lobby.modeHintCoop') : t('lobby.modeHintFfa')}</span>
                             </div>
                             <div className={styles.segmented} role="radiogroup" aria-label={t('lobby.mode')}>
                                 {MODES.map(m => (
@@ -217,7 +219,7 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
                                 <div key={key} className={styles.setting}>
                                     <div className={styles.settingText}>
                                         <span className={styles.settingTitle}>{t(meta.title)}</span>
-                                        <span className={styles.settingHint}>{t(key === 'targetScore' && teams ? 'settings.targetScoreHintTeams' : meta.hint)}</span>
+                                        <span className={styles.settingHint}>{t(key === 'targetScore' && teams ? 'settings.targetScoreHintTeams' : coop && key === 'targetScore' ? 'settings.targetScoreHintCoop' : coop && key === 'maxRounds' ? 'settings.maxRoundsHintCoop' : meta.hint)}</span>
                                     </div>
                                     <div className={styles.segmented} role="radiogroup" aria-label={t(meta.title)}>
                                         {options.map(opt => (

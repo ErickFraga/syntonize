@@ -26,7 +26,8 @@ export interface Player {
 /** Team mode has exactly two teams: 0 and 1. */
 export type TeamId = 0 | 1
 
-export type GameMode = 'ffa' | 'teams'
+/** Free-for-all, two teams, or everyone together on one team (cooperative). */
+export type GameMode = 'ffa' | 'teams' | 'coop'
 
 /** Left/right call made by the opposing team in team mode. */
 export type Side = 'left' | 'right'
@@ -176,7 +177,7 @@ export interface RoomSettings {
     timePerGuess: number
     /** Seconds between the reveal and the next round (auto-advance). */
     timeBetweenRounds: number
-    /** Free-for-all (default) or two teams, as in the original Wavelength. */
+    /** Free-for-all (default), two teams (as in the original Wavelength) or cooperative. */
     mode: GameMode
     /** Team mode: a team that hits the bullseye while behind plays again. */
     catchUp: boolean
@@ -469,6 +470,16 @@ export const TEAM_RULES = {
 /** Team colors, taken from the player palette (sky and orange: distinct lightness). */
 export const TEAM_COLORS = ['#8CCBFF', '#FFBE7D'] as const
 
+/**
+ * Cooperative mode: everybody is on one team and plays a fixed number of
+ * rounds against a shared goal (the physical game's cooperative variant).
+ * The max score is 4 per round, so the default goal is half of 7 rounds x 4.
+ */
+export const COOP_DEFAULT_TARGET = 14
+export const COOP_TARGET_OPTIONS = [10, 14, 18, 22] as const
+export const COOP_DEFAULT_ROUNDS = 7
+export const COOP_ROUNDS_OPTIONS = [5, 7, 10] as const
+
 /** Numeric settings and their allowed values (free-for-all). */
 export const SETTINGS_OPTIONS = {
     targetScore: [10, 15, 20, 30],
@@ -483,6 +494,8 @@ export type NumericSetting = keyof typeof SETTINGS_OPTIONS
 /** Allowed values of a numeric setting for a game mode. */
 export function settingOptionsFor(mode: GameMode, key: NumericSetting): readonly number[] {
     if (key === 'targetScore' && mode === 'teams') return TEAM_TARGET_OPTIONS
+    if (key === 'targetScore' && mode === 'coop') return COOP_TARGET_OPTIONS
+    if (key === 'maxRounds' && mode === 'coop') return COOP_ROUNDS_OPTIONS
     return SETTINGS_OPTIONS[key]
 }
 

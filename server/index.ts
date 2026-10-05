@@ -48,7 +48,9 @@ async function loadRooms(manager: RoomManager, store: RoomStore): Promise<void> 
 // How many proxies in front of us append to X-Forwarded-For (Render's load balancer: 1).
 const trustedHops = parseInt(process.env.TRUSTED_PROXY_HOPS || '1', 10)
 
-const createLimiter = new RateLimiter(DEFAULT_LIMITS.createRoom)
+// RATE_LIMIT_CREATE_ROOM sobe o teto de salas por IP (o teste de fluxo cria dezenas a partir de 127.0.0.1).
+const createLimit = parseInt(process.env.RATE_LIMIT_CREATE_ROOM || '', 10)
+const createLimiter = new RateLimiter(createLimit > 0 ? { ...DEFAULT_LIMITS.createRoom, limit: createLimit } : DEFAULT_LIMITS.createRoom)
 const joinLimiter = new RateLimiter(DEFAULT_LIMITS.joinRoom)
 const lookupLimiter = new RateLimiter(DEFAULT_LIMITS.roomLookup)
 // Joins per socket too, so one connection cannot spam `room:join` between IP checks.
