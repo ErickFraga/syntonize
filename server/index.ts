@@ -125,6 +125,7 @@ app.prepare().then(async () => {
             }
             if (restored) {
                 bind(socket, restored.playerId, restored.room.code)
+                // Sanitized like every state: the raw room carries the target and everyone's guesses.
                 socket.emit('room:restored', { room: roomViewFor(restored.room, restored.playerId), playerId: restored.playerId })
                 manager.sendState(restored.playerId)
             } else if (token) {

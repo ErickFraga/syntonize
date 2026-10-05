@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { jsx } from './shims/jsx-runtime.ts'
 import { renderToString } from './render.ts'
-import type { Room, Player, GameRound, ChatMessage } from '../../shared/types.ts'
+import type { Room, Player, GameRound, ChatMessage, SkippedRound } from '../../shared/types.ts'
 import { DEFAULT_SETTINGS } from '../../shared/types.ts'
 
 import Home from '../../src/app/page.tsx'
@@ -37,13 +37,13 @@ const card = { id: 34, pack: 'classic' as const, leftConcept: 'Comida de crianç
 function round(phase: GameRound['phase'], extra: Partial<GameRound> = {}): GameRound {
     return {
         roundNumber: 4, seerId: 'p1', spectrumCard: card, targetPosition: 62, clue: null, phase,
-        guesses: {}, scores: {}, zones: {}, closestIds: [], startedAt: 1000, clueAt: null, revealedAt: null, teamPlay: null, ...extra,
+        guesses: {}, scores: {}, zones: {}, closestIds: [], startedAt: 1000, clueAt: null, revealedAt: null, teamPlay: null, roster: [], ...extra,
     }
 }
 
 function room(status: Room['status'], currentRound: GameRound | null, extra: Partial<Room> = {}): Room {
     return {
-        code: 'K7PX2Q', players, status, settings: { ...DEFAULT_SETTINGS }, currentRound, roundHistory: [], seerOrder: players.map(p => p.id),
+        code: 'K7PX2Q', players, status, settings: { ...DEFAULT_SETTINGS }, currentRound, roundHistory: [], skippedRounds: [], seerOrder: players.map(p => p.id),
         currentSeerIndex: 0, usedCardIds: [], winnerId: null, nextRoundAt: null, createdAt: 0,
         teamScores: [0, 0], teamSeerIndex: [0, 0], nextTeam: 0, winnerTeam: null, chat: [], ...extra,
     }
@@ -129,6 +129,39 @@ const chatProps = { messages: chatMessages, meId: 'p2', playerCount: players.len
 const guessingRoom = room('playing', round('guessing', { clue: 'Nuggets de salmão', clueAt: 2000, targetPosition: null }), { players: players.map(p => p.id === 'p3' ? { ...p, hasGuessed: true } : p) })
 const guessingProps = { room: guessingRoom, me: players[1], isHost: false, isSeer: false, secondsLeft: 27, timerPhase: 'guess', onGiveClue: ok, onSubmitGuess: ok, onSetReady: noop, onNextRound: noop, onSkipRound: noop }
 
+// Round history: a few distinct past rounds (one with a player who already left) and a skipped one.
+const rosterOf = (...ps: Player[]) => ps.map(p => ({ id: p.id, nickname: p.nickname, colorIndex: p.colorIndex, team: p.team }))
+const gone = player('p9', 'Fê', 5)
+const historyRounds: GameRound[] = [
+    round('revealed', {
+        roundNumber: 1, seerId: 'p2', startedAt: 100, revealedAt: 200, targetPosition: 27, clue: 'Café sem açúcar',
+        spectrumCard: { id: 3, pack: 'classic', leftConcept: 'Amargo', rightConcept: 'Doce' },
+        guesses: { p1: 25, p3: 40, p5: 30, p9: 70 }, zones: { p1: 4, p3: 2, p5: 4, p9: 0 },
+        scores: { p1: 5, p3: 2, p5: 4, p9: 0, p2: 3 }, closestIds: ['p1'], roster: rosterOf(players[0], players[1], players[2], players[4], gone),
+    }),
+    round('revealed', {
+        roundNumber: 2, seerId: 'p3', startedAt: 300, revealedAt: 400, targetPosition: 80, clue: 'Pinguim',
+        spectrumCard: { id: 7, pack: 'classic', leftConcept: 'Quente', rightConcept: 'Frio' },
+        guesses: { p1: 66, p2: 79, p5: 88 }, zones: { p1: 0, p2: 4, p5: 3 },
+        scores: { p1: 0, p2: 5, p5: 3, p3: 3 }, closestIds: ['p2'], roster: rosterOf(players[0], players[1], players[2], players[4]),
+    }),
+    { ...revealed, roundNumber: 3, startedAt: 700, revealedAt: 800, roster: rosterOf(...players) },
+]
+const historySkipped: SkippedRound[] = [{
+    roundNumber: 3, seer: rosterOf(players[3])[0], spectrumCard: { id: 9, pack: 'classic', leftConcept: 'Fácil', rightConcept: 'Difícil' },
+    team: null, reason: 'seer_disconnected', startedAt: 500, skippedAt: 600,
+}]
+const historyRoom = room('playing', revealed, { roundHistory: historyRounds, skippedRounds: historySkipped })
+const teamHistory: GameRound[] = [
+    round('revealed', {
+        roundNumber: 1, seerId: 'p2', startedAt: 100, revealedAt: 200, targetPosition: 31, clue: 'Sopa de ontem',
+        spectrumCard: { id: 3, pack: 'classic', leftConcept: 'Amargo', rightConcept: 'Doce' },
+        teamPlay: teamPlay({ team: 1, guess: 44, needle: 44, lockedBy: 'p4', side: 'left', sideBy: 'p1', zone: 2, points: [1, 2], sideCorrect: true }),
+        roster: rosterOf(players[1], players[3], players[0]),
+    }),
+    { ...teamRevealed, roundNumber: 2, startedAt: 300, revealedAt: 400, roster: rosterOf(players[0], players[2], players[1]) },
+]
+
 const screens: Record<string, { node: any; mobile?: boolean }> = {
     home: { node: jsx(Home, {}) },
     join: { node: jsx(JoinPage, {}) },
@@ -213,6 +246,21 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
             jsx(Chat, { ...chatProps, defaultOpen: true }),
         ]),
     },
+    'game-history': {
+        node: page(jsx(Game, {
+            room: historyRoom, me: players[1], isHost: false, isSeer: false, secondsLeft: 11, timerPhase: 'next',
+            onGiveClue: ok, onSubmitGuess: ok, onSetReady: noop, onNextRound: noop, onSkipRound: noop, historyOpen: true,
+        })),
+    },
+    'game-history-empty': {
+        node: page(jsx(Game, { ...guessingProps, room: { ...guessingRoom, roundHistory: [], skippedRounds: [] }, historyOpen: true })),
+    },
+    'team-history': {
+        node: page(jsx(TeamGame, { ...teamGameProps, room: teamRoom(teamRevealed, { teamScores: [6, 4], roundHistory: teamHistory, skippedRounds: [{ ...historySkipped[0], team: 0, reason: 'clue_timeout' }] }), me: players[1], secondsLeft: 11, timerPhase: 'next', historyOpen: true })),
+    },
+    'results-history': {
+        node: page(jsx(Results, { room: room('finished', null, { roundHistory: historyRounds, skippedRounds: historySkipped, winnerId: 'p2' }), me: players[1], isHost: true, onPlayAgain: noop, onBackToLobby: noop, onLeave: noop, historyOpen: true })),
+    },
     results: {
         node: page(jsx(Results, { room: room('finished', null, { roundHistory: [revealed, revealed, revealed], winnerId: 'p2' }), me: players[1], isHost: true, onPlayAgain: noop, onBackToLobby: noop, onLeave: noop })),
     },
@@ -222,11 +270,11 @@ g.__params = { code: 'K7PX2Q' }
 mkdirSync(`${import.meta.dir}/out`, { recursive: true })
 
 // Same screens in other interface languages (the shim's useContext reads the context default).
-for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-revealed', 'lobby-qr', 'game-chat-open']], ['es', ['lobby-guest', 'team-side-guess', 'results', 'lobby-custom']]] as const) {
+for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-revealed', 'lobby-qr', 'game-chat-open', 'game-history']], ['es', ['lobby-guest', 'team-side-guess', 'results', 'lobby-custom', 'team-history']]] as const) {
     for (const name of names) screens[`${name}-${locale}`] = { ...screens[name], locale }
 }
 
-const LIGHT = new Set(['home', 'lobby', 'lobby-custom', 'lobby-custom-guest', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid', 'lobby-qr', 'game-chat', 'game-chat-open'])
+const LIGHT = new Set(['home', 'lobby', 'lobby-custom', 'lobby-custom-guest', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid', 'lobby-qr', 'game-chat', 'game-chat-open', 'game-history', 'team-history', 'results-history'])
 for (const [name, screen] of Object.entries(screens) as Array<[string, { node: any; locale?: 'en' | 'es' }]>) {
     ;(I18nContext as any)._value = makeTranslator(screen.locale ?? 'pt-BR')
     const body = renderToString(screen.node)

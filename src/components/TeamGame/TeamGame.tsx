@@ -9,6 +9,7 @@ import Avatar from '@/components/ui/Avatar'
 import CountdownRing from '@/components/ui/CountdownRing'
 import { EyeIcon, LockIcon, CheckIcon, SkipIcon, LightbulbIcon, ChevronRightIcon, ChevronLeftIcon, SparklesIcon, UsersIcon } from '@/components/ui/Icons'
 import TeamScoreboard from './TeamScoreboard'
+import RoundHistory from '@/components/RoundHistory/RoundHistory'
 import { teamColor, teamKey } from '@/lib/teams'
 import { useT } from '@/i18n/I18nProvider'
 import { sounds } from '@/lib/sounds'
@@ -32,6 +33,8 @@ interface TeamGameProps {
     onSkipRound: () => void
     /** Chat panel, rendered under the scoreboard. */
     chat?: React.ReactNode
+    /** Starts with the round history open (static preview). */
+    historyOpen?: boolean
 }
 
 const ZONE_LABEL = { 4: 'zone.4', 3: 'zone.3', 2: 'zone.2', 0: 'zone.0' } as const
@@ -54,6 +57,7 @@ export default function TeamGame({
     onNextRound,
     onSkipRound,
     chat,
+    historyOpen = false,
 }: TeamGameProps) {
     const { t, rich, msg } = useT()
     const round = room.currentRound!
@@ -157,9 +161,12 @@ export default function TeamGame({
                             <strong>{seer?.nickname ?? '…'}{isSeer ? t('common.youSuffix') : ''}</strong>
                         </span>
                     </div>
-                    {secondsLeft !== null && timerPhase && timerPhase !== 'next' && (
-                        <CountdownRing seconds={secondsLeft} total={timerTotal} label={timerLabel} />
-                    )}
+                    <div className={gameStyles.roundTools}>
+                        <RoundHistory room={room} meId={me?.id ?? null} defaultOpen={historyOpen} />
+                        {secondsLeft !== null && timerPhase && timerPhase !== 'next' && (
+                            <CountdownRing seconds={secondsLeft} total={timerTotal} label={timerLabel} />
+                        )}
+                    </div>
                 </div>
 
                 <section className={`card-solid ${gameStyles.device}`} key={round.startedAt}>

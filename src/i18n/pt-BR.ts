@@ -315,6 +315,25 @@ export const ptBR = {
     'chat.system.finishedPlayer': 'Fim de jogo! {name} venceu',
     'chat.system.finishedTeam': 'Fim de jogo! {team} venceu',
 
+    // ---------- round history ----------
+    'history.open': 'Histórico',
+    'history.openLabel': { one: 'Abrir histórico ({count} rodada)', other: 'Abrir histórico ({count} rodadas)' },
+    'history.openResults': 'Ver rodadas',
+    'history.title': 'Histórico da partida',
+    'history.summary': { one: '{count} rodada revelada', other: '{count} rodadas reveladas' },
+    'history.close': 'Fechar histórico',
+    'history.empty': 'Nenhuma rodada revelada ainda. Cada rodada aparece aqui assim que a cunha é revelada.',
+    'history.dial': 'Rodada {n}: alvo em {target}',
+    'history.teamGuess': 'palpite do time em {n}',
+    'history.gone': 'saiu',
+    'history.someone': 'alguém',
+    'history.skipped': 'Pulada',
+    'history.skip.host': 'O anfitrião pulou a rodada',
+    'history.skip.clue_timeout': 'Acabou o tempo da dica de {name}',
+    'history.skip.seer_left': '{name} saiu da sala antes da dica',
+    'history.skip.seer_kicked': '{name} foi removido antes da dica',
+    'history.skip.seer_disconnected': '{name} caiu antes de dar a dica',
+
     // ---------- server messages (codes from shared/types.ts) ----------
     'msg.nickname_empty': 'Digite um apelido',
     'msg.nickname_too_long': 'Apelido com no máximo {max} letras',
