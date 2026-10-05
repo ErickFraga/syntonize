@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Room, GameRound, SkippedRound, RoundPlayer, TeamId } from '@/types/game'
 import Dial, { type DialMarker } from '@/components/Dial/Dial'
 import Avatar from '@/components/ui/Avatar'
@@ -93,6 +94,34 @@ export default function RoundHistory({ room, meId, variant = 'bar', defaultOpen 
 
     const entries = entriesOf(room)
 
+    // Rendered on <body>: an ancestor with a transform, filter or animated opacity would
+    // otherwise trap the fixed layer in its stacking context (parts of the page over the backdrop).
+    const layer = open && (
+        <div className={styles.layer}>
+            <div className={styles.backdrop} onClick={() => setOpen(false)} aria-hidden="true" />
+            <section ref={panelRef} className={styles.panel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+                <span className={styles.grabber} aria-hidden="true" />
+                <header className={styles.head}>
+                    <div className={styles.headText}>
+                        <h2 id={titleId} className={styles.title}><HistoryIcon size={20} /> {t('history.title')}</h2>
+                        <span className={styles.summary}>{t('history.summary', { count })}</span>
+                    </div>
+                    <button ref={closeRef} type="button" className={`btn-icon ${styles.close}`} onClick={() => setOpen(false)} aria-label={t('history.close')}>
+                        <XIcon size={18} />
+                    </button>
+                </header>
+
+                {/* Focusable so the list scrolls with the keyboard too. */}
+                <div className={styles.list} tabIndex={0}>
+                    {entries.length === 0 && <p className={styles.empty}>{t('history.empty')}</p>}
+                    {entries.map(entry => entry.kind === 'round'
+                        ? <RoundEntry key={`r${entry.round.startedAt}`} round={entry.round} room={room} meId={meId} />
+                        : <SkippedEntry key={`s${entry.skipped.startedAt}`} skipped={entry.skipped} />)}
+                </div>
+            </section>
+        </div>
+    )
+
     return (
         <>
             <button
@@ -108,31 +137,7 @@ export default function RoundHistory({ room, meId, variant = 'bar', defaultOpen 
                 {variant === 'bar' && count > 0 && <span className={styles.count} aria-hidden="true">{count}</span>}
             </button>
 
-            {open && (
-                <div className={styles.layer}>
-                    <div className={styles.backdrop} onClick={() => setOpen(false)} aria-hidden="true" />
-                    <section ref={panelRef} className={styles.panel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
-                        <span className={styles.grabber} aria-hidden="true" />
-                        <header className={styles.head}>
-                            <div className={styles.headText}>
-                                <h2 id={titleId} className={styles.title}><HistoryIcon size={20} /> {t('history.title')}</h2>
-                                <span className={styles.summary}>{t('history.summary', { count })}</span>
-                            </div>
-                            <button ref={closeRef} type="button" className={`btn-icon ${styles.close}`} onClick={() => setOpen(false)} aria-label={t('history.close')}>
-                                <XIcon size={18} />
-                            </button>
-                        </header>
-
-                        {/* Focusable so the list scrolls with the keyboard too. */}
-                        <div className={styles.list} tabIndex={0}>
-                            {entries.length === 0 && <p className={styles.empty}>{t('history.empty')}</p>}
-                            {entries.map(entry => entry.kind === 'round'
-                                ? <RoundEntry key={`r${entry.round.startedAt}`} round={entry.round} room={room} meId={meId} />
-                                : <SkippedEntry key={`s${entry.skipped.startedAt}`} skipped={entry.skipped} />)}
-                        </div>
-                    </section>
-                </div>
-            )}
+            {layer && (typeof document === 'undefined' ? layer : createPortal(layer, document.body))}
         </>
     )
 }

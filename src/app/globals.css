@@ -577,7 +577,9 @@ h4 {
 }
 
 .anim-fade-in {
-  animation: fadeIn var(--t-med) ease both;
+  /* backwards too: an opacity animation left applied keeps a stacking context, which trapped
+     the round history overlay under the header and the cards painted after the round bar. */
+  animation: fadeIn var(--t-med) ease backwards;
 }
 
 .anim-pop {
