@@ -1,0 +1,120 @@
+/* The QR itself is always black on white: scanners need the contrast, whatever the theme. */
+.svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    color: #000;
+    border-radius: var(--radius-sm);
+}
+
+.svgBg {
+    fill: #fff;
+}
+
+/* Thumbnail next to the room code */
+.thumb {
+    position: relative;
+    display: block;
+    width: 96px;
+    height: 100%;
+    min-height: 96px;
+    padding: 0;
+    background: transparent;
+    border-radius: var(--radius-md);
+    transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast);
+}
+
+.thumb .svg {
+    height: 100%;
+    border-radius: var(--radius-md);
+}
+
+.thumb:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.thumbHint {
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    color: var(--text);
+    background: var(--surface-solid);
+    border: 1px solid var(--line-2);
+}
+
+/* Full screen */
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    cursor: zoom-out;
+    animation: qrFade var(--t-med) var(--ease-out);
+}
+
+.close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+}
+
+.big {
+    width: min(78vmin, 560px);
+    padding: 12px;
+    background: #fff;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+.bigCaption {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+}
+
+.bigLabel {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-2);
+}
+
+.bigCode {
+    font-family: var(--font-display);
+    font-size: clamp(36px, 8vmin, 64px);
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    padding-left: 0.28em; /* balances the trailing letter-spacing */
+    line-height: 1;
+    color: var(--text);
+}
+
+@keyframes qrFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@media (max-width: 480px) {
+    .thumb {
+        width: 84px;
+        min-height: 84px;
+    }
+}

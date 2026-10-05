@@ -77,7 +77,7 @@ Capturas (renderização estática dos componentes, 1280 px e 390 px) em `docs/s
 | ✅ | **Acessibilidade básica** | Dial é `role="slider"` com `aria-valuenow`; foco visível; grupos de rádio nas regras; `aria-live` nos toasts. |
 | ✅ | **Metadados** | Título, descrição, Open Graph e `theme-color` em português. |
 | ⬜ P1 | **Imagem Open Graph** | Gerar uma `opengraph-image` com o dial para o link ficar bonito no WhatsApp. |
-| ⬜ P1 | **QR code no lobby** | Para quem está na mesma sala física apontar o celular. (`qrcode` npm ou SVG próprio.) |
+| ✅ | **QR code no lobby** | Gerador próprio em `src/lib/qrcode.ts` (sem dependência): modo byte UTF-8, correção M, versões 1–10 escolhidas pelo tamanho, Reed-Solomon em GF(256) com intercalação de blocos, formato BCH, informação de versão (≥ 7) e máscara pelas 4 regras de penalidade; vira um único `path` SVG. No lobby, ao lado do código, aponta para o link de convite; clicar amplia em tela cheia (QR grande + código, fecha com Esc ou clique) para a galera na mesma sala apontar o celular. Testes em `tests/qrcode.test.ts` com valores de referência publicados e um decodificador independente que lê a matriz de volta. |
 | ⬜ P2 | **Histórico de rodadas na partida** | Guardamos `roundHistory`; dá para abrir um painel com todas as cartas/dicas/resultados da partida. |
 | ⬜ P2 | **Chat ou reações** | Emojis rápidos durante o palpite ("🔥", "😂") dão vida ao jogo remoto. |
 | ⬜ P2 | **Modo espectador** | Entrar numa sala só para assistir (sem participar da rotação). |

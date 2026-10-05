@@ -12,6 +12,7 @@ import Results from '../../src/components/Results/Results.tsx'
 import TeamGame from '../../src/components/TeamGame/TeamGame.tsx'
 import TeamResults from '../../src/components/TeamResults/TeamResults.tsx'
 import Logo from '../../src/components/ui/Logo.tsx'
+import { QrFullscreen } from '../../src/components/QrCode/QrCode.tsx'
 
 const g = globalThis as any
 const css = readFileSync('../../src/app/globals.css', 'utf8') + '\n' + g.__cssRegistry.join('\n')
@@ -89,6 +90,12 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
     join: { node: jsx(JoinPage, {}) },
     lobby: {
         node: page(jsx(Lobby, { room: room('waiting', null), me: players[0], isHost: true, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
+    },
+    'lobby-qr': {
+        node: jsx('div', { children: [
+            page(jsx(Lobby, { room: room('waiting', null), me: players[0], isHost: true, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
+            jsx(QrFullscreen, { value: 'https://syntonize.onrender.com/join/K7PX2Q', code: 'K7PX2Q', onClose: noop }),
+        ] }),
     },
     'lobby-guest': {
         node: page(jsx(Lobby, { room: room('waiting', null), me: players[1], isHost: false, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),

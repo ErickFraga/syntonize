@@ -5,6 +5,7 @@ import type { Room, Player, RoomSettings, TeamId, NumericSetting, GameMode } fro
 import { SETTINGS_OPTIONS, LIMITS, TEAM_RULES, settingOptionsFor } from '@/types/game'
 import Avatar from '@/components/ui/Avatar'
 import TeamColumns from '@/components/TeamColumns/TeamColumns'
+import QrCode from '@/components/QrCode/QrCode'
 import { CopyIcon, CheckIcon, ShareIcon, PlayIcon, CrownIcon, XIcon, UsersIcon, SettingsIcon } from '@/components/ui/Icons'
 import styles from './Lobby.module.css'
 
@@ -80,6 +81,7 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
                         <span className={styles.codeValue}>{room.code}</span>
                         <span className={styles.codeCopy}>{copied === 'code' ? <CheckIcon size={16} /> : <CopyIcon size={16} />}</span>
                     </button>
+                    <QrCode value={inviteUrl} code={room.code} className={styles.qr} />
                     <div className={styles.inviteActions}>
                         <button className="btn btn-secondary" onClick={() => copy(inviteUrl, 'link')}>
                             {copied === 'link' ? <CheckIcon /> : <CopyIcon />}
