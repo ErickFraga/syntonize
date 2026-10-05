@@ -56,6 +56,8 @@ export function setMuted(value: boolean): void {
 export const sounds = {
     tick: () => play([{ freq: 880, at: 0, dur: 0.06, type: 'square', gain: 0.03 }]),
     lock: () => play([{ freq: 520, at: 0, dur: 0.08 }, { freq: 780, at: 0.07, dur: 0.12 }]),
+    /** Soft blip for a chat message or reaction from someone else. */
+    chat: () => play([{ freq: 988, at: 0, dur: 0.05, gain: 0.04 }, { freq: 1319, at: 0.05, dur: 0.08, gain: 0.03 }]),
     clue: () => play([{ freq: 660, at: 0, dur: 0.1 }, { freq: 880, at: 0.1, dur: 0.16 }]),
     roundStart: () => play([{ freq: 440, at: 0, dur: 0.1 }, { freq: 554, at: 0.1, dur: 0.1 }, { freq: 659, at: 0.2, dur: 0.18 }]),
     reveal: () => play([

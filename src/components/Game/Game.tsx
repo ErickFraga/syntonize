@@ -23,6 +23,8 @@ interface GameProps {
     onSetReady: () => void
     onNextRound: () => void
     onSkipRound: () => void
+    /** Chat panel, rendered under the scoreboard. */
+    chat?: React.ReactNode
 }
 
 const ZONE_LABEL: Record<number, string> = {
@@ -44,6 +46,7 @@ export default function Game({
     onSetReady,
     onNextRound,
     onSkipRound,
+    chat,
 }: GameProps) {
     const round = room.currentRound!
     const seer = room.players.find(p => p.id === round.seerId)
@@ -326,6 +329,7 @@ export default function Game({
 
             <aside className={styles.sidebar}>
                 <Scoreboard room={room} meId={me?.id ?? null} />
+                {chat}
             </aside>
         </div>
     )

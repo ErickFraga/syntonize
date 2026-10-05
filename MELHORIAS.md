@@ -79,7 +79,7 @@ Capturas (renderização estática dos componentes, 1280 px e 390 px) em `docs/s
 | ⬜ P1 | **Imagem Open Graph** | Gerar uma `opengraph-image` com o dial para o link ficar bonito no WhatsApp. |
 | ⬜ P1 | **QR code no lobby** | Para quem está na mesma sala física apontar o celular. (`qrcode` npm ou SVG próprio.) |
 | ⬜ P2 | **Histórico de rodadas na partida** | Guardamos `roundHistory`; dá para abrir um painel com todas as cartas/dicas/resultados da partida. |
-| ⬜ P2 | **Chat ou reações** | Emojis rápidos durante o palpite ("🔥", "😂") dão vida ao jogo remoto. |
+| ✅ | **Chat e reações** | Chat da sala (`chat:send` / `chat:message`): texto normalizado de até 200 caracteres e 8 reações rápidas (🔥 😂 😮 👏 🤔 💀 😭 🎯), rate limit de 5 mensagens a cada 10 s por jogador (janela deslizante), últimas 50 mensagens guardadas na sala e enviadas em `chat:history` para quem entra ou reconecta, mensagens de sistema (entrou, saiu, removido, rodada revelada, fim de jogo) como códigos. O Vidente só manda reações enquanto a rodada dele está aberta, para não vazar a dica. Painel ao lado do placar no desktop, botão flutuante com badge de não lidas + folha inferior no celular, som curto respeitando o mudo. Testes em `tests/chat.test.ts`. |
 | ⬜ P2 | **Modo espectador** | Entrar numa sala só para assistir (sem participar da rotação). |
 | ⬜ P2 | **Tema claro** | Os tokens estão prontos; falta a paleta clara e o toggle. |
 | ⬜ P3 | **PWA** | Manifesto + ícone para "instalar" no celular. |

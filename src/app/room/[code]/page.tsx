@@ -5,12 +5,13 @@ import { useParams, useRouter } from 'next/navigation'
 import { useGameState, useCountdown } from '@/hooks/useGameState'
 import { session } from '@/lib/socket'
 import { isMuted, setMuted } from '@/lib/sounds'
-import { normalizeRoomCode } from '@shared/gameLogic'
+import { normalizeRoomCode, canSendChatText } from '@shared/gameLogic'
 import Lobby from '@/components/Lobby/Lobby'
 import Game from '@/components/Game/Game'
 import Results from '@/components/Results/Results'
 import TeamGame from '@/components/TeamGame/TeamGame'
 import TeamResults from '@/components/TeamResults/TeamResults'
+import Chat from '@/components/Chat/Chat'
 import Logo from '@/components/ui/Logo'
 import Toasts from '@/components/ui/Toasts'
 import { LogOutIcon, VolumeIcon, VolumeOffIcon, WifiOffIcon, CopyIcon, CheckIcon } from '@/components/ui/Icons'
@@ -24,8 +25,8 @@ export default function RoomPage() {
     const code = normalizeRoomCode(String(params.code ?? ''))
 
     const {
-        room, me, isHost, isSeer, isConnected, wasKicked, toasts, timer, serverOffset, remoteNeedle,
-        pushToast, joinRoom, leaveRoom, kickPlayer, updateSettings, setTeam, moveNeedle, sideGuess, startGame, giveClue,
+        room, me, isHost, isSeer, isConnected, wasKicked, toasts, timer, serverOffset, remoteNeedle, chat,
+        pushToast, joinRoom, leaveRoom, kickPlayer, updateSettings, setTeam, moveNeedle, sideGuess, sendChat, startGame, giveClue,
         submitGuess, setReady, nextRound, skipRound, backToLobby,
     } = useGameState()
 
@@ -134,6 +135,17 @@ export default function RoomPage() {
         )
     }
 
+    const inGame = room.status === 'playing' && !!room.currentRound
+    const chatPanel = (
+        <Chat
+            messages={chat}
+            meId={me?.id ?? null}
+            onSend={sendChat}
+            docked={inGame}
+            textLocked={me && !canSendChatText(room, me.id) ? 'Vidente: só reações' : null}
+        />
+    )
+
     return (
         <main className={styles.room}>
             <Toasts toasts={toasts} />
@@ -192,6 +204,7 @@ export default function RoomPage() {
                         onSetReady={setReady}
                         onNextRound={nextRound}
                         onSkipRound={skipRound}
+                        chat={chatPanel}
                     />
                 )}
 
@@ -208,8 +221,11 @@ export default function RoomPage() {
                         onSetReady={setReady}
                         onNextRound={nextRound}
                         onSkipRound={skipRound}
+                        chat={chatPanel}
                     />
                 )}
+
+                {!inGame && chatPanel}
 
                 {room.status === 'finished' && room.settings.mode === 'teams' && (
                     <TeamResults

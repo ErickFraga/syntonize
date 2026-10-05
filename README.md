@@ -72,6 +72,21 @@ O anfitrião pode trocar o modo para **Em equipes** no lobby (mínimo de 2 jogad
 4. O time da vez pontua pela cunha (4/3/2). Meta padrão: 10 pontos; empate na meta continua até alguém passar.
 5. **Revanche no 4** (opcional, ligada por padrão): o time que acerta na mosca e continua atrás no placar joga de novo.
 
+### Chat
+
+Todo mundo na sala pode conversar (texto de até 200 caracteres) e mandar reações rápidas
+(🔥 😂 😮 👏 🤔 💀 😭 🎯), no lobby, na partida e nos resultados.
+
+- **O Vidente só manda reações enquanto a rodada dele está aberta** (da carta até a revelação,
+  incluindo a fase de esquerda/direita no modo em equipes), para não dar a dica pelo chat.
+- Limite de 5 mensagens a cada 10 segundos por jogador.
+- A sala guarda as últimas 50 mensagens. O histórico **não** viaja no `room:state` (seria
+  reenviado a cada mudança de estado): o servidor manda `chat:history` junto com o estado no
+  join, na reconexão e no `game:requestState`; depois cada mensagem chega em `chat:message`.
+- Mensagens de sistema vão como código + parâmetros (`joined`, `left`, `kicked`,
+  `round_revealed` com o número da rodada, `game_finished`) e o cliente escreve o texto.
+  A revelação nunca inclui a posição do alvo.
+
 ## Estrutura
 
 ```
