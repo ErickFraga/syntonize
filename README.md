@@ -1,5 +1,7 @@
 # Syntonize
 
+[![CI](https://github.com/ErickFraga/syntonize/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ErickFraga/syntonize/actions/workflows/ci.yml)
+
 Versão online, em tempo real, do jogo de tabuleiro **SINTONIA** (*Wavelength*).
 Um jogador é o **Vidente**: vê onde o alvo está escondido no dial e dá uma dica.
 Todo mundo gira o ponteiro para onde acha que o alvo está, trava o palpite e a
