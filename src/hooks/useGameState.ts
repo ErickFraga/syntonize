@@ -43,16 +43,23 @@ export function useGameState() {
     const [timer, setTimer] = useState<TimerState | null>(null)
     const [serverOffset, setServerOffset] = useState(0)
     const [wasKicked, setWasKicked] = useState(false)
+    const [sessionLost, setSessionLost] = useState(false)
     const [remoteNeedle, setRemoteNeedle] = useState<RemoteNeedle | null>(null)
     const [chat, setChat] = useState<ChatMessage[]>([])
     const playerIdRef = useRef<string | null>(null)
     playerIdRef.current = playerId
+    const roomRef = useRef<Room | null>(null)
+    roomRef.current = room
+    /** The socket dropped while we were in a room (server restart, flaky network). */
+    const droppedInRoom = useRef(false)
     const needleSend = useRef<{ last: number; pending: number | null; timer: number | null }>({ last: 0, pending: null, timer: null })
 
-    const { msg } = useT()
-    // Socket listeners are bound once; read the current language through a ref.
+    const { t, msg } = useT()
+    // Socket listeners are bound once; read the current language through refs.
     const msgRef = useRef(msg)
     msgRef.current = msg
+    const tRef = useRef(t)
+    tRef.current = t
 
     const pushToast = useCallback((notice: ToastInput, ttl = 3500) => {
         const id = ++toastId
@@ -68,7 +75,10 @@ export function useGameState() {
             setIsConnected(true)
             socket.emit('game:requestState')
         }
-        const onDisconnect = () => setIsConnected(false)
+        const onDisconnect = () => {
+            setIsConnected(false)
+            if (roomRef.current) droppedInRoom.current = true
+        }
 
         const onState = (next: Room) => {
             setRoom(next)
@@ -81,6 +91,23 @@ export function useGameState() {
             setPlayerId(data.playerId)
             session.save(session.getToken() ?? '', data.playerId)
             setRestoredCode(data.room.code)
+            // Back after a drop (even if the server restarted): same screen, plus a heads-up.
+            if (droppedInRoom.current) {
+                droppedInRoom.current = false
+                pushToast({ kind: 'success', message: tRef.current('room.reconnected') })
+            }
+        }
+
+        // The token no longer matches a room (it expired or was deleted while we were away).
+        const onSessionExpired = () => {
+            session.clear()
+            droppedInRoom.current = false
+            if (!roomRef.current) return
+            setRoom(null)
+            setPlayerId(null)
+            setTimer(null)
+            setChat([])
+            setSessionLost(true)
         }
 
         const onNotice = (notice: Notice) => pushToast({ kind: notice.kind, message: msgRef.current(notice) })
@@ -128,6 +155,7 @@ export function useGameState() {
         socket.on('disconnect', onDisconnect)
         socket.on('room:state', onState)
         socket.on('room:restored', onRestored)
+        socket.on('room:sessionExpired', onSessionExpired)
         socket.on('room:notice', onNotice)
         socket.on('room:error', onError)
         socket.on('room:kicked', onKicked)
@@ -147,6 +175,7 @@ export function useGameState() {
             socket.off('disconnect', onDisconnect)
             socket.off('room:state', onState)
             socket.off('room:restored', onRestored)
+            socket.off('room:sessionExpired', onSessionExpired)
             socket.off('room:notice', onNotice)
             socket.off('room:error', onError)
             socket.off('room:kicked', onKicked)
@@ -270,6 +299,7 @@ export function useGameState() {
         isConnected,
         restoredCode,
         wasKicked,
+        sessionLost,
         toasts,
         timer,
         serverOffset,

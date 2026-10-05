@@ -10,7 +10,6 @@ completo · **P3** polimento.
 
 | Branch | Item | Prioridade |
 |---|---|---|
-| `claude/feature-persistencia` | Persistência das salas (sobreviver a reinício/sono do Render) | P1 |
 | `claude/feature-ci` | CI no GitHub Actions + remoção das dependências não usadas | P1 |
 | `claude/feature-historico-rodadas` | Histórico de rodadas na partida | P2 |
 | `claude/feature-cartas-personalizadas` | Cartas personalizadas do anfitrião | P3 |

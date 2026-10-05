@@ -39,13 +39,39 @@ Cada push na branch configurada faz um deploy novo.
 O que esperar do plano free:
 
 - O serviço dorme após 15 minutos sem ninguém conectado e leva uns 50 s para
-  acordar no primeiro acesso. As salas ficam em memória, então somem quando
-  ele dorme (só acontece quando não há partida rolando).
-- Mantenha **uma única instância**: duas instâncias teriam salas diferentes.
+  acordar no primeiro acesso. Com o Key Value do blueprint as salas sobrevivem
+  ao sono, a deploys e a crashes (veja "Persistência das salas" abaixo).
+- Mantenha **uma única instância**: as salas vivem na memória do processo e o
+  Key Value é só a cópia para reinícios, não um estado compartilhado.
 - A porta vem da variável `PORT`, que o Render define sozinho.
 - A prévia do link (imagem Open Graph) precisa da URL pública do site. No Render
   ela vem de `RENDER_EXTERNAL_URL`, automaticamente; em outro host, defina
   `SITE_URL=https://seu-dominio` (no build e na execução).
+
+## Persistência das salas
+
+As salas ficam em memória e são copiadas (write-through, com debounce curto) para um store,
+de onde voltam quando o processo reinicia. Os jogadores reconectam sozinhos pelo token de
+sessão salvo no navegador e caem na mesma tela, com um aviso de "Reconectado!".
+
+Na subida as salas são carregadas como *dormentes*: só voltam a rodar (timers, gravações)
+quando o primeiro jogador reconecta, e nesse momento são relidas do store. Assim, num deploy
+sem downtime, o que a instância antiga gravou ao receber o SIGTERM é o que vale. Uma fase cujo
+tempo acabou enquanto o servidor estava fora avança na hora.
+
+| Variável | Efeito |
+|---|---|
+| `REDIS_URL` (opcional) | `redis://[usuário:senha@]host[:porta][/db]` ou `rediss://` (TLS). Salas gravadas no Redis com TTL de 24 h renovado a cada alteração. |
+| *(sem `REDIS_URL`)* | Memória do processo, como antes: reiniciar derruba as partidas. |
+
+O `render.yaml` cria um **Key Value** grátis (`syntonize-kv`, 25 MB, mesma região) e passa a URL
+interna para o serviço via `fromService`, então o deploy pelo blueprint já sai com persistência.
+Num serviço criado antes desta mudança, rode o blueprint de novo (ou crie o Key Value à mão e
+defina `REDIS_URL` com a "Internal Key Value URL"). O Key Value grátis não grava em disco: se ele
+próprio reiniciar, as salas somem, mas os reinícios do serviço web (os comuns) estão cobertos.
+
+Para testar localmente: `redis-server &` e `REDIS_URL=redis://localhost:6379 npm run dev`; crie uma
+sala, derrube o servidor no meio da rodada e suba de novo.
 
 ## Testes e checagens
 
@@ -117,7 +143,7 @@ adicionar um texto, crie a chave em `src/i18n/pt-BR.ts` e o typecheck aponta ond
 
 ```
 shared/     tipos, baralho de cartas (cards/<idioma>.ts) e regras puras (usados pelo cliente e pelo servidor)
-server/     roomManager.ts (orquestração testável) e index.ts (Next + Socket.io)
+server/     roomManager.ts (orquestração testável), roomStore.ts/redisStore.ts (persistência) e index.ts (Next + Socket.io)
 src/        app Next: páginas, componentes (Dial, Lobby, Game, Results, ui) e hooks
 tests/      casos de uso do RoomManager com relógio e transporte falsos
 ```

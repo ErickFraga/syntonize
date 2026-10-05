@@ -54,6 +54,7 @@ import {
     CHAT_LIMITS,
     msg,
 } from '../shared/index.ts'
+import { DEFAULT_ROOM_TTL_MS, SNAPSHOT_VERSION, type RoomSnapshot, type RoomStore, type StoredTimer } from './roomStore.ts'
 
 /** Why a player left the game flow (also picks the notice the room gets). */
 type GoneReason = 'left' | 'kicked' | 'disconnected'
@@ -97,6 +98,22 @@ export interface RoomManagerOptions {
     hostGraceMs?: number
     /** How long a room with nobody connected survives. */
     emptyRoomMs?: number
+    /**
+     * Where rooms are written through so they survive a restart. Without it
+     * rooms only live in this process (the tests use it that way).
+     */
+    store?: RoomStore
+    /** Debounce of store writes per room (bursts of mutations become one save). */
+    persistDebounceMs?: number
+    /** Delay before retrying a failed store write. */
+    persistRetryMs?: number
+    /** Rooms whose last save is older than this are not restored. */
+    roomTtlMs?: number
+    /**
+     * After a restart, how long players who were online keep counting as
+     * connected while their clients reconnect with the session token.
+     */
+    restoreGraceMs?: number
     log?: (message: string) => void
 }
 
@@ -140,6 +157,18 @@ export class RoomManager {
     private lobbyGraceMs: number
     private hostGraceMs: number
     private emptyRoomMs: number
+    private store: RoomStore | null
+    private persistDebounceMs: number
+    private persistRetryMs: number
+    private roomTtlMs: number
+    private restoreGraceMs: number
+    /** Pending debounced save per room code. */
+    private persistTimers = new Map<string, TimerHandle>()
+    /** Store writes not settled yet (awaited by `flush`). */
+    private inFlight = new Set<Promise<void>>()
+    /** Rooms loaded on boot that no player came back to yet (see `loadFromStore`). */
+    private dormant = new Map<string, { timer: StoredTimer | null; loadedAt: number }>()
+    private wakes = new Map<string, Promise<void>>()
     private log: (message: string) => void
     private idCounter = 0
     private transport: Transport
@@ -152,6 +181,11 @@ export class RoomManager {
         this.lobbyGraceMs = options.lobbyGraceMs ?? 45_000
         this.hostGraceMs = options.hostGraceMs ?? 15_000
         this.emptyRoomMs = options.emptyRoomMs ?? 10 * 60_000
+        this.store = options.store ?? null
+        this.persistDebounceMs = options.persistDebounceMs ?? 250
+        this.persistRetryMs = options.persistRetryMs ?? 5_000
+        this.roomTtlMs = options.roomTtlMs ?? DEFAULT_ROOM_TTL_MS
+        this.restoreGraceMs = options.restoreGraceMs ?? 30_000
         this.log = options.log ?? (() => {})
     }
 
@@ -211,6 +245,7 @@ export class RoomManager {
 
     joinRoom(rawCode: unknown, rawNickname: unknown): Result<SessionData> {
         const code = normalizeRoomCode(rawCode)
+        if (this.dormant.has(code)) this.activate(code)
         const room = this.rooms.get(code)
         if (!room) return { success: false, error: msg('room_not_found') }
 
@@ -240,6 +275,8 @@ export class RoomManager {
         const session = this.sessions.get(sessionToken)
         if (!session) return null
 
+        // Callers should `wake` first for the freshest copy; this is the fallback.
+        if (this.dormant.has(session.roomCode)) this.activate(session.roomCode)
         const room = this.rooms.get(session.roomCode)
         const player = room?.players.find(p => p.id === session.playerId)
         if (!room || !player) {
@@ -273,11 +310,17 @@ export class RoomManager {
             this.markOffline(room.code, playerId)
             return
         }
+        this.armGone(room.code, playerId, this.disconnectGraceMs)
+        this.markDirty(room)
+    }
+
+    /** Counts the player as offline after `ms` unless they reconnect first. */
+    private armGone(code: string, playerId: string, ms: number): void {
         this.cancelGone(playerId)
         this.goneTimers.set(playerId, this.clock.setTimeout(() => {
             this.goneTimers.delete(playerId)
-            this.markOffline(room.code, playerId)
-        }, this.disconnectGraceMs))
+            this.markOffline(code, playerId)
+        }, ms))
     }
 
     private markOffline(code: string, playerId: string): void {
@@ -552,6 +595,12 @@ export class RoomManager {
     sweep(): void {
         const now = this.clock.now()
         for (const room of Array.from(this.rooms.values())) {
+            const dormant = this.dormant.get(room.code)
+            if (dormant) {
+                // Nobody came back for it: same fate as any empty room.
+                if (now - dormant.loadedAt >= this.emptyRoomMs) this.deleteRoom(room.code)
+                continue
+            }
             let changed = false
 
             if (room.status === 'waiting') {
@@ -586,8 +635,201 @@ export class RoomManager {
         }
     }
 
+    /** Drops every room from memory (the store keeps them: this is a shutdown, not a cleanup). */
     destroy(): void {
-        for (const code of Array.from(this.rooms.keys())) this.deleteRoom(code)
+        for (const code of Array.from(this.rooms.keys())) this.deleteRoom(code, false)
+    }
+
+    // ---------- persistence ----------
+
+    /**
+     * Server boot: indexes every saved room (codes, tokens) as *dormant*.
+     * A dormant room is not written and runs no timers until a player comes
+     * back (`wake`): during a zero-downtime deploy the old process is still
+     * playing it, and only its final save is the truth. Returns the count.
+     */
+    async loadFromStore(): Promise<number> {
+        if (!this.store) return 0
+        const snapshots = await this.store.loadAll()
+        let restored = 0
+        for (const snapshot of snapshots) {
+            try {
+                if (this.restoreDormant(snapshot)) restored += 1
+            } catch (error) {
+                this.log(`could not restore room ${snapshot.room?.code}: ${(error as Error).message}`)
+            }
+        }
+        return restored
+    }
+
+    isDormant(code: string): boolean {
+        return this.dormant.has(normalizeRoomCode(code))
+    }
+
+    /**
+     * Activates a dormant room with its latest saved state (re-read from the
+     * store, so a save made by the previous process after our boot wins).
+     * No-op for rooms already active or unknown.
+     */
+    wake(rawCode: string): Promise<void> {
+        const code = normalizeRoomCode(rawCode)
+        if (!this.dormant.has(code) || !this.store) return Promise.resolve()
+        const pending = this.wakes.get(code)
+        if (pending) return pending
+
+        const store = this.store
+        const wake = (async () => {
+            let fresh: RoomSnapshot | null | undefined
+            try {
+                fresh = await store.load(code)
+            } catch (error) {
+                // Store unreachable: the copy loaded on boot is the best we have.
+                this.log(`store load ${code} failed: ${(error as Error).message}`)
+            }
+            const loaded = this.dormant.get(code)
+            if (!loaded) return // activated or deleted meanwhile
+            if (fresh === null) {
+                // The previous process deleted it after our boot (game over, everyone left).
+                this.deleteRoom(code, false)
+                return
+            }
+            // Nobody else writes a dormant room but the previous process, so
+            // what the store holds now is the latest state.
+            if (fresh && this.isRestorable(fresh)) {
+                this.unindexRoom(code)
+                this.indexRoom(fresh)
+                this.dormant.set(code, { timer: fresh.timer, loadedAt: loaded.loadedAt })
+            }
+            this.activate(code)
+        })().finally(() => this.wakes.delete(code))
+        this.wakes.set(code, wake)
+        return wake
+    }
+
+    /** `restoreSession` for a socket connecting with a token, waking its room first. */
+    async resumeSession(sessionToken: string | undefined): Promise<SessionData | null> {
+        const session = sessionToken ? this.sessions.get(sessionToken) : undefined
+        if (session) await this.wake(session.roomCode)
+        return this.restoreSession(sessionToken)
+    }
+
+    /** Writes every pending save right away and waits for all writes (graceful shutdown). */
+    async flush(): Promise<void> {
+        for (const code of Array.from(this.persistTimers.keys())) this.persistNow(code)
+        while (this.inFlight.size > 0) await Promise.all(Array.from(this.inFlight))
+    }
+
+    private isRestorable(snapshot: RoomSnapshot): boolean {
+        return snapshot.version === SNAPSHOT_VERSION
+            && this.clock.now() - snapshot.savedAt < this.roomTtlMs
+            && snapshot.room.players.length > 0
+    }
+
+    private restoreDormant(snapshot: RoomSnapshot): boolean {
+        const code = snapshot.room.code
+        if (!this.isRestorable(snapshot)) {
+            this.track(this.store!.delete(code), `delete ${code}`)
+            return false
+        }
+        if (this.rooms.has(code)) return false
+        this.indexRoom(snapshot)
+        this.dormant.set(code, { timer: snapshot.timer, loadedAt: this.clock.now() })
+        this.log(`room ${code} loaded (${snapshot.room.players.length} players, ${snapshot.room.status})`)
+        return true
+    }
+
+    /** Puts a snapshot's room, players and session tokens in the in-memory indexes. */
+    private indexRoom(snapshot: RoomSnapshot): void {
+        const { room } = snapshot
+        room.chat ??= []
+        this.rooms.set(room.code, room)
+        for (const player of room.players) this.playerRooms.set(player.id, room.code)
+        const playerIds = new Set(room.players.map(p => p.id))
+        for (const session of snapshot.sessions) {
+            if (playerIds.has(session.playerId)) this.sessions.set(session.token, { playerId: session.playerId, roomCode: room.code })
+        }
+    }
+
+    private unindexRoom(code: string): void {
+        const room = this.rooms.get(code)
+        if (!room) return
+        for (const player of room.players) this.playerRooms.delete(player.id)
+        for (const [token, session] of Array.from(this.sessions.entries())) {
+            if (session.roomCode === code) this.sessions.delete(token)
+        }
+        this.rooms.delete(code)
+    }
+
+    /**
+     * Brings a dormant room back to life: players who were online count as
+     * just dropped (`restoreGraceMs` to reconnect with their token) and the
+     * phase timer is re-armed from its absolute end. A phase that ended while
+     * nobody ran the room resolves now, as if its timer had fired.
+     */
+    private activate(code: string): void {
+        const loaded = this.dormant.get(code)
+        const room = this.rooms.get(code)
+        this.dormant.delete(code)
+        if (!loaded || !room) return
+
+        const now = this.clock.now()
+        for (const player of room.players) {
+            player.disconnectedAt = now
+            if (player.isConnected) this.armGone(code, player.id, this.restoreGraceMs)
+        }
+        this.log(`room ${code} restored (${room.players.length} players, ${room.status})`)
+
+        const timer = loaded.timer
+        if (timer && room.status === 'playing' && room.currentRound) {
+            if (timer.endsAt > now) this.startPhaseTimerUntil(room, timer.phase, timer.endsAt)
+            else this.onPhaseTimeout(code, timer.phase)
+        }
+        this.markDirty(room)
+    }
+
+    private snapshotOf(room: Room): RoomSnapshot {
+        const sessions: RoomSnapshot['sessions'] = []
+        for (const [token, session] of this.sessions) {
+            if (session.roomCode === room.code) sessions.push({ token, playerId: session.playerId })
+        }
+        const timers = this.timers.get(room.code)
+        return {
+            version: SNAPSHOT_VERSION,
+            savedAt: this.clock.now(),
+            room,
+            sessions,
+            timer: timers?.phase ? { phase: timers.phase, endsAt: timers.endsAt } : null,
+        }
+    }
+
+    /** Schedules a debounced save of the room (the save reads the state at that time). */
+    private markDirty(room: Room, delay = this.persistDebounceMs): void {
+        if (!this.store || this.persistTimers.has(room.code) || this.dormant.has(room.code)) return
+        const code = room.code
+        this.persistTimers.set(code, this.clock.setTimeout(() => this.persistNow(code), delay))
+    }
+
+    private persistNow(code: string): void {
+        const handle = this.persistTimers.get(code)
+        if (handle !== undefined) this.clock.clearTimeout(handle)
+        this.persistTimers.delete(code)
+        const room = this.rooms.get(code)
+        if (!room || !this.store) return
+        // Snapshot taken synchronously: later mutations go in the next save.
+        this.track(this.store.save(this.snapshotOf(room)), `save ${code}`, () => {
+            if (this.rooms.get(code) === room) this.markDirty(room, this.persistRetryMs)
+        })
+    }
+
+    private track(write: Promise<void>, what: string, onError?: () => void): void {
+        const tracked = write.then(
+            () => {},
+            (error: Error) => {
+                this.log(`store ${what} failed: ${error?.message ?? error}`)
+                onError?.()
+            },
+        ).finally(() => this.inFlight.delete(tracked))
+        this.inFlight.add(tracked)
     }
 
     // ============================================
@@ -618,6 +860,7 @@ export class RoomManager {
     private pushChat(room: Room, message: ChatMessage): void {
         room.chat.push(message)
         if (room.chat.length > CHAT_LIMITS.HISTORY) room.chat.splice(0, room.chat.length - CHAT_LIMITS.HISTORY)
+        this.markDirty(room)
         this.transport.toRoom(room.code, 'chat:message', message)
     }
 
@@ -636,6 +879,7 @@ export class RoomManager {
     }
 
     private broadcastState(room: Room): void {
+        this.markDirty(room)
         for (const player of room.players) {
             this.transport.toPlayer(player.id, 'room:state', roomViewFor(room, player.id))
         }
@@ -772,15 +1016,21 @@ export class RoomManager {
     private startPhaseTimer(room: Room, phase: TimerPhase, seconds: number): void {
         this.clearTimers(room.code)
         if (seconds <= 0) return
+        this.startPhaseTimerUntil(room, phase, this.clock.now() + seconds * 1000)
+    }
 
-        const endsAt = this.clock.now() + seconds * 1000
+    /** Arms the phase timer to end at an absolute time (also used to re-arm after a restart). */
+    private startPhaseTimerUntil(room: Room, phase: TimerPhase, endsAt: number): void {
+        this.clearTimers(room.code)
         const timers: RoomTimers = { tick: null, phaseEnd: null, phase, endsAt }
         this.timers.set(room.code, timers)
 
         timers.phaseEnd = this.clock.setTimeout(() => {
             this.clearTimers(room.code)
             this.onPhaseTimeout(room.code, phase)
-        }, seconds * 1000)
+        }, Math.max(0, endsAt - this.clock.now()))
+        // The timer's end is part of the snapshot.
+        this.markDirty(room)
 
         const tick = () => {
             const current = this.timers.get(room.code)
@@ -816,10 +1066,15 @@ export class RoomManager {
         this.timers.delete(code)
     }
 
-    private deleteRoom(code: string): void {
+    private deleteRoom(code: string, fromStore = true): void {
         const room = this.rooms.get(code)
         if (!room) return
         this.clearTimers(code)
+        const pending = this.persistTimers.get(code)
+        if (pending !== undefined) this.clock.clearTimeout(pending)
+        this.persistTimers.delete(code)
+        this.dormant.delete(code)
+        if (fromStore && this.store) this.track(this.store.delete(code), `delete ${code}`)
         for (const player of room.players) {
             this.cancelGone(player.id)
             this.playerRooms.delete(player.id)
