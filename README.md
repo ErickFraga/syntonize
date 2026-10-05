@@ -1,5 +1,7 @@
 # Syntonize
 
+[![CI](https://github.com/ErickFraga/syntonize/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ErickFraga/syntonize/actions/workflows/ci.yml)
+
 Versão online, em tempo real, do jogo de tabuleiro **SINTONIA** (*Wavelength*).
 Um jogador é o **Vidente**: vê onde o alvo está escondido no dial e dá uma dica.
 Todo mundo gira o ponteiro para onde acha que o alvo está, trava o palpite e a
@@ -39,13 +41,50 @@ Cada push na branch configurada faz um deploy novo.
 O que esperar do plano free:
 
 - O serviço dorme após 15 minutos sem ninguém conectado e leva uns 50 s para
-  acordar no primeiro acesso. As salas ficam em memória, então somem quando
-  ele dorme (só acontece quando não há partida rolando).
-- Mantenha **uma única instância**: duas instâncias teriam salas diferentes.
+  acordar no primeiro acesso. Com o Key Value do blueprint as salas sobrevivem
+  ao sono, a deploys e a crashes (veja "Persistência das salas" abaixo).
+- Mantenha **uma única instância**: as salas vivem na memória do processo e o
+  Key Value é só a cópia para reinícios, não um estado compartilhado.
 - A porta vem da variável `PORT`, que o Render define sozinho.
 - A prévia do link (imagem Open Graph) precisa da URL pública do site. No Render
   ela vem de `RENDER_EXTERNAL_URL`, automaticamente; em outro host, defina
   `SITE_URL=https://seu-dominio` (no build e na execução).
+
+## Persistência das salas
+
+As salas ficam em memória e são copiadas (write-through, com debounce curto) para um store,
+de onde voltam quando o processo reinicia. Os jogadores reconectam sozinhos pelo token de
+sessão salvo no navegador e caem na mesma tela, com um aviso de "Reconectado!".
+
+Na subida as salas são carregadas como *dormentes*: só voltam a rodar (timers, gravações)
+quando o primeiro jogador reconecta, e nesse momento são relidas do store. Assim, num deploy
+sem downtime, o que a instância antiga gravou ao receber o SIGTERM é o que vale. Uma fase cujo
+tempo acabou enquanto o servidor estava fora avança na hora.
+
+| Variável | Efeito |
+|---|---|
+| `REDIS_URL` (opcional) | `redis://[usuário:senha@]host[:porta][/db]` ou `rediss://` (TLS). Salas gravadas no Redis com TTL de 24 h renovado a cada alteração. |
+| *(sem `REDIS_URL`)* | Memória do processo, como antes: reiniciar derruba as partidas. |
+
+O `render.yaml` cria um **Key Value** grátis (`syntonize-kv`, 25 MB, mesma região) e passa a URL
+interna para o serviço via `fromService`, então o deploy pelo blueprint já sai com persistência.
+Num serviço criado antes desta mudança, rode o blueprint de novo (ou crie o Key Value à mão e
+defina `REDIS_URL` com a "Internal Key Value URL"). O Key Value grátis não grava em disco: se ele
+próprio reiniciar, as salas somem, mas os reinícios do serviço web (os comuns) estão cobertos.
+
+Para testar localmente: `redis-server &` e `REDIS_URL=redis://localhost:6379 npm run dev`; crie uma
+sala, derrube o servidor no meio da rodada e suba de novo.
+
+## Música de fundo
+
+Um loop lo-fi toca baixinho em todas as telas, pelo Web Audio (loop sem
+engasgo, diferente da tag `<audio loop>`). O botão de nota musical no
+cabeçalho liga, desliga e ajusta o volume; a escolha fica no navegador. Por
+causa da política de autoplay, a música começa no primeiro toque na tela.
+
+O arquivo é `public/audio/ambient-loop.mp3` (108 s, 32 compassos a 71 BPM,
+emenda com crossfade de 50 ms). Para trocar a faixa, substitua o arquivo por
+outro loop que comece e termine no mesmo ponto do compasso, sem fade.
 
 ## Testes e checagens
 
@@ -78,7 +117,7 @@ O anfitrião pode trocar o modo para **Em equipes** no lobby (mínimo de 2 jogad
 ### Cartas e pacotes
 
 O anfitrião escolhe no lobby o **idioma das cartas** (português, inglês ou espanhol, valendo para a sala toda,
-independente do idioma da interface de cada um) e quais **pacotes** entram no baralho (pelo menos um):
+independente do idioma da interface de cada um) e quais **pacotes** entram no baralho:
 
 | Pacote | Cartas | Tema |
 |---|---|---|
@@ -90,6 +129,13 @@ independente do idioma da interface de cada um) e quais **pacotes** entram no ba
 
 As cartas não se repetem até o baralho escolhido acabar. Os textos ficam em `shared/cards/<idioma>.ts`, com os
 mesmos ids e pacotes nos três idiomas (`tests/cards.test.ts` confere).
+
+O anfitrião também pode escrever **cartas personalizadas** no lobby: um par por linha, separado por `|`
+(`Quente | Frio`), até 50 pares com 2 a 24 caracteres por lado. Elas entram no sorteio junto com os pacotes
+ligados, valem a mesma regra da dica e permitem desligar todos os pacotes quando há pelo menos 5 delas
+(a sala precisa de um pacote ligado **ou** 5 personalizadas). Os convidados veem só quantas são, para não
+estragar a surpresa; cada carta só aparece quando é sorteada. A lista fica salva no navegador do anfitrião
+("usar as da última vez" numa sala nova) e "copiar lista" gera o texto para colar em outra sala.
 
 ### Chat
 
@@ -105,6 +151,23 @@ Todo mundo na sala pode conversar (texto de até 200 caracteres) e mandar reaç�
 - Mensagens de sistema vão como código + parâmetros (`joined`, `left`, `kicked`,
   `round_revealed` com o número da rodada, `game_finished`) e o cliente escreve o texto.
   A revelação nunca inclui a posição do alvo.
+
+### Histórico da partida
+
+O botão **Histórico** na barra da rodada (e **Ver rodadas** nos resultados) abre um painel com
+as rodadas da mais recente para a mais antiga: carta, dica, Vidente, um mini dial com a cunha e os
+palpites, os pontos de cada um (ou de cada time, com o chute de esquerda/direita) e as rodadas
+puladas com o motivo. No desktop o painel desliza da direita; no celular é uma folha de baixo.
+
+- Só rodadas **já reveladas** entram em `roundHistory`, então o histórico nunca leva o alvo nem os
+  palpites da rodada em jogo. Cada rodada guarda um `roster` (apelido, cor e time de quem participou)
+  para continuar nomeando quem saiu da sala.
+- Rodadas puladas antes da dica (anfitrião, tempo da dica, Vidente que saiu/foi removido/caiu) ficam
+  em `skippedRounds` (últimas 30), sem alvo. Elas continuam não contando no número da rodada.
+- Como o chat, o histórico **não** viaja no `room:state`: vai em `game:history` no join, na
+  reconexão, no `game:requestState` e quando muda (revelação, rodada pulada, início e volta ao
+  lobby). O `useGameState` junta de volta em `room.roundHistory` / `room.skippedRounds`.
+
 ## Idiomas
 
 A interface está em português (padrão), inglês e espanhol (`src/i18n/`). Na primeira visita o
@@ -117,7 +180,7 @@ adicionar um texto, crie a chave em `src/i18n/pt-BR.ts` e o typecheck aponta ond
 
 ```
 shared/     tipos, baralho de cartas (cards/<idioma>.ts) e regras puras (usados pelo cliente e pelo servidor)
-server/     roomManager.ts (orquestração testável) e index.ts (Next + Socket.io)
+server/     roomManager.ts (orquestração testável), roomStore.ts/redisStore.ts (persistência) e index.ts (Next + Socket.io)
 src/        app Next: páginas, componentes (Dial, Lobby, Game, Results, ui) e hooks
 tests/      casos de uso do RoomManager com relógio e transporte falsos
 ```

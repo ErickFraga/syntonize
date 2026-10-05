@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { getSocket, session } from '@/lib/socket'
 import { sounds } from '@/lib/sounds'
 import { useT } from '@/i18n/I18nProvider'
-import type { Room, Player, TimerUpdate, Notice, RoomSettings, JoinResult, SimpleResult, RoomInfo, TeamId, Side, Message, ChatMessage, ChatInput } from '@/types/game'
+import type { Room, Player, TimerUpdate, Notice, RoomSettings, JoinResult, SimpleResult, RoomInfo, TeamId, Side, Message, ChatMessage, ChatInput, RoundHistory } from '@/types/game'
 import { CHAT_LIMITS } from '@/types/game'
 
 /** A toast is already translated text (server notices arrive as codes). */
@@ -34,8 +34,13 @@ const NEEDLE_SEND_MS = 80
 
 let toastId = 0
 
+const NO_HISTORY: RoundHistory = { rounds: [], skipped: [] }
+
 export function useGameState() {
-    const [room, setRoom] = useState<Room | null>(null)
+    // `room:state` arrives without the round history (see roomViewFor); it comes
+    // in `game:history` and is merged back below, so components read `room.roundHistory`.
+    const [roomState, setRoom] = useState<Room | null>(null)
+    const [history, setHistory] = useState<RoundHistory>(NO_HISTORY)
     const [playerId, setPlayerId] = useState<string | null>(null)
     const [isConnected, setIsConnected] = useState(false)
     const [restoredCode, setRestoredCode] = useState<string | null>(null)
@@ -43,16 +48,23 @@ export function useGameState() {
     const [timer, setTimer] = useState<TimerState | null>(null)
     const [serverOffset, setServerOffset] = useState(0)
     const [wasKicked, setWasKicked] = useState(false)
+    const [sessionLost, setSessionLost] = useState(false)
     const [remoteNeedle, setRemoteNeedle] = useState<RemoteNeedle | null>(null)
     const [chat, setChat] = useState<ChatMessage[]>([])
     const playerIdRef = useRef<string | null>(null)
     playerIdRef.current = playerId
+    const roomRef = useRef<Room | null>(null)
+    roomRef.current = roomState
+    /** The socket dropped while we were in a room (server restart, flaky network). */
+    const droppedInRoom = useRef(false)
     const needleSend = useRef<{ last: number; pending: number | null; timer: number | null }>({ last: 0, pending: null, timer: null })
 
-    const { msg } = useT()
-    // Socket listeners are bound once; read the current language through a ref.
+    const { t, msg } = useT()
+    // Socket listeners are bound once; read the current language through refs.
     const msgRef = useRef(msg)
     msgRef.current = msg
+    const tRef = useRef(t)
+    tRef.current = t
 
     const pushToast = useCallback((notice: ToastInput, ttl = 3500) => {
         const id = ++toastId
@@ -68,7 +80,10 @@ export function useGameState() {
             setIsConnected(true)
             socket.emit('game:requestState')
         }
-        const onDisconnect = () => setIsConnected(false)
+        const onDisconnect = () => {
+            setIsConnected(false)
+            if (roomRef.current) droppedInRoom.current = true
+        }
 
         const onState = (next: Room) => {
             setRoom(next)
@@ -81,6 +96,23 @@ export function useGameState() {
             setPlayerId(data.playerId)
             session.save(session.getToken() ?? '', data.playerId)
             setRestoredCode(data.room.code)
+            // Back after a drop (even if the server restarted): same screen, plus a heads-up.
+            if (droppedInRoom.current) {
+                droppedInRoom.current = false
+                pushToast({ kind: 'success', message: tRef.current('room.reconnected') })
+            }
+        }
+
+        // The token no longer matches a room (it expired or was deleted while we were away).
+        const onSessionExpired = () => {
+            session.clear()
+            droppedInRoom.current = false
+            if (!roomRef.current) return
+            setRoom(null)
+            setPlayerId(null)
+            setTimer(null)
+            setChat([])
+            setSessionLost(true)
         }
 
         const onNotice = (notice: Notice) => pushToast({ kind: notice.kind, message: msgRef.current(notice) })
@@ -91,6 +123,7 @@ export function useGameState() {
             setRoom(null)
             setPlayerId(null)
             setChat([])
+            setHistory(NO_HISTORY)
             setWasKicked(true)
         }
 
@@ -113,6 +146,7 @@ export function useGameState() {
             sounds.finish()
         }
         const onNeedle = (data: { position: number; by: string }) => setRemoteNeedle({ ...data, at: Date.now() })
+        const onHistory = (next: RoundHistory) => setHistory(next)
         const onChatHistory = (messages: ChatMessage[]) => setChat(messages)
         let lastChatSound = 0
         const onChatMessage = (message: ChatMessage) => {
@@ -128,6 +162,7 @@ export function useGameState() {
         socket.on('disconnect', onDisconnect)
         socket.on('room:state', onState)
         socket.on('room:restored', onRestored)
+        socket.on('room:sessionExpired', onSessionExpired)
         socket.on('room:notice', onNotice)
         socket.on('room:error', onError)
         socket.on('room:kicked', onKicked)
@@ -137,6 +172,7 @@ export function useGameState() {
         socket.on('game:reveal', onReveal)
         socket.on('game:finished', onFinished)
         socket.on('game:needle', onNeedle)
+        socket.on('game:history', onHistory)
         socket.on('chat:history', onChatHistory)
         socket.on('chat:message', onChatMessage)
 
@@ -147,6 +183,7 @@ export function useGameState() {
             socket.off('disconnect', onDisconnect)
             socket.off('room:state', onState)
             socket.off('room:restored', onRestored)
+            socket.off('room:sessionExpired', onSessionExpired)
             socket.off('room:notice', onNotice)
             socket.off('room:error', onError)
             socket.off('room:kicked', onKicked)
@@ -156,6 +193,7 @@ export function useGameState() {
             socket.off('game:reveal', onReveal)
             socket.off('game:finished', onFinished)
             socket.off('game:needle', onNeedle)
+            socket.off('game:history', onHistory)
             socket.off('chat:history', onChatHistory)
             socket.off('chat:message', onChatMessage)
         }
@@ -202,6 +240,7 @@ export function useGameState() {
         setPlayerId(null)
         setTimer(null)
         setChat([])
+        setHistory(NO_HISTORY)
     }, [])
 
     const kickPlayer = useCallback((targetId: string) => {
@@ -254,6 +293,11 @@ export function useGameState() {
 
     // ---------- derived ----------
 
+    const room: Room | null = useMemo(
+        () => roomState && { ...roomState, roundHistory: history.rounds, skippedRounds: history.skipped },
+        [roomState, history],
+    )
+
     const me: Player | null = useMemo(
         () => room?.players.find(p => p.id === playerId) ?? null,
         [room, playerId],
@@ -270,6 +314,7 @@ export function useGameState() {
         isConnected,
         restoredCode,
         wasKicked,
+        sessionLost,
         toasts,
         timer,
         serverOffset,

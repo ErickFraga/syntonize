@@ -10,7 +10,7 @@ declare module 'react' {
   export interface SyntheticEvent<T = Element> { currentTarget: T; target: EventTarget & T; preventDefault(): void; stopPropagation(): void }
   export interface FormEvent<T = Element> extends SyntheticEvent<T> {}
   export interface ChangeEvent<T = Element> extends SyntheticEvent<T> {}
-  export interface KeyboardEvent<T = Element> extends SyntheticEvent<T> { key: string; shiftKey: boolean }
+  export interface KeyboardEvent<T = Element> extends SyntheticEvent<T> { key: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }
   export interface PointerEvent<T = Element> extends SyntheticEvent<T> { pointerId: number; clientX: number; clientY: number }
   export interface MouseEvent<T = Element> extends SyntheticEvent<T> { clientX: number; clientY: number }
   export type DOMAttributes<T> = {
@@ -33,6 +33,7 @@ declare module 'react' {
   export function useCallback<T extends (...args: any[]) => any>(fn: T, deps: ReadonlyArray<unknown>): T
   export function useRef<T>(initial: T): MutableRefObject<T>
   export function useRef<T>(initial: T | null): RefObject<T>
+  export function useId(): string
   export interface Context<T> { Provider: (props: { value: T; children?: ReactNode }) => ReactElement | null }
   export function createContext<T>(value: T): Context<T>
   export function useContext<T>(context: Context<T>): T
@@ -49,5 +50,6 @@ declare namespace React {
 declare namespace JSX {
   interface Element extends React.ReactElement {}
   interface ElementChildrenAttribute { children: {} }
+  interface IntrinsicAttributes { key?: React.Key }
   interface IntrinsicElements { [elem: string]: React.HTMLAttributes<any> & { ref?: any; key?: React.Key } }
 }

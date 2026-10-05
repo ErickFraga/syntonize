@@ -1,7 +1,7 @@
 'use client'
 
 import type { RoomSettings, CardPack } from '@/types/game'
-import { CARD_LOCALES, CARD_PACKS } from '@/types/game'
+import { CARD_LOCALES, CARD_PACKS, LIMITS } from '@/types/game'
 import { PACK_SIZES } from '@shared/cards/index'
 import { LOCALE_NAMES, type TranslationKey } from '@/i18n'
 import { useT } from '@/i18n/I18nProvider'
@@ -12,6 +12,8 @@ import styles from './CardPackPicker.module.css'
 interface CardPackPickerProps {
     settings: RoomSettings
     isHost: boolean
+    /** Custom cards in the deck (they count towards the total and the minimum). */
+    customCount: number
     onUpdateSettings: (settings: Partial<RoomSettings>) => void
 }
 
@@ -24,14 +26,16 @@ const PACK_LABELS: Record<CardPack, { name: TranslationKey; hint: TranslationKey
 }
 
 /** Lobby rows for the card language and the active packs (read-only for guests). */
-export default function CardPackPicker({ settings, isHost, onUpdateSettings }: CardPackPickerProps) {
+export default function CardPackPicker({ settings, isHost, customCount, onUpdateSettings }: CardPackPickerProps) {
     const { t } = useT()
     const active = settings.packs
-    const total = active.reduce((sum, pack) => sum + PACK_SIZES[pack], 0)
+    const total = active.reduce((sum, pack) => sum + PACK_SIZES[pack], 0) + customCount
+    // The last pack can only go off when the custom cards are enough to play.
+    const lastPackLocked = active.length === 1 && customCount < LIMITS.CUSTOM_CARDS_MIN_DECK
 
     const toggle = (pack: CardPack) => {
         const on = active.includes(pack)
-        if (on && active.length === 1) return
+        if (on && lastPackLocked) return
         onUpdateSettings({ packs: on ? active.filter(p => p !== pack) : [...active, pack] })
     }
 
@@ -61,7 +65,7 @@ export default function CardPackPicker({ settings, isHost, onUpdateSettings }: C
             <div className={lobbyStyles.setting}>
                 <div className={lobbyStyles.settingText}>
                     <span className={lobbyStyles.settingTitle}>{t('lobby.packs')}</span>
-                    <span className={lobbyStyles.settingHint}>{t('lobby.packsHint', { count: total })}</span>
+                    <span className={lobbyStyles.settingHint}>{t('lobby.packsHint', { count: total, min: LIMITS.CUSTOM_CARDS_MIN_DECK })}</span>
                 </div>
                 <div className={styles.packs} role="group" aria-label={t('lobby.packs')}>
                     {CARD_PACKS.map(pack => {
@@ -71,7 +75,7 @@ export default function CardPackPicker({ settings, isHost, onUpdateSettings }: C
                                 key={pack}
                                 aria-pressed={on}
                                 className={`${styles.pack} ${on ? styles.packOn : ''}`}
-                                disabled={!isHost || (on && active.length === 1)}
+                                disabled={!isHost || (on && lastPackLocked)}
                                 title={t(PACK_LABELS[pack].hint)}
                                 onClick={() => toggle(pack)}
                             >

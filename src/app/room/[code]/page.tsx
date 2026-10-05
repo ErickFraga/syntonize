@@ -18,6 +18,7 @@ import Toasts from '@/components/ui/Toasts'
 import LanguageSelect from '@/components/LanguageSelect/LanguageSelect'
 import { useT } from '@/i18n/I18nProvider'
 import ThemeToggle from '@/components/ui/ThemeToggle'
+import MusicToggle from '@/components/ui/MusicToggle'
 import { LogOutIcon, VolumeIcon, VolumeOffIcon, WifiOffIcon, CopyIcon, CheckIcon } from '@/components/ui/Icons'
 import styles from './page.module.css'
 
@@ -30,7 +31,7 @@ export default function RoomPage() {
     const code = normalizeRoomCode(String(params.code ?? ''))
 
     const {
-        room, me, isHost, isSeer, isConnected, wasKicked, toasts, timer, serverOffset, remoteNeedle, chat,
+        room, me, isHost, isSeer, isConnected, wasKicked, sessionLost, toasts, timer, serverOffset, remoteNeedle, chat,
         pushToast, joinRoom, leaveRoom, kickPlayer, updateSettings, setTeam, moveNeedle, sideGuess, sendChat, startGame, giveClue,
         submitGuess, setReady, nextRound, skipRound, backToLobby,
     } = useGameState()
@@ -50,7 +51,7 @@ export default function RoomPage() {
     //  2. we have a saved nickname -> join (or re-join) with it
     //  3. nothing to go on -> invite page, which asks for a nickname
     useEffect(() => {
-        if (wasKicked) return
+        if (wasKicked || sessionLost) return
         if (!isConnected) {
             if (stage === 'connecting' || stage === 'resolving') setStage('connecting')
             return
@@ -87,7 +88,7 @@ export default function RoomPage() {
             }
         }, 900)
         return () => window.clearTimeout(id)
-    }, [isConnected, room, code, stage, wasKicked, joinRoom, router, pushToast])
+    }, [isConnected, room, code, stage, wasKicked, sessionLost, joinRoom, router, pushToast])
 
     const handleLeave = () => {
         if (room?.status === 'playing' && !window.confirm(t('room.leaveConfirm'))) return
@@ -123,6 +124,19 @@ export default function RoomPage() {
                     <Logo size="sm" />
                     <h1>{t('room.kickedTitle')}</h1>
                     <p className="muted">{t('room.kickedText')}</p>
+                    <button className="btn btn-primary" onClick={() => router.push('/')}>{t('room.backHome')}</button>
+                </div>
+            </main>
+        )
+    }
+
+    if (sessionLost) {
+        return (
+            <main className="page">
+                <div className={`card ${styles.stateCard} anim-pop`}>
+                    <Logo size="sm" />
+                    <h1>{t('room.sessionLostTitle')}</h1>
+                    <p className="muted">{t('room.sessionLostText')}</p>
                     <button className="btn btn-primary" onClick={() => router.push('/')}>{t('room.backHome')}</button>
                 </div>
             </main>
@@ -174,6 +188,7 @@ export default function RoomPage() {
                     )}
                     <LanguageSelect />
                     <ThemeToggle />
+                    <MusicToggle />
                     <button className="btn-icon" onClick={toggleMute} title={muted ? t('room.unmute') : t('room.mute')} aria-label={muted ? t('room.unmute') : t('room.mute')}>
                         {muted ? <VolumeOffIcon size={18} /> : <VolumeIcon size={18} />}
                     </button>

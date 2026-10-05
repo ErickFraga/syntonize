@@ -207,6 +207,29 @@
     opacity: 0.55;
 }
 
+/* Cópia pequena e só leitura (histórico): sem animação, traços mais grossos
+   para continuarem visíveis na escala reduzida. */
+.compact {
+    touch-action: auto;
+    pointer-events: none;
+}
+
+.markerStatic {
+    pointer-events: none;
+}
+
+.compact .markerLine {
+    stroke-width: 5;
+}
+
+.compact .markerDot {
+    stroke-width: 3;
+}
+
+.compact .rim {
+    stroke-width: 4;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .lid {
         transition: none;

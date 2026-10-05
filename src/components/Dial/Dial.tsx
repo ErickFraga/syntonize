@@ -34,6 +34,13 @@ interface DialProps {
     /** Needle is locked in (after submitting). */
     locked?: boolean
     markers?: DialMarker[]
+    /**
+     * Small read-only copy (round history): no screen, no animations, and
+     * the guess markers are plain colored dots.
+     */
+    compact?: boolean
+    /** Accessible name when the default one is not specific enough. */
+    label?: string
     className?: string
 }
 
@@ -106,6 +113,8 @@ export default function Dial({
     interactive = false,
     locked = false,
     markers = [],
+    compact = false,
+    label,
     className = '',
 }: DialProps) {
     const { t } = useT()
@@ -118,6 +127,8 @@ export default function Dial({
     const hadCover = useRef(covered)
     if (covered) hadCover.current = true
     const lidOpening = !covered && hadCover.current
+    // The compact copy never has the screen (and so never the clip path, whose id must stay unique).
+    const showLid = !compact && (covered || hadCover.current)
 
     const positionFromPointer = useCallback((clientX: number, clientY: number): number => {
         const svg = svgRef.current
@@ -183,11 +194,11 @@ export default function Dial({
     return (
         <svg
             ref={svgRef}
-            className={`${styles.dial} ${interactive ? styles.interactive : ''} ${dragging ? styles.dragging : ''} ${className}`}
+            className={`${styles.dial} ${interactive ? styles.interactive : ''} ${dragging ? styles.dragging : ''} ${compact ? styles.compact : ''} ${className}`}
             viewBox={`${VB.x} ${VB.y} ${VB.w} ${VB.h}`}
             xmlns="http://www.w3.org/2000/svg"
             role={interactive ? 'slider' : 'img'}
-            aria-label={interactive ? t('dial.slider') : t('dial.image')}
+            aria-label={label ?? (interactive ? t('dial.slider') : t('dial.image'))}
             aria-valuemin={interactive ? 0 : undefined}
             aria-valuemax={interactive ? 100 : undefined}
             aria-valuenow={interactive && needle !== null ? needle : undefined}
@@ -198,11 +209,13 @@ export default function Dial({
             onPointerCancel={handlePointerUp}
             onKeyDown={handleKeyDown}
         >
-            <defs>
-                <clipPath id="dialLidClip">
-                    <rect x={LID_CLIP.x} y={LID_CLIP.y} width={LID_CLIP.w} height={LID_CLIP.h} />
-                </clipPath>
-            </defs>
+            {showLid && (
+                <defs>
+                    <clipPath id="dialLidClip">
+                        <rect x={LID_CLIP.x} y={LID_CLIP.y} width={LID_CLIP.w} height={LID_CLIP.h} />
+                    </clipPath>
+                </defs>
+            )}
 
             {/* Aro e face */}
             <path d={BASE} className={styles.bezel} />
@@ -229,7 +242,7 @@ export default function Dial({
             )}
 
             {/* Screen that hides the target; on the reveal it turns around the hub and goes behind the face */}
-            {(covered || hadCover.current) && (
+            {showLid && (
                 <g className={styles.cover} clipPath="url(#dialLidClip)">
                     <g className={`${styles.lid} ${lidOpening ? styles.lidOpen : ''}`} style={{ transformOrigin: `${CX}px ${CY}px` }}>
                         <path d={FACE} className={styles.coverFace} />
@@ -258,6 +271,15 @@ export default function Dial({
                 const [x1, y1] = pt(m.position, R + 2)
                 const [ax, ay] = pt(m.position, R + 24)
                 const color = playerColor(m.colorIndex)
+                if (compact) {
+                    const [dx, dy] = pt(m.position, R + 16)
+                    return (
+                        <g key={m.id} className={`${styles.markerStatic} ${m.dim ? styles.markerDim : ''}`}>
+                            <line x1={CX} y1={CY} x2={x1.toFixed(1)} y2={y1.toFixed(1)} stroke={color} className={styles.markerLine} />
+                            <circle cx={dx.toFixed(1)} cy={dy.toFixed(1)} r="11" fill={color} className={styles.markerDot} />
+                        </g>
+                    )
+                }
                 return (
                     <g key={m.id} className={`${styles.marker} ${m.dim ? styles.markerDim : ''}`} style={{ animationDelay: `${(lidOpening ? 0.75 : 0.15) + i * 0.08}s` }}>
                         <line x1={CX} y1={CY} x2={x1.toFixed(1)} y2={y1.toFixed(1)} stroke={color} className={styles.markerLine} />

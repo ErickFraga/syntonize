@@ -43,10 +43,20 @@ export type CardPack = (typeof CARD_PACKS)[number]
 export const CARD_LOCALES = ['pt-BR', 'en', 'es'] as const
 export type CardLocale = (typeof CARD_LOCALES)[number]
 
+/** Pack shown for the host's own cards (not a real pack: never in `settings.packs`). */
+export const CUSTOM_PACK = 'custom'
+export type SpectrumCardPack = CardPack | typeof CUSTOM_PACK
+
+/** A pair typed by the host in the lobby (custom cards). */
+export interface CustomCard {
+    left: string
+    right: string
+}
+
 export interface SpectrumCard {
-    /** Same id for the same card in every language. */
+    /** Same id for the same card in every language. Custom cards use negative ids (-1, -2...). */
     id: number
-    pack: CardPack
+    pack: SpectrumCardPack
     leftConcept: string
     rightConcept: string
 }
@@ -87,6 +97,38 @@ export interface GameRound {
     revealedAt: number | null
     /** Team-mode state of the round; null in free-for-all. */
     teamPlay: TeamRoundState | null
+    /**
+     * Who took part, as they were on the reveal (the seer, guessers and, in
+     * team mode, whoever locked or called the side), so the round history can
+     * still name players who left. Empty until the reveal.
+     */
+    roster: RoundPlayer[]
+}
+
+/** A player as they were in a past round. */
+export interface RoundPlayer {
+    id: string
+    nickname: string
+    colorIndex: number
+    team: TeamId
+}
+
+/** Why a round ended without a reveal. */
+export type SkipReason = 'host' | 'clue_timeout' | 'seer_left' | 'seer_kicked' | 'seer_disconnected'
+
+/**
+ * A round that was skipped before the clue. It does not count (the next
+ * round reuses its number) and never carries the target.
+ */
+export interface SkippedRound {
+    roundNumber: number
+    seer: RoundPlayer | null
+    spectrumCard: SpectrumCard
+    /** Team whose turn it was (team mode), null in free-for-all. */
+    team: TeamId | null
+    reason: SkipReason
+    startedAt: number
+    skippedAt: number
 }
 
 export interface TeamRoundState {
@@ -113,6 +155,12 @@ export interface TeamRoundState {
     catchUp: boolean
 }
 
+/** What `game:history` carries: the same for every player (only revealed rounds). */
+export interface RoundHistory {
+    rounds: GameRound[]
+    skipped: SkippedRound[]
+}
+
 // ============================================
 // ROOM
 // ============================================
@@ -134,8 +182,14 @@ export interface RoomSettings {
     catchUp: boolean
     /** Language of the cards, picked by the host for the whole room. */
     cardLocale: CardLocale
-    /** Active card packs (at least one). */
+    /** Active card packs (may be empty when there are enough custom cards). */
     packs: CardPack[]
+    /**
+     * Pairs typed by the host, drawn together with the packs. Only the host
+     * sees them: `roomViewFor` sends an empty list to everyone else (see
+     * `Room.customCardCount`).
+     */
+    customCards: CustomCard[]
 }
 
 export type RoomStatus = 'waiting' | 'playing' | 'finished'
@@ -146,7 +200,14 @@ export interface Room {
     status: RoomStatus
     settings: RoomSettings
     currentRound: GameRound | null
+    /**
+     * Revealed rounds, oldest first (the round in play only joins on its
+     * reveal). `roomViewFor` sends it empty: it travels in `game:history`,
+     * only when it changes, and the client merges it back (see README).
+     */
     roundHistory: GameRound[]
+    /** Rounds skipped before the clue, oldest first (last LIMITS.SKIPPED_KEPT). Same transport as `roundHistory`. */
+    skippedRounds: SkippedRound[]
     /** Player ids in seer rotation order. */
     seerOrder: string[]
     currentSeerIndex: number
@@ -169,6 +230,11 @@ export interface Room {
      * sends it empty, the history goes in `chat:history`, see README).
      */
     chat: ChatMessage[]
+    /**
+     * Number of custom cards, filled by `roomViewFor` (guests get the count,
+     * not the cards, so the deck stays a surprise).
+     */
+    customCardCount?: number
 }
 
 // ============================================
@@ -291,6 +357,8 @@ export interface SimpleResult {
 export interface ServerToClientEvents {
     'room:state': (room: Room) => void
     'room:restored': (data: { room: Room; playerId: string }) => void
+    /** The session token sent on connect no longer matches a room (expired or deleted). */
+    'room:sessionExpired': () => void
     'room:notice': (notice: Notice) => void
     'room:error': (message: Message) => void
     'room:kicked': () => void
@@ -301,6 +369,8 @@ export interface ServerToClientEvents {
     'game:timer': (timer: TimerUpdate) => void
     /** Team mode: live needle of the active team (sent only to that team). */
     'game:needle': (data: { position: number; by: string }) => void
+    /** Round history (revealed and skipped rounds), sent on join/resync and whenever it changes. */
+    'game:history': (history: RoundHistory) => void
     'chat:message': (message: ChatMessage) => void
     /** Full chat history, sent to one player with their state (join, restore, resync). */
     'chat:history': (messages: ChatMessage[]) => void
@@ -356,6 +426,15 @@ export const LIMITS = {
     /** Target is kept away from the edges so the whole wedge fits the dial. */
     TARGET_MIN: 14,
     TARGET_MAX: 86,
+    /** Skipped rounds kept for the history panel. */
+    SKIPPED_KEPT: 30,
+    /** Custom cards: how many pairs, characters per side, and the line separator. */
+    CUSTOM_CARDS_MAX: 50,
+    CUSTOM_CARD_TEXT_MIN: 2,
+    CUSTOM_CARD_TEXT_MAX: 24,
+    CUSTOM_CARD_SEPARATOR: '|',
+    /** A room with every pack off needs at least this many custom cards. */
+    CUSTOM_CARDS_MIN_DECK: 5,
 } as const
 
 export const DEFAULT_SETTINGS: RoomSettings = {
@@ -368,6 +447,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
     catchUp: true,
     cardLocale: 'pt-BR',
     packs: ['classic'],
+    customCards: [],
 }
 
 /** Default and allowed target scores in team mode (team points add up slower). */

@@ -1,0 +1,125 @@
+.wrap {
+    position: relative;
+    display: inline-flex;
+}
+
+.active {
+    color: var(--on-accent);
+    background: var(--sky);
+}
+
+.panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 60;
+    width: 240px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--surface-solid);
+    border: var(--outline);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+}
+
+.title {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-2);
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.row > .btn {
+    flex: 1;
+}
+
+.volume {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-2);
+}
+
+.volumeIcon {
+    flex-shrink: 0;
+}
+
+.value {
+    min-width: 38px;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+}
+
+.range {
+    flex: 1;
+    min-width: 0;
+    height: 24px;
+    margin: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.range:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.range::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: var(--radius-full);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+}
+
+.range::-moz-range-track {
+    height: 8px;
+    border-radius: var(--radius-full);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+}
+
+.range::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    margin-top: -6px;
+    border-radius: 50%;
+    background: var(--sky);
+    border: var(--outline);
+    box-shadow: var(--shadow-sm);
+}
+
+.range::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--sky);
+    border: var(--outline);
+    box-shadow: var(--shadow-sm);
+}
+
+.range:focus-visible {
+    outline: 2px solid var(--sky);
+    outline-offset: 2px;
+    border-radius: var(--radius-full);
+}
+
+.hint {
+    font-size: 12px;
+    color: var(--text-3);
+}
