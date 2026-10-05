@@ -1,17 +1,26 @@
 // Game logic - pure functions shared between client and server.
 // Nothing in here talks to sockets or timers; the server orchestrates.
 
-import type { Room, Player, GameRound, SpectrumCard, RoomSettings, Zone, TeamId, Side, TeamRoundState, NumericSetting, Message, MessageCode, MessageParams, ChatInput, ChatReaction } from './types.ts'
-import { SCORING, LIMITS, CHAT_LIMITS, CHAT_REACTIONS, DEFAULT_SETTINGS, SETTINGS_OPTIONS, PLAYER_COLORS, TEAM_DEFAULT_TARGET, TEAM_RULES, settingOptionsFor } from './types.ts'
-import { spectrumCards } from './cards.ts'
+import type { Room, Player, GameRound, SpectrumCard, RoomSettings, CardLocale, Zone, TeamId, Side, TeamRoundState, NumericSetting, Message, MessageCode, MessageParams, ChatInput, ChatReaction } from './types.ts'
+import { SCORING, LIMITS, CHAT_LIMITS, CHAT_REACTIONS, DEFAULT_SETTINGS, SETTINGS_OPTIONS, PLAYER_COLORS, TEAM_DEFAULT_TARGET, TEAM_RULES, CARD_LOCALES, CARD_PACKS, settingOptionsFor } from './types.ts'
+import { deckFor } from './cards/index.ts'
 
 // ============================================
 // RANDOM HELPERS
 // ============================================
 
-export function pickCard(usedIds: number[], rng: () => number = Math.random): SpectrumCard {
-    const unused = spectrumCards.filter(c => !usedIds.includes(c.id))
-    const pool = unused.length > 0 ? unused : spectrumCards
+/**
+ * Draws a card from the active packs, in the room's card language, avoiding
+ * the ones already played (the whole deck is fair game again once exhausted).
+ */
+export function pickCard(
+    usedIds: number[],
+    rng: () => number = Math.random,
+    deck: Pick<RoomSettings, 'cardLocale' | 'packs'> = DEFAULT_SETTINGS,
+): SpectrumCard {
+    const cards = deckFor(deck.cardLocale, deck.packs.length > 0 ? deck.packs : DEFAULT_SETTINGS.packs)
+    const unused = cards.filter(c => !usedIds.includes(c.id))
+    const pool = unused.length > 0 ? unused : cards
     return pool[Math.floor(rng() * pool.length)]
 }
 
@@ -67,7 +76,7 @@ function stripAccents(s: string): string {
  * The one real rule of the game: the clue cannot contain the words printed
  * on the card. We compare accent- and case-insensitively, word by word.
  */
-export function validateClue(rawClue: unknown, card: SpectrumCard): { ok: boolean; clue: string; error?: Message } {
+export function validateClue(rawClue: unknown, card: SpectrumCard, locale: CardLocale = 'pt-BR'): { ok: boolean; clue: string; error?: Message } {
     const clue = typeof rawClue === 'string' ? rawClue.replace(/\s+/g, ' ').trim() : ''
     if (!clue) return { ok: false, clue, error: msg('clue_empty') }
     if (clue.length > LIMITS.CLUE_MAX) return { ok: false, clue, error: msg('clue_too_long', { max: LIMITS.CLUE_MAX }) }
@@ -75,7 +84,7 @@ export function validateClue(rawClue: unknown, card: SpectrumCard): { ok: boolea
     const clueWords = new Set(stripAccents(clue).split(/[^a-z0-9]+/).filter(w => w.length > 2))
     const forbidden = [card.leftConcept, card.rightConcept]
         .flatMap(c => stripAccents(c).split(/[^a-z0-9]+/))
-        .filter(w => w.length > 2 && !STOP_WORDS.has(w))
+        .filter(w => w.length > 2 && !STOP_WORDS[locale]?.has(w))
 
     const hit = forbidden.find(w => clueWords.has(w))
     if (hit) return { ok: false, clue, error: msg('clue_uses_card_word', { word: hit }) }
@@ -112,7 +121,12 @@ export function canSendChatText(room: Room, playerId: string): boolean {
     return !(room.status === 'playing' && round && round.seerId === playerId && round.phase !== 'revealed')
 }
 
-const STOP_WORDS = new Set(['para', 'com', 'que', 'nao', 'sem', 'dos', 'das', 'uma', 'por', 'mais', 'muito', 'todo', 'tem', 'faz', 'se', 'de', 'em'])
+/** Words of the card that the clue may still use (compared without accents). */
+const STOP_WORDS: Record<CardLocale, Set<string>> = {
+    'pt-BR': new Set(['para', 'com', 'que', 'nao', 'sem', 'dos', 'das', 'uma', 'por', 'mais', 'muito', 'todo', 'tem', 'faz', 'se', 'de', 'em']),
+    en: new Set(['the', 'and', 'for', 'with', 'not', 'too', 'way', 'you', 'your', 'from', 'that', 'all', 'its', 'are', 'but', 'very', 'just', 'like', 'only', 'get', 'has']),
+    es: new Set(['para', 'con', 'que', 'sin', 'los', 'las', 'una', 'por', 'mas', 'muy', 'del', 'todo', 'tiene', 'hace', 'como', 'solo', 'de', 'en']),
+}
 
 export function sanitizeSettings(partial: Partial<RoomSettings>, current: RoomSettings = DEFAULT_SETTINGS): RoomSettings {
     const next: RoomSettings = { ...current }
@@ -125,6 +139,9 @@ export function sanitizeSettings(partial: Partial<RoomSettings>, current: RoomSe
         next.targetScore = input.mode === 'teams' ? TEAM_DEFAULT_TARGET : DEFAULT_SETTINGS.targetScore
     }
     if (typeof input.catchUp === 'boolean') next.catchUp = input.catchUp
+    if ((CARD_LOCALES as readonly unknown[]).includes(input.cardLocale)) next.cardLocale = input.cardLocale!
+    const packs = sanitizePacks(input.packs)
+    if (packs && packs.length > 0) next.packs = packs
 
     for (const key of Object.keys(SETTINGS_OPTIONS) as NumericSetting[]) {
         const value = input[key]
@@ -132,6 +149,15 @@ export function sanitizeSettings(partial: Partial<RoomSettings>, current: RoomSe
         if (settingOptionsFor(next.mode, key).includes(value)) next[key] = value
     }
     return next
+}
+
+/**
+ * Known packs of a list, without duplicates, in the canonical order.
+ * Returns null when the input is not a list at all.
+ */
+export function sanitizePacks(raw: unknown): RoomSettings['packs'] | null {
+    if (!Array.isArray(raw)) return null
+    return CARD_PACKS.filter(pack => raw.includes(pack))
 }
 
 // ============================================
@@ -502,9 +528,11 @@ export function startNewRound(room: Room, now: number = Date.now(), rng: () => n
     }
     if (!seerId) return null
 
-    const card = pickCard(room.usedCardIds, rng)
+    const card = pickCard(room.usedCardIds, rng, room.settings)
     if (!room.usedCardIds.includes(card.id)) room.usedCardIds.push(card.id)
-    if (room.usedCardIds.length >= spectrumCards.length) room.usedCardIds = []
+    // Deck of the active packs exhausted: shuffle everything back in.
+    const deck = deckFor(room.settings.cardLocale, room.settings.packs)
+    if (deck.every(c => room.usedCardIds.includes(c.id))) room.usedCardIds = []
 
     room.players.forEach(p => {
         p.hasGuessed = false

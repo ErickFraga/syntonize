@@ -1,0 +1,94 @@
+.packs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+}
+
+/* Mesma linguagem dos segmentos do lobby: contorno, sombra dura, azul quando ligado. */
+.pack {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 54px;
+    padding: 8px 12px;
+    text-align: left;
+    color: var(--text);
+    background: var(--control-bg);
+    border: var(--outline);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--t-fast), box-shadow var(--t-fast), background var(--t-fast);
+}
+
+.pack:hover:not(:disabled) {
+    filter: brightness(1.06);
+}
+
+.pack:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: none;
+}
+
+.pack:disabled {
+    cursor: default;
+    box-shadow: none;
+}
+
+.check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: var(--outline);
+    border-radius: 6px;
+    background: var(--highlight-bg);
+    flex-shrink: 0;
+}
+
+.packOn,
+.packOn:disabled {
+    color: var(--on-accent);
+    background: var(--sky);
+}
+
+.packOn .check {
+    color: var(--sky);
+    background: var(--on-accent);
+}
+
+.packText {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.packName {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.adult {
+    padding: 0 6px;
+    font-size: 10.5px;
+    font-weight: 800;
+    line-height: 16px;
+    color: var(--on-accent);
+    background: var(--pink);
+    border: var(--outline);
+    border-radius: var(--radius-full);
+}
+
+.packCount {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-2);
+}
+
+.packOn .packCount {
+    color: var(--on-accent);
+    opacity: 0.75;
+}

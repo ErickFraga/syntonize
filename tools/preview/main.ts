@@ -30,7 +30,7 @@ const players = [
     player('p5', 'Eduardo Silva', 4, { score: 11 }),
 ]
 
-const card = { id: 1, leftConcept: 'Comida de criança', rightConcept: 'Comida de adulto' }
+const card = { id: 34, pack: 'classic' as const, leftConcept: 'Comida de criança', rightConcept: 'Comida de adulto' }
 
 function round(phase: GameRound['phase'], extra: Partial<GameRound> = {}): GameRound {
     return {
@@ -107,10 +107,10 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
     home: { node: jsx(Home, {}) },
     join: { node: jsx(JoinPage, {}) },
     lobby: {
-        node: page(jsx(Lobby, { room: room('waiting', null), me: players[0], isHost: true, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
+        node: page(jsx(Lobby, { room: room('waiting', null, { settings: { ...DEFAULT_SETTINGS, packs: ['classic', 'food', 'spicy'] } }), me: players[0], isHost: true, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
     },
     'lobby-guest': {
-        node: page(jsx(Lobby, { room: room('waiting', null), me: players[1], isHost: false, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
+        node: page(jsx(Lobby, { room: room('waiting', null, { settings: { ...DEFAULT_SETTINGS, cardLocale: 'en', packs: ['pop', 'people'] } }), me: players[1], isHost: false, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
     },
     'game-seer-clue': {
         node: page(jsx(Game, { room: room('playing', round('waiting_clue')), me: players[0], isHost: true, isSeer: true, secondsLeft: null, timerPhase: null, onGiveClue: ok, onSubmitGuess: ok, onSetReady: noop, onNextRound: noop, onSkipRound: noop })),
@@ -181,7 +181,7 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
 g.__params = { code: 'K7PX2Q' }
 
 // Same screens in other interface languages (the shim's useContext reads the context default).
-for (const [locale, names] of [['en', ['home', 'lobby-teams', 'game-revealed', 'game-chat-open']], ['es', ['team-side-guess', 'results']]] as const) {
+for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-revealed', 'game-chat-open']], ['es', ['lobby-guest', 'team-side-guess', 'results']]] as const) {
     for (const name of names) screens[`${name}-${locale}`] = { ...screens[name], locale }
 }
 

@@ -29,6 +29,7 @@ import {
     normalizeRoomCode,
     validateClue,
     sanitizeSettings,
+    sanitizePacks,
     canJoinRoom,
     canStartGame,
     startNewRound,
@@ -329,6 +330,8 @@ export class RoomManager {
         if (!host?.isHost) return { success: false, error: msg('host_only_settings') }
         if (room.status !== 'waiting') return { success: false, error: msg('settings_lobby_only') }
 
+        // Turning every pack off would leave an empty deck.
+        if (Array.isArray(partial?.packs) && sanitizePacks(partial.packs)?.length === 0) return { success: false, error: msg('packs_empty') }
         room.settings = sanitizeSettings(partial ?? {}, room.settings)
         this.broadcastState(room)
         return { success: true }
@@ -385,7 +388,7 @@ export class RoomManager {
         if (round.seerId !== playerId) return { success: false, error: msg('not_the_seer') }
         if (round.phase !== 'waiting_clue') return { success: false, error: msg('clue_already_given') }
 
-        const valid = validateClue(rawClue, round.spectrumCard)
+        const valid = validateClue(rawClue, round.spectrumCard, room.settings.cardLocale)
         if (!valid.ok) return { success: false, error: valid.error }
 
         round.clue = valid.clue
