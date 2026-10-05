@@ -43,6 +43,9 @@ O que esperar do plano free:
   ele dorme (só acontece quando não há partida rolando).
 - Mantenha **uma única instância**: duas instâncias teriam salas diferentes.
 - A porta vem da variável `PORT`, que o Render define sozinho.
+- A prévia do link (imagem Open Graph) precisa da URL pública do site. No Render
+  ela vem de `RENDER_EXTERNAL_URL`, automaticamente; em outro host, defina
+  `SITE_URL=https://seu-dominio` (no build e na execução).
 
 ## Testes e checagens
 

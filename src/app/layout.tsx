@@ -27,10 +27,24 @@ function requestLocale(): Locale {
   return matchLocale(headers().get('accept-language')) ?? DEFAULT_LOCALE
 }
 
+// Absolute base for og:image and friends. Without it Next falls back to
+// http://localhost:PORT in production and link previews break. Render sets
+// RENDER_EXTERNAL_URL on its own; elsewhere set SITE_URL.
+function siteUrl(): URL | undefined {
+  const raw = process.env.SITE_URL || process.env.RENDER_EXTERNAL_URL
+  if (!raw) return undefined
+  try {
+    return new URL(raw)
+  } catch {
+    return undefined
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const locale = requestLocale()
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key)
   return {
+    metadataBase: siteUrl(),
     title: {
       default: t('meta.title'),
       template: '%s · Syntonize',
