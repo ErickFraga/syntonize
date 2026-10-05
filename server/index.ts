@@ -3,7 +3,7 @@ import { parse } from 'url'
 import next from 'next'
 import { Server, type Socket } from 'socket.io'
 
-import type { ServerToClientEvents, ClientToServerEvents, Message } from '../shared/types.ts'
+import type { ServerToClientEvents, ClientToServerEvents, SimpleResult } from '../shared/types.ts'
 import { RoomManager, type Transport } from './roomManager.ts'
 import { MemoryStore, type RoomStore } from './roomStore.ts'
 import { RedisStore } from './redisStore.ts'
@@ -211,8 +211,8 @@ app.prepare().then(async () => {
             callback({ success: result.success, error: result.error })
         })
 
-        const withPlayer = (fn: (playerId: string) => { success: boolean; error?: Message }) =>
-            (callback?: (result: { success: boolean; error?: Message }) => void) => {
+        const withPlayer = (fn: (playerId: string) => SimpleResult) =>
+            (callback?: (result: SimpleResult) => void) => {
                 const playerId = currentPlayerId(socket)
                 const result = playerId ? fn(playerId) : { success: false, error: msg('not_in_room') }
                 if (!result.success && result.error) socket.emit('room:error', result.error)
