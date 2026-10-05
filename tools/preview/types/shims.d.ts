@@ -27,3 +27,9 @@ declare module 'socket.io-client' {
   }
   export function io(opts?: any): Socket<any, any>
 }
+declare module 'next/og' {
+  export class ImageResponse extends Response {
+    constructor(element: any, options?: { width?: number; height?: number; fonts?: any[]; headers?: Record<string, string>; status?: number })
+  }
+}
+declare var process: { env: Record<string, string | undefined> }

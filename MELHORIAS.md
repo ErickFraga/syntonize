@@ -76,7 +76,7 @@ Capturas (renderização estática dos componentes, 1280 px e 390 px) em `docs/s
 | ✅ | **Mobile** | Layouts testados a 390 px: dial ocupa a largura, placar vai para baixo, painel de resultado reorganiza em duas linhas, botões em coluna. |
 | ✅ | **Acessibilidade básica** | Dial é `role="slider"` com `aria-valuenow`; foco visível; grupos de rádio nas regras; `aria-live` nos toasts. |
 | ✅ | **Metadados** | Título, descrição, Open Graph e `theme-color` em português. |
-| ⬜ P1 | **Imagem Open Graph** | Gerar uma `opengraph-image` com o dial para o link ficar bonito no WhatsApp. |
+| ✅ | **Imagem Open Graph** | `src/app/opengraph-image.tsx` (`next/og`, 1200×630): dial semicircular com a cunha 2 \| 3 \| 4 \| 3 \| 2 e ponteiro vermelho, nas cores do dial, mais "Syntonize" e "Leia a mente dos seus amigos". O convite `/join/[código]` tem imagem própria ("Entre na sala de {anfitrião}", jogadores na sala, código), que consulta o servidor por `GET /api/room/[código]` (`server/httpApi.ts`, responde só `{ hostName, playerCount, status }`, 404 para sala inexistente) e cai numa imagem genérica se a consulta falhar. Sem fontes externas (usa a fonte embutida no `next/og`). `metadataBase` vem de `SITE_URL` ou `RENDER_EXTERNAL_URL` para a URL da imagem ser absoluta. Testes em `tests/httpApi.test.ts`. |
 | ⬜ P1 | **QR code no lobby** | Para quem está na mesma sala física apontar o celular. (`qrcode` npm ou SVG próprio.) |
 | ⬜ P2 | **Histórico de rodadas na partida** | Guardamos `roundHistory`; dá para abrir um painel com todas as cartas/dicas/resultados da partida. |
 | ⬜ P2 | **Chat ou reações** | Emojis rápidos durante o palpite ("🔥", "😂") dão vida ao jogo remoto. |

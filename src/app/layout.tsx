@@ -16,7 +16,21 @@ const nunito = Nunito({
   display: 'swap',
 })
 
+// Absolute base for og:image and friends. Without it Next falls back to
+// http://localhost:PORT in production and link previews break. Render sets
+// RENDER_EXTERNAL_URL on its own; elsewhere set SITE_URL.
+function siteUrl(): URL | undefined {
+  const raw = process.env.SITE_URL || process.env.RENDER_EXTERNAL_URL
+  if (!raw) return undefined
+  try {
+    return new URL(raw)
+  } catch {
+    return undefined
+  }
+}
+
 export const metadata: Metadata = {
+  metadataBase: siteUrl(),
   title: {
     default: 'Syntonize — leia a mente dos seus amigos',
     template: '%s · Syntonize',

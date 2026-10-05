@@ -5,6 +5,7 @@ import { Server, type Socket } from 'socket.io'
 
 import type { ServerToClientEvents, ClientToServerEvents } from '../shared/types.ts'
 import { RoomManager, type Transport } from './roomManager.ts'
+import { handleApiRequest } from './httpApi.ts'
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = process.env.HOSTNAME || '0.0.0.0'
@@ -16,7 +17,11 @@ const handle = app.getRequestHandler()
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>
 
 app.prepare().then(() => {
+    // Assigned below, once the transport (which needs `io`) exists.
+    let manager: RoomManager
+
     const httpServer = createServer((req, res) => {
+        if (handleApiRequest(manager, req, res)) return
         handle(req, res, parse(req.url!, true))
     })
 
@@ -38,7 +43,7 @@ app.prepare().then(() => {
         },
     }
 
-    const manager = new RoomManager(transport, { log: (m) => console.log(`[game] ${m}`) })
+    manager = new RoomManager(transport, { log: (m) => console.log(`[game] ${m}`) })
     setInterval(() => manager.sweep(), 10_000).unref()
 
     function bind(socket: GameSocket, playerId: string, roomCode: string) {
