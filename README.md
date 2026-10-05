@@ -63,6 +63,7 @@ tempo acabou enquanto o servidor estava fora avança na hora.
 
 | Variável | Efeito |
 |---|---|
+| `TRUSTED_PROXY_HOPS` (opcional) | Quantos proxies à frente do servidor acrescentam o IP ao `X-Forwarded-For` (padrão `1`, o balanceador do Render). Usado no rate limiting por IP. |
 | `REDIS_URL` (opcional) | `redis://[usuário:senha@]host[:porta][/db]` ou `rediss://` (TLS). Salas gravadas no Redis com TTL de 24 h renovado a cada alteração. |
 | `LOG_LEVEL` (opcional) | `debug`, `info` (padrão), `warn` ou `error`. |
 | `LOG_FORMAT` (opcional) | `json` (padrão em produção, uma linha por evento) ou `text` (padrão em dev). |

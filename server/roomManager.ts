@@ -118,6 +118,12 @@ export interface RoomManagerOptions {
      * connected while their clients reconnect with the session token.
      */
     restoreGraceMs?: number
+    /**
+     * A session token stops working after this long without being used
+     * (issued, reconnected with, or its socket dropping). Players still
+     * connected never expire.
+     */
+    sessionTtlMs?: number
     log?: (message: string) => void
 }
 
@@ -133,6 +139,15 @@ export interface SessionData {
     sessionToken: string
 }
 
+interface SessionEntry {
+    playerId: string
+    roomCode: string
+    lastUsedAt: number
+}
+
+/** Idle time after which a session token is refused. */
+export const DEFAULT_SESSION_TTL_MS = 12 * 60 * 60_000
+
 interface RoomTimers {
     tick: TimerHandle | null
     phaseEnd: TimerHandle | null
@@ -147,7 +162,7 @@ interface RoomTimers {
 export class RoomManager {
     private rooms = new Map<string, Room>()
     private playerRooms = new Map<string, string>()
-    private sessions = new Map<string, { playerId: string; roomCode: string }>()
+    private sessions = new Map<string, SessionEntry>()
     private timers = new Map<string, RoomTimers>()
     private goneTimers = new Map<string, TimerHandle>()
     /** Last accepted live-needle update per player (throttle). */
@@ -166,6 +181,7 @@ export class RoomManager {
     private persistRetryMs: number
     private roomTtlMs: number
     private restoreGraceMs: number
+    private sessionTtlMs: number
     /** Pending debounced save per room code. */
     private persistTimers = new Map<string, TimerHandle>()
     /** Store writes not settled yet (awaited by `flush`). */
@@ -190,6 +206,7 @@ export class RoomManager {
         this.persistRetryMs = options.persistRetryMs ?? 5_000
         this.roomTtlMs = options.roomTtlMs ?? DEFAULT_ROOM_TTL_MS
         this.restoreGraceMs = options.restoreGraceMs ?? 30_000
+        this.sessionTtlMs = options.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS
         this.log = options.log ?? (() => {})
     }
 
@@ -278,6 +295,10 @@ export class RoomManager {
         if (!sessionToken) return null
         const session = this.sessions.get(sessionToken)
         if (!session) return null
+        if (this.sessionExpired(session)) {
+            this.sessions.delete(sessionToken)
+            return null
+        }
 
         // Callers should `wake` first for the freshest copy; this is the fallback.
         if (this.dormant.has(session.roomCode)) this.activate(session.roomCode)
@@ -289,6 +310,7 @@ export class RoomManager {
         }
 
         this.cancelGone(player.id)
+        session.lastUsedAt = this.clock.now()
         player.isConnected = true
         player.disconnectedAt = null
         this.log(`${player.nickname} reconnected to ${room.code}`)
@@ -308,6 +330,10 @@ export class RoomManager {
         if (!room || !player) return
 
         player.disconnectedAt = this.clock.now()
+        // The idle countdown of the token starts when the socket drops.
+        for (const session of this.sessions.values()) {
+            if (session.playerId === playerId) session.lastUsedAt = player.disconnectedAt
+        }
         this.log(`${player.nickname} dropped from ${room.code}`)
 
         if (this.disconnectGraceMs <= 0) {
@@ -604,6 +630,9 @@ export class RoomManager {
      */
     sweep(): void {
         const now = this.clock.now()
+        for (const [token, session] of Array.from(this.sessions.entries())) {
+            if (this.sessionExpired(session)) this.sessions.delete(token)
+        }
         for (const room of Array.from(this.rooms.values())) {
             const dormant = this.dormant.get(room.code)
             if (dormant) {
@@ -756,7 +785,7 @@ export class RoomManager {
         for (const player of room.players) this.playerRooms.set(player.id, room.code)
         const playerIds = new Set(room.players.map(p => p.id))
         for (const session of snapshot.sessions) {
-            if (playerIds.has(session.playerId)) this.sessions.set(session.token, { playerId: session.playerId, roomCode: room.code })
+            if (playerIds.has(session.playerId)) this.sessions.set(session.token, { playerId: session.playerId, roomCode: room.code, lastUsedAt: session.lastUsedAt ?? snapshot.savedAt })
         }
     }
 
@@ -800,7 +829,7 @@ export class RoomManager {
     private snapshotOf(room: Room): RoomSnapshot {
         const sessions: RoomSnapshot['sessions'] = []
         for (const [token, session] of this.sessions) {
-            if (session.roomCode === room.code) sessions.push({ token, playerId: session.playerId })
+            if (session.roomCode === room.code) sessions.push({ token, playerId: session.playerId, lastUsedAt: session.lastUsedAt })
         }
         const timers = this.timers.get(room.code)
         return {
@@ -853,8 +882,14 @@ export class RoomManager {
 
     private newSession(playerId: string, roomCode: string): string {
         const token = this.newId('s') + Math.floor(this.rng() * 1e12).toString(36)
-        this.sessions.set(token, { playerId, roomCode })
+        this.sessions.set(token, { playerId, roomCode, lastUsedAt: this.clock.now() })
         return token
+    }
+
+    private sessionExpired(session: SessionEntry): boolean {
+        // A dormant room's "connected" flags are from before the restart: nobody is really online.
+        if (!this.dormant.has(session.roomCode) && this.getPlayer(session.playerId)?.isConnected) return false
+        return this.clock.now() - session.lastUsedAt >= this.sessionTtlMs
     }
 
     private forgetSessions(playerId: string): void {

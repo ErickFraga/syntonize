@@ -54,14 +54,20 @@ export interface MinimalRequest {
     url?: string
 }
 
+/** Lets the caller throttle lookups (per client IP) before the room is touched. */
+export type ApiLimiter = () => boolean
+
 export interface MinimalResponse {
     writeHead(status: number, headers: Record<string, string>): unknown
     end(body?: string): unknown
 }
 
 /** Writes the API response if the request is ours; returns whether it was. */
-export function handleApiRequest(source: RoomInfoSource, req: MinimalRequest, res: MinimalResponse): boolean {
-    const response = routeApiRequest(source, req.method, req.url)
+export function handleApiRequest(source: RoomInfoSource, req: MinimalRequest, res: MinimalResponse, allow: ApiLimiter = () => true): boolean {
+    const isOurs = ROOM_PATH.test((req.url ?? '').split('?')[0])
+    const response = isOurs && !allow()
+        ? json(429, { error: 'Too many requests' }, { 'Retry-After': '60' })
+        : routeApiRequest(source, req.method, req.url)
     if (!response) return false
     res.writeHead(response.status, response.headers)
     res.end(req.method === 'HEAD' ? undefined : JSON.stringify(response.body))

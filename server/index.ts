@@ -9,6 +9,7 @@ import { MemoryStore, type RoomStore } from './roomStore.ts'
 import { RedisStore } from './redisStore.ts'
 import { handleApiRequest } from './httpApi.ts'
 import { logger } from './logger.ts'
+import { RateLimiter, clientIp, DEFAULT_LIMITS } from './rateLimit.ts'
 import { msg, roomViewFor } from '../shared/gameLogic.ts'
 
 const dev = process.env.NODE_ENV !== 'production'
@@ -44,12 +45,22 @@ async function loadRooms(manager: RoomManager, store: RoomStore): Promise<void> 
     }
 }
 
+// How many proxies in front of us append to X-Forwarded-For (Render's load balancer: 1).
+const trustedHops = parseInt(process.env.TRUSTED_PROXY_HOPS || '1', 10)
+
+const createLimiter = new RateLimiter(DEFAULT_LIMITS.createRoom)
+const joinLimiter = new RateLimiter(DEFAULT_LIMITS.joinRoom)
+const lookupLimiter = new RateLimiter(DEFAULT_LIMITS.roomLookup)
+// Joins per socket too, so one connection cannot spam `room:join` between IP checks.
+const socketJoinLimiter = new RateLimiter({ limit: 10, windowMs: 30_000 })
+
 app.prepare().then(async () => {
     // Assigned below, once the transport (which needs `io`) exists.
     let manager: RoomManager
 
     const httpServer = createServer((req, res) => {
-        if (handleApiRequest(manager, req, res)) return
+        const ip = clientIp({ headers: req.headers, remoteAddress: req.socket.remoteAddress }, trustedHops)
+        if (handleApiRequest(manager, req, res, () => lookupLimiter.allow(ip))) return
         handle(req, res, parse(req.url!, true))
     })
 
@@ -121,6 +132,7 @@ app.prepare().then(async () => {
 
     io.on('connection', (socket: GameSocket) => {
         logger.debug('socket connected', { socket: socket.id })
+        const ip = clientIp({ headers: socket.handshake.headers, remoteAddress: socket.handshake.address }, trustedHops)
         const token = socket.handshake.auth?.sessionToken as string | undefined
         // Async because a room restored from the store is re-read when its
         // first player comes back; the listeners below are bound meanwhile.
@@ -143,6 +155,7 @@ app.prepare().then(async () => {
         })
 
         socket.on('room:create', (nickname, callback) => {
+            if (!createLimiter.allow(ip)) return callback({ success: false, error: msg('rate_limited') })
             const existing = currentPlayerId(socket)
             if (existing) {
                 manager.leaveRoom(existing)
@@ -159,6 +172,7 @@ app.prepare().then(async () => {
         })
 
         socket.on('room:join', async (code, nickname, callback) => {
+            if (!joinLimiter.allow(ip) || !socketJoinLimiter.allow(socket.id)) return callback({ success: false, error: msg('rate_limited') })
             await manager.wake(String(code ?? ''))
             const existing = currentPlayerId(socket)
             if (existing) {
@@ -183,6 +197,7 @@ app.prepare().then(async () => {
         })
 
         socket.on('room:info', (code, callback) => {
+            if (!lookupLimiter.allow(ip)) return callback({ success: false, error: msg('rate_limited') })
             const result = manager.getRoomInfo(String(code ?? ''))
             callback(result.success ? { success: true, info: result.data } : { success: false, error: result.error })
         })
@@ -255,6 +270,7 @@ app.prepare().then(async () => {
 
         socket.on('disconnect', reason => {
             logger.debug('socket disconnected', { socket: socket.id, reason })
+            socketJoinLimiter.reset(socket.id)
             const playerId = currentPlayerId(socket)
             unbind(socket)
             // Only mark offline if no newer socket took over this player.

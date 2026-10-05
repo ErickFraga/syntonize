@@ -390,6 +390,7 @@ export const ptBR = {
     'msg.chat_too_long': 'A mensagem pode ter no máximo {max} caracteres',
     'msg.chat_invalid_reaction': 'Reação inválida',
     'msg.chat_seer_reactions_only': 'O Vidente só manda reações enquanto a rodada está aberta',
+    'msg.rate_limited': 'Muitas tentativas seguidas. Espere um pouco e tente de novo',
     'msg.chat_rate_limited': 'Calma! Espere uns segundos para mandar outra mensagem',
     'msg.player_joined': '{name} entrou na sala',
     'msg.player_left': '{name} saiu da sala',
