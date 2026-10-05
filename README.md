@@ -83,7 +83,7 @@ independente do idioma da interface de cada um) e quais **pacotes** entram no ba
 | Comida e bebida | 44 | do boteco ao restaurante chique |
 | Cultura pop | 44 | filmes, séries, música, jogos e memes |
 | Pessoas | 44 | manias, amizades e comportamento |
-| Picante +18 | 44 | paquera, encontros e noitadas, sem conteúdo explícito ou ofensivo |
+| Picante (18+) | 44 | paquera, encontros e noitadas, sem conteúdo explícito ou ofensivo |
 
 As cartas não se repetem até o baralho escolhido acabar. Os textos ficam em `shared/cards/<idioma>.ts`, com os
 mesmos ids e pacotes nos três idiomas (`tests/cards.test.ts` confere).

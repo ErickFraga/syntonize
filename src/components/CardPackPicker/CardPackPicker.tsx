@@ -75,9 +75,14 @@ export default function CardPackPicker({ settings, isHost, onUpdateSettings }: C
                                 title={t(PACK_LABELS[pack].hint)}
                                 onClick={() => toggle(pack)}
                             >
-                                <span className={styles.check} aria-hidden="true">{on && <CheckIcon size={12} />}</span>
-                                <span className={styles.packName}>{t(PACK_LABELS[pack].name)}</span>
-                                <span className={styles.packCount}>{t('packs.cards', { count: PACK_SIZES[pack] })}</span>
+                                <span className={styles.check} aria-hidden="true">{on && <CheckIcon size={14} />}</span>
+                                <span className={styles.packText}>
+                                    <span className={styles.packName}>
+                                        {t(PACK_LABELS[pack].name)}
+                                        {pack === 'spicy' && <span className={styles.adult}>{t('packs.adultBadge')}</span>}
+                                    </span>
+                                    <span className={styles.packCount}>{t('packs.cards', { count: PACK_SIZES[pack] })}</span>
+                                </span>
                             </button>
                         )
                     })}
