@@ -1,9 +1,10 @@
 # Melhorias do Syntonize
 
 Lista completa do que foi analisado, o que foi feito neste rework e o que ainda
-vale fazer. Organizado por área. Itens com ✅ já estão no código; ⬜ é backlog,
-com prioridade sugerida (**P1** faz diferença na próxima partida, **P2** deixa
-o jogo mais completo, **P3** polimento).
+vale fazer. Organizado por área. Itens com ✅ já estão na `main`; 🔄 estão em
+andamento numa PR aberta; ⬜ é backlog, com prioridade sugerida (**P1** faz
+diferença na próxima partida, **P2** deixa o jogo mais completo, **P3**
+polimento). **Só o que falta fazer está em [BACKLOG.md](./BACKLOG.md).**
 
 Capturas (renderização estática dos componentes, 1280 px e 390 px) em `docs/screenshots/`:
 Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `game-revealed.png`,
@@ -96,6 +97,9 @@ Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `
 | ✅ | **Código morto removido** | `src/app/api/room/[code]/route.ts` (stub nunca usado), `Spectrum.tsx`, ícones duplicados nas páginas. |
 | ✅ | **Tipos compartilhados** | `shared/types.ts` é a fonte única; o cliente importa via `@/types/game`. Eventos de socket tipados nos dois lados. |
 | ✅ | **Imports com extensão `.ts` no código compartilhado** | Permite o Node rodar `shared/` e `server/` sem transpilar (`allowImportingTsExtensions`). |
+| ✅ | **Deploy no Render** | `render.yaml` (Blueprint, plano free, auto-deploy) e seção no README. |
+| ✅ | **Build do Next no deploy** | O `tsconfig.json` incluía `server/**` e o `next build` quebrava checando tipos do servidor. Agora o Next cobre só `src/` e `shared/`; o servidor tem `npm run typecheck:server`. |
+| ✅ | **Preview sem `node_modules`** | `tools/preview`: Bun + React mínimo renderizam as telas para HTML, Chromium tira screenshots (dois temas), shims de tipos permitem rodar o `tsc` no cliente. |
 | ⬜ P1 | **Remover dependências não usadas** | `lucide-react`, `nanoid`, `uuid`, `@types/uuid` e `ts-node` não são importados em lugar nenhum. Não removi porque o `package-lock.json` precisa ser regenerado com acesso ao registro npm (bloqueado neste ambiente). |
 | ⬜ P1 | **CI** | GitHub Actions rodando `npm test`, `typecheck`, `lint` e `build`. |
 | ⬜ P2 | **Testes de componente** | O harness usado nesta sessão renderizou os componentes com um React mínimo; vale formalizar com Vitest + Testing Library (Dial: cálculo de ângulo, teclado; Game: painéis por fase). |
