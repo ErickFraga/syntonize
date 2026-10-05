@@ -12,7 +12,11 @@ import Results from '../../src/components/Results/Results.tsx'
 import TeamGame from '../../src/components/TeamGame/TeamGame.tsx'
 import TeamResults from '../../src/components/TeamResults/TeamResults.tsx'
 import Logo from '../../src/components/ui/Logo.tsx'
+<<<<<<< HEAD
 import Chat from '../../src/components/Chat/Chat.tsx'
+=======
+import Dial from '../../src/components/Dial/Dial.tsx'
+>>>>>>> origin/claude/features-equipes-i18n
 import { I18nContext, makeTranslator } from '../../src/i18n/I18nProvider.tsx'
 
 const g = globalThis as any
@@ -86,6 +90,7 @@ const teamRevealed = round('revealed', {
     teamPlay: teamPlay({ guess: 58, needle: 58, lockedBy: 'p3', side: 'right', sideBy: 'p2', zone: 3, points: [3, 1], sideCorrect: true }),
 })
 
+<<<<<<< HEAD
 const say = (i: number, p: Player, text: string): ChatMessage => ({ id: `m${i}`, at: i, kind: 'text', authorId: p.id, author: p.nickname, colorIndex: p.colorIndex, text })
 const react = (i: number, p: Player, emoji: '🔥' | '😂' | '🤔'): ChatMessage => ({ id: `m${i}`, at: i, kind: 'reaction', authorId: p.id, author: p.nickname, colorIndex: p.colorIndex, emoji })
 const chatMessages: ChatMessage[] = [
@@ -102,6 +107,27 @@ const chatMessages: ChatMessage[] = [
 const chatProps = { messages: chatMessages, meId: 'p2', playerCount: players.length, onSend: ok }
 const guessingRoom = room('playing', round('guessing', { clue: 'Nuggets de salmão', clueAt: 2000, targetPosition: null }), { players: players.map(p => p.id === 'p3' ? { ...p, hasGuessed: true } : p) })
 const guessingProps = { room: guessingRoom, me: players[1], isHost: false, isSeer: false, secondsLeft: 27, timerPhase: 'guess', onGiveClue: ok, onSubmitGuess: ok, onSetReady: noop, onNextRound: noop, onSkipRound: noop }
+=======
+// Frozen frames of the screen opening on the reveal (--lid-angle is a preview-only hook in Dial.module.css).
+const revealedMarkers = [
+    { id: 'p2', name: 'Bia', colorIndex: 1, position: 60 },
+    { id: 'p3', name: 'Caio', colorIndex: 2, position: 71 },
+    { id: 'p4', name: 'Duda', colorIndex: 3, position: 30, dim: true },
+]
+const lidFrame = (angle: number, label: string, markers: typeof revealedMarkers = []) =>
+    jsx('section', {
+        className: 'card-solid',
+        style: { padding: '16px', '--lid-angle': `${angle}deg` },
+        children: [
+            jsx(Dial, { target: 62, covered: true, needle: null, markers }),
+            jsx('p', { style: { textAlign: 'center', margin: '8px 0 0', color: 'var(--text-2)' }, children: label }),
+        ],
+    })
+const lidFrames = jsx('div', {
+    style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', maxWidth: '1200px', margin: '0 auto' },
+    children: [lidFrame(0, 'tampa fechada (0°)'), lidFrame(45, '45°'), lidFrame(90, '90°'), lidFrame(140, '140°'), lidFrame(180, 'aberta (180°) + marcadores', revealedMarkers)],
+})
+>>>>>>> origin/claude/features-equipes-i18n
 
 const screens: Record<string, { node: any; mobile?: boolean }> = {
     home: { node: jsx(Home, {}) },
@@ -154,6 +180,7 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
     'team-results': {
         node: page(jsx(TeamResults, { room: teamRoom(null, { teamScores: [11, 9], winnerTeam: 0, roundHistory: [teamRevealed, teamRevealed, teamRevealed] }), me: players[2], isHost: true, onPlayAgain: noop, onBackToLobby: noop, onLeave: noop })),
     },
+<<<<<<< HEAD
     'game-chat': {
         node: page(jsx(Game, { ...guessingProps, chat: jsx(Chat, { ...chatProps, docked: true }) })),
     },
@@ -173,6 +200,9 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
             jsx(Chat, { ...chatProps, defaultOpen: true }),
         ]),
     },
+=======
+    'dial-lid': { node: page(lidFrames) },
+>>>>>>> origin/claude/features-equipes-i18n
     results: {
         node: page(jsx(Results, { room: room('finished', null, { roundHistory: [revealed, revealed, revealed], winnerId: 'p2' }), me: players[1], isHost: true, onPlayAgain: noop, onBackToLobby: noop, onLeave: noop })),
     },
@@ -185,7 +215,11 @@ for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-rev
     for (const name of names) screens[`${name}-${locale}`] = { ...screens[name], locale }
 }
 
+<<<<<<< HEAD
 const LIGHT = new Set(['home', 'lobby', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'game-chat', 'game-chat-open'])
+=======
+const LIGHT = new Set(['home', 'lobby', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid'])
+>>>>>>> origin/claude/features-equipes-i18n
 for (const [name, screen] of Object.entries(screens) as Array<[string, { node: any; locale?: 'en' | 'es' }]>) {
     ;(I18nContext as any)._value = makeTranslator(screen.locale ?? 'pt-BR')
     const body = renderToString(screen.node)
