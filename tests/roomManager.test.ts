@@ -56,7 +56,7 @@ describe('lobby: create & join', () => {
         const h = makeHarness()
         const { seats } = makeRoom(h, ['Ana', 'Bia'])
         assert.equal(h.transport.lastStateFor(seats[0].id)!.players.length, 2)
-        assert.ok(h.transport.notices().some(m => m.includes('Bia entrou')))
+        assert.ok(h.transport.hasNotice('player_joined', { name: 'Bia' }))
     })
 
     test('room info exposes host and player count', () => {
@@ -132,7 +132,8 @@ describe('round: clue', () => {
         assert.equal(h.manager.giveClue(seats[0].id, '   ').success, false)
         const cheating = h.manager.giveClue(seats[0].id, `isso é ${card.leftConcept}`)
         assert.equal(cheating.success, false)
-        assert.match(cheating.error!, /palavras da carta/)
+        assert.equal(cheating.error!.code, 'clue_uses_card_word')
+        assert.equal(cheating.error!.params!.word, card.leftConcept.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/).find(w => w.length > 2))
 
         const ok = h.manager.giveClue(seats[0].id, '  Pizza   fria ')
         assert.equal(ok.success, true)
@@ -175,7 +176,7 @@ describe('round: clue', () => {
         assert.equal(room.currentRound!.seerId, seats[1].id, 'next seer')
         assert.equal(room.roundHistory.length, 0, 'skipped round is not scored')
         assert.equal(room.currentRound!.roundNumber, 1, 'round numbers only count played rounds')
-        assert.ok(h.transport.notices().some(m => /Tempo esgotado/.test(m)))
+        assert.ok(h.transport.hasNotice('clue_timeout_skip'))
     })
 })
 
@@ -401,7 +402,7 @@ describe('resilience: disconnects, reconnects, leaving', () => {
         h.manager.disconnect(seats[0].id)
         assert.equal(h.transport.roomEvents('game:roundStart').length, 2)
         assert.equal(room.currentRound!.seerId, seats[1].id)
-        assert.ok(h.transport.notices().some(m => /Vidente Ana desconectou/.test(m)))
+        assert.ok(h.transport.hasNotice('seer_disconnected', { name: 'Ana' }))
 
         // She comes back: she is just a guesser now, and will be seer again later.
         h.manager.restoreSession(seats[0].token)
@@ -475,7 +476,8 @@ describe('resilience: disconnects, reconnects, leaving', () => {
         assert.equal(room.players.length, 1)
         assert.equal(room.players[0].isHost, true)
         assert.equal(h.manager.restoreSession(seats[0].token), null, 'session invalidated')
-        assert.ok(h.transport.notices().some(m => /Bia agora é o anfitrião/.test(m)))
+        assert.ok(h.transport.hasNotice('new_host', { name: 'Bia' }))
+        assert.ok(h.transport.hasNotice('player_left', { name: 'Ana' }))
 
         h.manager.leaveRoom(seats[1].id)
         assert.equal(h.manager.getRoom(code), undefined)
@@ -501,6 +503,7 @@ describe('resilience: disconnects, reconnects, leaving', () => {
 
         assert.equal(h.manager.kickPlayer(seats[0].id, seats[2].id).success, true)
         assert.equal(h.transport.playerEvents(seats[2].id, 'room:kicked').length, 1)
+        assert.ok(h.transport.hasNotice('player_kicked', { name: 'Caio' }))
         assert.equal(h.manager.getRoomOfPlayer(seats[2].id), undefined)
         assert.equal(h.manager.restoreSession(seats[2].token), null)
         assert.equal(h.manager.getRoomOfPlayer(seats[0].id)!.players.length, 2)

@@ -22,33 +22,44 @@
 }
 
 .interactive:focus-visible .hub {
-    stroke: var(--teal);
+    stroke: var(--sky);
     stroke-width: 4;
 }
 
-/* Wedge */
+/* Base e face */
+.bezel {
+    fill: var(--bezel);
+    stroke: var(--line);
+    stroke-width: 2;
+}
+
+.face {
+    fill: var(--cream);
+}
+
+/* Cunha */
 .zone2 {
     fill: var(--zone-2);
-    stroke: rgba(27, 26, 46, 0.35);
-    stroke-width: 1;
+    stroke: var(--ink);
+    stroke-width: 1.5;
 }
 
 .zone3 {
     fill: var(--zone-3);
-    stroke: rgba(27, 26, 46, 0.35);
-    stroke-width: 1;
+    stroke: var(--ink);
+    stroke-width: 1.5;
 }
 
 .zone4 {
     fill: var(--zone-4);
-    stroke: rgba(27, 26, 46, 0.35);
-    stroke-width: 1;
+    stroke: var(--ink);
+    stroke-width: 1.5;
 }
 
 .zoneLabel {
     font-family: var(--font-display);
     font-size: 17px;
-    font-weight: 700;
+    font-weight: 900;
     fill: var(--ink);
     text-anchor: middle;
     dominant-baseline: central;
@@ -59,9 +70,10 @@
     font-size: 23px;
 }
 
-/* Cover: a half-disc screen that turns around the hub on the reveal.
-   --lid-angle lets the preview freeze intermediate frames. Past 180deg the
-   clip would let its trailing edge peek back above the face line. */
+/* Tampa (alvo escondido): o próprio mostrador, escurecido. Na revelação gira
+   em torno do eixo e some atrás da linha do mostrador. --lid-angle deixa o
+   preview congelar quadros intermediários; passando de 180deg o recorte
+   deixaria a borda de trás reaparecer acima da linha. */
 .cover {
     pointer-events: none;
 }
@@ -75,29 +87,32 @@
     --lid-angle: 180deg;
 }
 
-.lidFace {
-    stroke: rgba(255, 255, 255, 0.12);
+.coverFace {
+    fill: var(--cream-2);
+    stroke: var(--line-soft);
     stroke-width: 1.5;
 }
 
 .coverMark {
     font-family: var(--font-display);
     font-size: 56px;
-    font-weight: 700;
-    fill: rgba(255, 255, 255, 0.16);
+    font-weight: 900;
+    fill: var(--ink);
+    opacity: 0.22;
     text-anchor: middle;
     dominant-baseline: central;
 }
 
-/* Ticks */
+/* Marcações e aro */
 .ticks {
     pointer-events: none;
 }
 
 .tick {
-    stroke: rgba(27, 26, 46, 0.45);
+    stroke: var(--ink);
     stroke-width: 1.5;
     stroke-linecap: round;
+    opacity: 0.45;
 }
 
 .tickBig {
@@ -113,7 +128,7 @@
     pointer-events: none;
 }
 
-/* Needle */
+/* Ponteiro */
 .needle {
     transition: transform 140ms var(--ease-out);
     pointer-events: none;
@@ -125,20 +140,19 @@
 
 .needleBody {
     fill: var(--needle);
-    stroke: #fff;
+    stroke: var(--cream);
     stroke-width: 1.5;
     stroke-linejoin: round;
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
 }
 
 .needleLocked .needleBody {
-    fill: var(--ink);
-    stroke: var(--teal);
+    fill: var(--needle-locked);
+    stroke: var(--ink);
 }
 
 .hub {
     fill: var(--ink);
-    stroke: #fff;
+    stroke: var(--cream);
     stroke-width: 2;
     transition: stroke var(--t-fast);
 }
@@ -147,7 +161,11 @@
     fill: var(--needle);
 }
 
-/* Markers */
+.needleLocked ~ .hubDot {
+    fill: var(--needle-locked);
+}
+
+/* Marcadores dos palpites */
 .marker {
     animation: markerIn 0.5s var(--ease-spring) both;
     pointer-events: none;
@@ -168,19 +186,19 @@
 .markerLine {
     stroke-width: 3;
     stroke-linecap: round;
-    opacity: 0.9;
+    opacity: 0.95;
 }
 
 .markerDot {
-    stroke: #131129;
-    stroke-width: 2.5;
+    stroke: var(--ink);
+    stroke-width: 2;
 }
 
 .markerText {
     font-family: var(--font-body);
-    font-size: 11.5px;
-    font-weight: 800;
-    fill: #131129;
+    font-size: 11px;
+    font-weight: 900;
+    fill: #1B0F2B;
     text-anchor: middle;
     dominant-baseline: central;
 }

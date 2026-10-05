@@ -127,3 +127,13 @@
         grid-template-columns: 1fr;
     }
 }
+
+.joinBtn {
+    height: auto;
+    min-height: 36px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+}

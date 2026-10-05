@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { SCORING } from '@/types/game'
 import { playerColor, initials } from '@/components/ui/Avatar'
+import { useT } from '@/i18n/I18nProvider'
 import styles from './Dial.module.css'
 
 export interface DialMarker {
@@ -107,6 +108,7 @@ export default function Dial({
     markers = [],
     className = '',
 }: DialProps) {
+    const { t } = useT()
     const svgRef = useRef<SVGSVGElement>(null)
     const [dragging, setDragging] = useState(false)
     const needleRef = useRef(needle)
@@ -185,7 +187,7 @@ export default function Dial({
             viewBox={`${VB.x} ${VB.y} ${VB.w} ${VB.h}`}
             xmlns="http://www.w3.org/2000/svg"
             role={interactive ? 'slider' : 'img'}
-            aria-label={interactive ? 'Ponteiro do espectro' : 'Dial do espectro'}
+            aria-label={interactive ? t('dial.slider') : t('dial.image')}
             aria-valuemin={interactive ? 0 : undefined}
             aria-valuemax={interactive ? 100 : undefined}
             aria-valuenow={interactive && needle !== null ? needle : undefined}
@@ -197,25 +199,14 @@ export default function Dial({
             onKeyDown={handleKeyDown}
         >
             <defs>
-                <linearGradient id="dialFace" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor="#fbf6ec" />
-                    <stop offset="1" stopColor="#e9dfcc" />
-                </linearGradient>
-                <linearGradient id="dialCover" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor="#2a2752" />
-                    <stop offset="1" stopColor="#1a1838" />
-                </linearGradient>
                 <clipPath id="dialLidClip">
                     <rect x={LID_CLIP.x} y={LID_CLIP.y} width={LID_CLIP.w} height={LID_CLIP.h} />
                 </clipPath>
-                <filter id="dialShadow" x="-10%" y="-10%" width="120%" height="130%">
-                    <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#000" floodOpacity="0.45" />
-                </filter>
             </defs>
 
-            {/* Device base and face */}
-            <path d={BASE} fill="#0f0e22" filter="url(#dialShadow)" />
-            <path d={FACE} fill="url(#dialFace)" />
+            {/* Aro e face */}
+            <path d={BASE} className={styles.bezel} />
+            <path d={FACE} className={styles.face} />
 
             {/* Target wedge: 2 | 3 | 4 | 3 | 2 */}
             {zones.length > 0 && (
@@ -241,7 +232,7 @@ export default function Dial({
             {(covered || hadCover.current) && (
                 <g className={styles.cover} clipPath="url(#dialLidClip)">
                     <g className={`${styles.lid} ${lidOpening ? styles.lidOpen : ''}`} style={{ transformOrigin: `${CX}px ${CY}px` }}>
-                        <path d={FACE} fill="url(#dialCover)" className={styles.lidFace} />
+                        <path d={FACE} className={styles.coverFace} />
                         <text x={CX} y={CY - 78} className={styles.coverMark}>?</text>
                     </g>
                 </g>

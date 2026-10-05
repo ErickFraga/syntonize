@@ -13,6 +13,7 @@ import TeamGame from '../../src/components/TeamGame/TeamGame.tsx'
 import TeamResults from '../../src/components/TeamResults/TeamResults.tsx'
 import Logo from '../../src/components/ui/Logo.tsx'
 import Dial from '../../src/components/Dial/Dial.tsx'
+import { I18nContext, makeTranslator } from '../../src/i18n/I18nProvider.tsx'
 
 const g = globalThis as any
 const css = readFileSync('../../src/app/globals.css', 'utf8') + '\n' + g.__cssRegistry.join('\n')
@@ -50,7 +51,7 @@ const noop = () => {}
 const ok = async () => ({ success: true })
 
 const header = jsx('header', {
-    style: { display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '12px', padding: '10px 20px', background: 'rgba(13,11,31,.78)', borderBottom: '1px solid rgba(255,255,255,.1)', position: 'sticky', top: 0, zIndex: 50 },
+    style: { display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '12px', padding: '10px 20px', background: 'var(--surface)', borderBottom: '2px solid var(--line)', position: 'sticky', top: 0, zIndex: 50 },
     children: [
         jsx(Logo, { size: 'sm' }),
         jsx('span', { className: 'chip', children: 'sala K7PX2Q' }),
@@ -164,9 +165,17 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
 
 g.__params = { code: 'K7PX2Q' }
 
-for (const [name, screen] of Object.entries(screens)) {
+// Same screens in other interface languages (the shim's useContext reads the context default).
+for (const [locale, names] of [['en', ['home', 'lobby-teams', 'game-revealed']], ['es', ['team-side-guess', 'results']]] as const) {
+    for (const name of names) screens[`${name}-${locale}`] = { ...screens[name], locale }
+}
+
+const LIGHT = new Set(['home', 'lobby', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid'])
+for (const [name, screen] of Object.entries(screens) as Array<[string, { node: any; locale?: 'en' | 'es' }]>) {
+    ;(I18nContext as any)._value = makeTranslator(screen.locale ?? 'pt-BR')
     const body = renderToString(screen.node)
-    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${name}</title><style>${css}</style><style>:root{--font-fredoka:'DejaVu Sans';--font-nunito:'DejaVu Sans'} *,*::before,*::after{animation:none!important;transition:none!important}</style></head><body>${body}</body></html>`
-    writeFileSync(`${import.meta.dir}/out/${name}.html`, html)
-    console.log('rendered', name, html.length)
+    const variants: Array<[string, string]> = [[name, '']]
+    if (LIGHT.has(name)) variants.push([`${name}-light`, ' data-theme="light"'])
+    for (const [file, attr] of variants) writeFileSync(`${import.meta.dir}/out/${file}.html`, `<!doctype html><html lang="pt-BR"${attr}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${file}</title><style>${css}</style><style>:root{--font-nunito:'DejaVu Sans';--font-baloo:'DejaVu Sans'} *,*::before,*::after{animation:none!important;transition:none!important}</style></head><body>${body}</body></html>`)
+    console.log('rendered', name)
 }

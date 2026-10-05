@@ -5,6 +5,7 @@ import type { Room, Player } from '@/types/game'
 import { computeStats } from '@shared/gameLogic'
 import Avatar from '@/components/ui/Avatar'
 import { TrophyIcon, RotateIcon, HomeIcon, LogOutIcon, TargetIcon, EyeIcon, SparklesIcon } from '@/components/ui/Icons'
+import { useT } from '@/i18n/I18nProvider'
 import styles from './Results.module.css'
 
 interface ResultsProps {
@@ -25,6 +26,7 @@ const CONFETTI = Array.from({ length: 36 }, (_, i) => ({
 }))
 
 export default function Results({ room, me, isHost, onPlayAgain, onBackToLobby, onLeave }: ResultsProps) {
+    const { t } = useT()
     const sorted = useMemo(() => [...room.players].sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname)), [room.players])
     const winner = sorted[0]
     const isWinner = !!me && winner?.id === me.id
@@ -58,12 +60,12 @@ export default function Results({ room, me, isHost, onPlayAgain, onBackToLobby, 
 
             <header className={`${styles.hero} anim-fade-up`}>
                 <span className={styles.trophy}><TrophyIcon size={34} /></span>
-                <span className="eyebrow">Fim de partida</span>
+                <span className="eyebrow">{t('results.over')}</span>
                 <h1 className={styles.title}>
-                    {isWinner ? 'Você venceu!' : <>{winner?.nickname} venceu!</>}
+                    {isWinner ? t('results.youWon') : t('results.won', { name: winner?.nickname ?? '' })}
                 </h1>
                 <p className="muted">
-                    {winner?.score} pontos em {room.roundHistory.length} rodada{room.roundHistory.length === 1 ? '' : 's'}
+                    {t('results.summary', { points: winner?.score ?? 0, count: room.roundHistory.length })}
                 </p>
             </header>
 
@@ -76,11 +78,11 @@ export default function Results({ room, me, isHost, onPlayAgain, onBackToLobby, 
                             <Avatar name={player.nickname} colorIndex={player.colorIndex} size={place === 1 ? 'xl' : 'lg'} ring />
                             <span className={styles.podiumName}>
                                 {player.nickname}
-                                {player.id === me?.id && <span className={styles.youTag}>você</span>}
+                                {player.id === me?.id && <span className={styles.youTag}>{t('common.you')}</span>}
                             </span>
-                            <span className={styles.podiumScore}>{player.score} pts</span>
+                            <span className={styles.podiumScore}>{t('results.points', { n: player.score })}</span>
                             <div className={styles.podiumBlock}>
-                                <span>{place}º</span>
+                                <span>{t('results.place', { n: place })}</span>
                             </div>
                         </div>
                     )
@@ -92,10 +94,10 @@ export default function Results({ room, me, isHost, onPlayAgain, onBackToLobby, 
                     <ol start={4}>
                         {rest.map((player, i) => (
                             <li key={player.id} className={styles.restRow}>
-                                <span className={styles.restRank}>{i + 4}º</span>
+                                <span className={styles.restRank}>{t('results.place', { n: i + 4 })}</span>
                                 <Avatar name={player.nickname} colorIndex={player.colorIndex} size="sm" />
-                                <span className={styles.restName}>{player.nickname}{player.id === me?.id ? ' (você)' : ''}</span>
-                                <span className={styles.restScore}>{player.score} pts</span>
+                                <span className={styles.restName}>{player.nickname}{player.id === me?.id ? t('common.youSuffix') : ''}</span>
+                                <span className={styles.restScore}>{t('results.points', { n: player.score })}</span>
                             </li>
                         ))}
                     </ol>
@@ -105,21 +107,21 @@ export default function Results({ room, me, isHost, onPlayAgain, onBackToLobby, 
             <section className={`${styles.highlights} anim-fade-up`} style={{ animationDelay: '0.25s' }}>
                 <div className={`card ${styles.highlight}`}>
                     <span className={styles.highlightIcon}><TargetIcon size={20} /></span>
-                    <span className={styles.highlightLabel}>Mira certeira</span>
+                    <span className={styles.highlightLabel}>{t('results.sharpshooter')}</span>
                     <strong>{sharpshooter && sharpshooter.bullseyes > 0 ? nameOf(sharpshooter.playerId) : '—'}</strong>
-                    <span className="muted">{sharpshooter?.bullseyes ?? 0} na mosca</span>
+                    <span className="muted">{t('results.bullseyes', { count: sharpshooter?.bullseyes ?? 0 })}</span>
                 </div>
                 <div className={`card ${styles.highlight}`}>
                     <span className={styles.highlightIcon}><EyeIcon size={20} /></span>
-                    <span className={styles.highlightLabel}>Melhor Vidente</span>
+                    <span className={styles.highlightLabel}>{t('results.bestSeer')}</span>
                     <strong>{bestSeer ? nameOf(bestSeer.playerId) : '—'}</strong>
-                    <span className="muted">{bestSeer ? `${(bestSeer.seerPoints / bestSeer.roundsAsSeer).toFixed(1)} pts por dica` : 'sem dicas'}</span>
+                    <span className="muted">{bestSeer ? t('results.perClue', { n: (bestSeer.seerPoints / bestSeer.roundsAsSeer).toFixed(1) }) : t('results.noClues')}</span>
                 </div>
                 <div className={`card ${styles.highlight}`}>
                     <span className={styles.highlightIcon}><SparklesIcon size={20} /></span>
-                    <span className={styles.highlightLabel}>Sua melhor rodada</span>
+                    <span className={styles.highlightLabel}>{t('results.bestRound')}</span>
                     <strong>{me ? `+${statOf(me.id)?.bestRound ?? 0}` : '—'}</strong>
-                    <span className="muted">{me ? `${statOf(me.id)?.closest ?? 0}x mais perto do alvo` : ''}</span>
+                    <span className="muted">{me ? t('results.closestCount', { count: statOf(me.id)?.closest ?? 0 }) : ''}</span>
                 </div>
             </section>
 
@@ -127,20 +129,20 @@ export default function Results({ room, me, isHost, onPlayAgain, onBackToLobby, 
                 {isHost ? (
                     <>
                         <button className="btn btn-primary btn-lg" onClick={onPlayAgain}>
-                            <RotateIcon /> Jogar de novo
+                            <RotateIcon /> {t('results.playAgain')}
                         </button>
                         <button className="btn btn-secondary" onClick={onBackToLobby}>
-                            <HomeIcon /> Voltar ao lobby
+                            <HomeIcon /> {t('results.backToLobby')}
                         </button>
                     </>
                 ) : (
                     <p className={styles.waitHost}>
                         <span className="dots"><span /><span /><span /></span>
-                        Esperando o anfitrião decidir a revanche…
+                        {t('results.waitHost')}
                     </p>
                 )}
                 <button className="btn btn-ghost" onClick={onLeave}>
-                    <LogOutIcon /> Sair da sala
+                    <LogOutIcon /> {t('results.leave')}
                 </button>
             </section>
         </div>

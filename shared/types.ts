@@ -163,9 +163,37 @@ export interface TimerUpdate {
     serverTime: number
 }
 
-export interface Notice {
+/**
+ * Everything the server says to players is a code plus parameters; the
+ * client translates it into the player's language (src/i18n).
+ */
+export const MESSAGE_CODES = [
+    // validation and game errors
+    'nickname_empty', 'nickname_too_long', 'nickname_taken', 'room_not_found', 'room_full',
+    'game_already_finished', 'game_already_started', 'not_enough_players', 'team_needs_players',
+    'clue_empty', 'clue_too_long', 'clue_uses_card_word', 'clue_already_given', 'not_the_seer', 'no_round',
+    'not_guess_time', 'seer_cannot_guess', 'player_not_in_room', 'not_your_team_turn', 'invalid_guess',
+    'guess_already_locked', 'not_side_time', 'side_is_other_team', 'invalid_side', 'side_already_called',
+    'host_only_kick', 'player_not_found', 'cannot_kick_self', 'host_only_settings', 'settings_lobby_only',
+    'host_only_move', 'teams_lobby_only', 'invalid_team', 'host_only_start', 'host_only_lobby',
+    'needle_throttled', 'not_next_round_time', 'host_only_next', 'host_only_skip', 'skip_only_waiting_clue',
+    'not_in_room',
+    // room notices
+    'player_joined', 'player_left', 'player_kicked', 'player_disconnected', 'new_host', 'back_to_lobby',
+    'round_skipped_by_host', 'seer_left', 'seer_kicked', 'seer_disconnected', 'clue_timeout_skip',
+    'not_enough_players_end',
+] as const
+
+export type MessageCode = (typeof MESSAGE_CODES)[number]
+export type MessageParams = Record<string, string | number>
+
+export interface Message {
+    code: MessageCode
+    params?: MessageParams
+}
+
+export interface Notice extends Message {
     kind: 'info' | 'success' | 'warning' | 'error'
-    message: string
 }
 
 export interface RoomInfo {
@@ -180,12 +208,12 @@ export interface JoinResult {
     code?: string
     playerId?: string
     sessionToken?: string
-    error?: string
+    error?: Message
 }
 
 export interface SimpleResult {
     success: boolean
-    error?: string
+    error?: Message
 }
 
 // ============================================
@@ -196,7 +224,7 @@ export interface ServerToClientEvents {
     'room:state': (room: Room) => void
     'room:restored': (data: { room: Room; playerId: string }) => void
     'room:notice': (notice: Notice) => void
-    'room:error': (message: string) => void
+    'room:error': (message: Message) => void
     'room:kicked': () => void
     'game:roundStart': (roundNumber: number) => void
     'game:clueGiven': (clue: string) => void
@@ -210,7 +238,7 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
     'room:create': (nickname: string, callback: (result: JoinResult) => void) => void
     'room:join': (code: string, nickname: string, callback: (result: JoinResult) => void) => void
-    'room:info': (code: string, callback: (result: { success: boolean; info?: RoomInfo; error?: string }) => void) => void
+    'room:info': (code: string, callback: (result: { success: boolean; info?: RoomInfo; error?: Message }) => void) => void
     'room:leave': () => void
     'room:kick': (playerId: string, callback: (result: SimpleResult) => void) => void
     'room:updateSettings': (settings: Partial<RoomSettings>, callback: (result: SimpleResult) => void) => void
@@ -283,8 +311,8 @@ export const TEAM_RULES = {
     NEEDLE_THROTTLE_MS: 50,
 } as const
 
-/** Team colors, taken from the player palette (teal and pink). */
-export const TEAM_COLORS = ['#2ee6d6', '#ff5d8f'] as const
+/** Team colors, taken from the player palette (sky and orange: distinct lightness). */
+export const TEAM_COLORS = ['#8CCBFF', '#FFBE7D'] as const
 
 /** Numeric settings and their allowed values (free-for-all). */
 export const SETTINGS_OPTIONS = {
@@ -303,22 +331,23 @@ export function settingOptionsFor(mode: GameMode, key: NumericSetting): readonly
     return SETTINGS_OPTIONS[key]
 }
 
-/** Colors assigned to players (index = Player.colorIndex). */
+/** Colors assigned to players (index = Player.colorIndex). Pastéis da família
+ *  do design: sempre com texto e contorno ameixa por cima. */
 export const PLAYER_COLORS = [
-    '#ff5d8f', // pink
-    '#2ee6d6', // teal
-    '#ffb347', // orange
-    '#8f7bff', // violet
-    '#5be37d', // green
-    '#ff6b4a', // coral
-    '#4cc9f0', // sky
-    '#f9e547', // yellow
-    '#c77dff', // lilac
-    '#ff9ecd', // rose
-    '#7bd389', // mint
-    '#ffa0a0', // salmon
-    '#6fa8ff', // blue
-    '#e0c070', // sand
-    '#a0e0ff', // ice
-    '#ffd6a5', // peach
+    '#8CCBFF', // céu
+    '#9BE8AE', // verde
+    '#FFBE7D', // laranja
+    '#FFA8C5', // rosa
+    '#FFD96A', // amarelo
+    '#D9C8F0', // lilás
+    '#A9DDFF', // gelo
+    '#FFC9A8', // pêssego
+    '#B8F2E6', // menta
+    '#C8B6FF', // lavanda
+    '#F3F6A5', // limão
+    '#FFB4A2', // coral
+    '#9EE5D9', // água
+    '#F8C8DC', // rosa claro
+    '#EAD9A6', // areia
+    '#B5C7FF', // pervinca
 ] as const

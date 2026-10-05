@@ -6,8 +6,8 @@ com prioridade sugerida (**P1** faz diferença na próxima partida, **P2** deixa
 o jogo mais completo, **P3** polimento).
 
 Capturas (renderização estática dos componentes, 1280 px e 390 px) em `docs/screenshots/`:
-`home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `game-revealed.png`,
-`game-revealed-mobile.png`, `results.png`.
+Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `game-revealed.png`,
+`game-revealed-mobile.png`, `results.png`; tema claro em `*-light.png`.
 
 ---
 
@@ -58,7 +58,7 @@ Capturas (renderização estática dos componentes, 1280 px e 390 px) em `docs/s
 
 | | Item | Detalhe |
 |---|---|---|
-| ✅ | **Design system novo** | Tokens de cor, tipografia (Fredoka para títulos, Nunito para texto), botões, inputs, chips, cards, animações e `prefers-reduced-motion` em `globals.css`. |
+| ✅ | **Design system "Cozy, versão madura"** | Derivado do Geoflagle: creme/ameixa, pastéis (céu, amarelo, laranja, verde, rosa), contorno de 2 px e sombra dura só no que é clicável, Nunito em tudo e Baloo 2 só no logotipo. Tokens em `globals.css`; tema **Noturno** padrão e tema claro via `data-theme="light"`, com toggle no cabeçalho e na home, lembrado no navegador e aplicado antes da hidratação (sem flash). Mocks aprovados no Claude Design. |
 | ✅ | **Home** | Hero com dial interativo de demonstração, formulário único de apelido + criar/entrar, "como funciona" em 4 passos com a regra de pontos. |
 | ✅ | **Página de convite** | Mostra quem é o anfitrião, quantos estão na sala e se a partida já começou. Lembra o apelido usado da última vez. |
 | ✅ | **Lobby** | Código grande e copiável, botão de convite (usa `navigator.share` no celular), lista de jogadores com avatar colorido, "você", coroa do anfitrião, estado de reconexão e botão de remover. |
@@ -81,10 +81,10 @@ Capturas (renderização estática dos componentes, 1280 px e 390 px) em `docs/s
 | ⬜ P2 | **Histórico de rodadas na partida** | Guardamos `roundHistory`; dá para abrir um painel com todas as cartas/dicas/resultados da partida. |
 | ⬜ P2 | **Chat ou reações** | Emojis rápidos durante o palpite ("🔥", "😂") dão vida ao jogo remoto. |
 | ⬜ P2 | **Modo espectador** | Entrar numa sala só para assistir (sem participar da rotação). |
-| ⬜ P2 | **Tema claro** | Os tokens estão prontos; falta a paleta clara e o toggle. |
+| ✅ | **Tema claro** | Paleta clara (creme, branco, lilás) e toggle sol/lua. |
 | ⬜ P3 | **PWA** | Manifesto + ícone para "instalar" no celular. |
-| ⬜ P3 | **Internacionalização** | Textos estão todos em pt-BR hard-coded. |
-| ✅ | **Animação da tampa** | Na revelação a tampa (o mesmo semicírculo escuro com `?`) gira 180° em torno do eixo do ponteiro em 700 ms (`cubic-bezier(0.22, 1, 0.36, 1)`) e é recortada na linha do mostrador, como se fosse para trás dele; a cunha já está desenhada por baixo, sem animação de crescer. O `Dial` lembra se o jogador tinha a tampa, então ela abre mesmo com `covered` já `false` e não aparece para o Vidente. Marcadores entram depois (0,75 s + 0,08 s por jogador). Com `prefers-reduced-motion` a tampa some na hora e os marcadores entram sem atraso. Quadros intermediários na tela `dial-lid` do preview. |
+| ✅ | **Internacionalização** | pt-BR (padrão), en e es sem biblioteca: dicionários em `src/i18n/<locale>.ts` tipados pelo pt-BR (chave faltando quebra o typecheck), `useT()` com interpolação `{nome}`, plural simples e texto rico, seletor de idioma no cabeçalho da sala e na home/convite, escolha salva no localStorage + cookie (o servidor usa o cookie ou o `Accept-Language` para `<html lang>` e os metadados). O servidor não manda mais texto: erros e avisos são `{ code, params }` (`MESSAGE_CODES` em `shared/types.ts`) traduzidos no cliente. Testes em `tests/i18n.test.ts` (cobertura de chaves e placeholders nos 3 idiomas). |
+| ✅ | **Animação da tampa** | Na revelação a tampa (o mesmo semicírculo `--cream-2` com `?`, borda `--line-soft` para a beirada aparecer no giro) gira 180° em torno do eixo do ponteiro em 700 ms (`cubic-bezier(0.22, 1, 0.36, 1)`) e é recortada na linha do mostrador, como se fosse para trás dele; a cunha já está desenhada por baixo, sem animação de crescer. O `Dial` lembra se o jogador tinha a tampa, então ela abre mesmo com `covered` já `false` e não aparece para o Vidente. Marcadores entram depois (0,75 s + 0,08 s por jogador). Com `prefers-reduced-motion` a tampa some na hora e os marcadores entram sem atraso. Quadros intermediários na tela `dial-lid` do preview. |
 
 ## 4. Código, testes e tooling
 

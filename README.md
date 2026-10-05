@@ -72,6 +72,14 @@ O anfitrião pode trocar o modo para **Em equipes** no lobby (mínimo de 2 jogad
 4. O time da vez pontua pela cunha (4/3/2). Meta padrão: 10 pontos; empate na meta continua até alguém passar.
 5. **Revanche no 4** (opcional, ligada por padrão): o time que acerta na mosca e continua atrás no placar joga de novo.
 
+## Idiomas
+
+A interface está em português (padrão), inglês e espanhol (`src/i18n/`). Na primeira visita o
+idioma vem do navegador; depois, do seletor no cabeçalho. O servidor nunca manda texto pronto:
+erros e avisos são códigos (`MESSAGE_CODES` em `shared/types.ts`) traduzidos no cliente. Para
+adicionar um texto, crie a chave em `src/i18n/pt-BR.ts` e o typecheck aponta onde faltar em
+`en.ts` e `es.ts`.
+
 ## Estrutura
 
 ```

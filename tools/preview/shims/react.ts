@@ -17,5 +17,10 @@ export function useRef<T>(v: T) { return { current: v } }
 export function useId() { return 'id' }
 export function forwardRef(fn: any) { return fn }
 export function memo(fn: any) { return fn }
-const React = { createElement, Fragment, useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, useId, forwardRef, memo }
+export function createContext<T>(value: T) {
+  const Provider = (props: any) => props.children
+  return { _value: value, Provider }
+}
+export function useContext<T>(ctx: { _value: T }) { return ctx._value }
+const React = { createElement, Fragment, useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, useId, forwardRef, memo, createContext, useContext }
 export default React
