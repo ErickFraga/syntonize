@@ -1,4 +1,6 @@
 # Testes, tipagem, lint e build do Next em cada PR e em cada push na main e na release.
+# Depois do build, o teste de fluxo (Playwright) joga uma partida com dois
+# navegadores e guarda um print de cada tela no artefato "prints-do-fluxo".
 # O `next build` só rodava no deploy do Render; aqui ele quebra antes do merge.
 name: CI
 
@@ -18,7 +20,7 @@ jobs:
   ci:
     name: Testes, tipagem, lint e build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       # metadataBase do layout (og:image). Só precisa ser uma URL válida no build
       # da CI; em produção vem de RENDER_EXTERNAL_URL ou do SITE_URL real.
@@ -50,3 +52,37 @@ jobs:
       # gerado pelo Next e fica fora do git.
       - name: Tipagem do cliente
         run: npm run typecheck
+
+      - name: Tipagem do teste de fluxo
+        run: npm run typecheck:e2e
+
+      - name: Chromium do Playwright
+        run: npx playwright install --with-deps chromium
+
+      # Sobe o servidor de produção do build acima (sem Redis) e joga a partida
+      # no desktop e no celular, nos temas escuro e claro.
+      - name: Teste de fluxo com prints
+        run: npm run e2e
+
+      - name: Guardar os prints
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: prints-do-fluxo
+          path: |
+            e2e/prints/
+            e2e/report/
+            e2e/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Resumo
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "### Prints do fluxo"
+            echo ""
+            echo "Baixe o artefato **prints-do-fluxo** e abra \`e2e/prints/index.html\` (galeria) ou \`e2e/report/index.html\` (relatório do Playwright, com os prints de cada passo)."
+            echo ""
+            for d in e2e/prints/*/; do [ -d "$d" ] && echo "- $(basename "$d"): $(ls "$d"*.png 2>/dev/null | wc -l) prints"; done
+          } >> "$GITHUB_STEP_SUMMARY"

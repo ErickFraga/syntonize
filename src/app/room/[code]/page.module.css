@@ -101,9 +101,19 @@
 }
 
 @media (max-width: 640px) {
+    /* Os botões não cabem ao lado do código num celular: vão para uma
+       segunda linha, inteira, em vez de vazar para fora da tela. */
     .header {
-        grid-template-columns: auto 1fr auto;
+        grid-template-columns: auto 1fr;
+        row-gap: 8px;
         padding: 8px 12px;
+    }
+
+    .headerActions {
+        grid-column: 1 / -1;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 6px;
     }
 
     .brand span span:last-child {

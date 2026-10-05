@@ -38,8 +38,6 @@ GitHub Actions) e conferir o visual das telas novas contra os mocks do canvas.
       persistência, dar TTL.
 - [ ] **Testes de componente.** Formalizar com Vitest + Testing Library o que o
       `tools/preview` faz hoje (Dial: ângulo e teclado; Game: painéis por fase).
-- [ ] **Teste ponta a ponta.** Playwright com 3 navegadores jogando uma rodada
-      completa (criar, entrar, dica, palpites, revelação).
 
 ## P3 — polimento
 
