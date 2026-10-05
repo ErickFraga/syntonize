@@ -75,7 +75,7 @@ O anfitrião pode trocar o modo para **Em equipes** no lobby (mínimo de 2 jogad
 ### Chat
 
 Todo mundo na sala pode conversar (texto de até 200 caracteres) e mandar reações rápidas
-(🔥 😂 😮 👏 🤔 💀 😭 🎯), no lobby, na partida e nos resultados.
+(🔥 😂 🤔 👏 😱 ❤️), no lobby, na partida e nos resultados.
 
 - **O Vidente só manda reações enquanto a rodada dele está aberta** (da carta até a revelação,
   incluindo a fase de esquerda/direita no modo em equipes), para não dar a dica pelo chat.

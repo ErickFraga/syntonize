@@ -145,6 +145,7 @@ export default function RoomPage() {
         <Chat
             messages={chat}
             meId={me?.id ?? null}
+            playerCount={room.players.length}
             onSend={sendChat}
             docked={inGame}
             textLocked={me && !canSendChatText(room, me.id) ? t('chat.seerLocked') : null}

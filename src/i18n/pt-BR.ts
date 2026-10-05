@@ -244,7 +244,7 @@ export const ptBR = {
     'teamResults.sidesHint': 'chutes certos de lado',
 
     // ---------- chat ----------
-    'chat.title': 'Chat',
+    'chat.title': 'Chat · {count} na sala',
     'chat.region': 'Chat da sala',
     'chat.open': 'Abrir chat',
     'chat.openUnread': { one: 'Abrir chat ({count} não lida)', other: 'Abrir chat ({count} não lidas)' },
@@ -252,7 +252,7 @@ export const ptBR = {
     'chat.empty': 'Ninguém falou nada ainda. Manda um 🔥!',
     'chat.reactions': 'Reações rápidas',
     'chat.react': 'Reagir com {emoji}',
-    'chat.placeholder': 'Mande uma mensagem…',
+    'chat.placeholder': 'Fala aí… (máx. {max})',
     'chat.seerLocked': 'Vidente: só reações',
     'chat.inputLabel': 'Mensagem',
     'chat.send': 'Enviar',

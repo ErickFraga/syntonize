@@ -12,6 +12,8 @@ import styles from './Chat.module.css'
 interface ChatProps {
     messages: ChatMessage[]
     meId: string | null
+    /** Players in the room, shown in the header. */
+    playerCount: number
     onSend: (input: ChatInput) => Promise<SimpleResult>
     /**
      * Docked in the game sidebar: inline panel on desktop, bottom sheet on
@@ -54,7 +56,7 @@ function useMediaQuery(query: string): boolean {
     return matches
 }
 
-export default function Chat({ messages, meId, onSend, docked = false, textLocked = null, defaultOpen = false }: ChatProps) {
+export default function Chat({ messages, meId, playerCount, onSend, docked = false, textLocked = null, defaultOpen = false }: ChatProps) {
     const { t, msg } = useT()
     const [open, setOpen] = useState(defaultOpen)
     const [draft, setDraft] = useState('')
@@ -138,7 +140,7 @@ export default function Chat({ messages, meId, onSend, docked = false, textLocke
 
             <section className={`card ${styles.panel}`} aria-label={t('chat.region')}>
                 <header className={styles.head}>
-                    <span className={styles.title}><ChatBubbleIcon size={16} /> {t('chat.title')}</span>
+                    <span className={styles.title}><ChatBubbleIcon size={16} /> {t('chat.title', { count: playerCount })}</span>
                     <button type="button" className={`btn-icon ${styles.close}`} onClick={() => setOpen(false)} aria-label={t('chat.close')}>
                         <XIcon size={16} />
                     </button>
@@ -188,7 +190,7 @@ export default function Chat({ messages, meId, onSend, docked = false, textLocke
                         className={`input ${styles.input}`}
                         value={draft}
                         maxLength={CHAT_LIMITS.TEXT_MAX}
-                        placeholder={textLocked ?? t('chat.placeholder')}
+                        placeholder={textLocked ?? t('chat.placeholder', { max: CHAT_LIMITS.TEXT_MAX })}
                         disabled={!!textLocked}
                         onChange={(e) => {
                             setDraft(e.target.value)

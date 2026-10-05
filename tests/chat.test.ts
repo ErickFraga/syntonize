@@ -269,7 +269,7 @@ describe('chat: the seer cannot leak the clue', () => {
 
         h.manager.giveClue(ana, 'meio termo')
         assert.equal(h.manager.sendChat(ana, text('mais pra direita')).success, false, 'guessing')
-        assert.equal(h.manager.sendChat(ana, reaction('😮')).success, true)
+        assert.equal(h.manager.sendChat(ana, reaction('😱')).success, true)
 
         h.manager.submitGuess(seats[1].id, 40)
         h.manager.submitGuess(seats[2].id, 60)
@@ -294,7 +294,7 @@ describe('chat: the seer cannot leak the clue', () => {
         h.manager.submitGuess(guesser.id, 50)
         assert.equal(room.currentRound!.phase, 'side_guess')
         assert.equal(h.manager.sendChat(seer, text('é pra direita')).success, false)
-        assert.equal(h.manager.sendChat(seer, reaction('🎯')).success, true)
+        assert.equal(h.manager.sendChat(seer, reaction('❤️')).success, true)
     })
 
     test('the room state never carries the chat, so roomViewFor stays the only view', () => {

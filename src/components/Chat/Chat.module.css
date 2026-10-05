@@ -53,20 +53,34 @@
 }
 
 .message {
+    align-self: flex-start;
+    max-width: 85%;
     margin: 0;
+    padding: 6px 10px 7px;
+    border-radius: var(--radius-sm) var(--radius-sm) var(--radius-sm) 4px;
+    background: var(--surface-2);
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 1.35;
     color: var(--text);
     overflow-wrap: anywhere;
 }
 
-.author {
-    font-weight: 800;
-    margin-right: 6px;
+.mine {
+    align-self: flex-end;
+    border-radius: var(--radius-sm) var(--radius-sm) 4px var(--radius-sm);
+    background: var(--surface);
+    border: 1px solid var(--line);
 }
 
 .mine .author {
-    opacity: 0.85;
+    text-align: right;
+}
+
+.author {
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    margin-bottom: 1px;
 }
 
 .text {
@@ -74,12 +88,24 @@
 }
 
 .reaction {
+    background: none;
+    border: 0;
+    padding: 0 2px;
     display: flex;
     align-items: center;
+    gap: 6px;
+}
+
+.mine.reaction {
+    flex-direction: row-reverse;
+}
+
+.reaction .author {
+    margin: 0;
 }
 
 .emoji {
-    font-size: 22px;
+    font-size: 24px;
     line-height: 1;
 }
 
@@ -92,7 +118,7 @@
 
 .reactions {
     display: grid;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 4px;
 }
 

@@ -159,7 +159,7 @@ export interface Room {
 // ============================================
 
 /** Quick reactions: the only emojis accepted in a `reaction` message. */
-export const CHAT_REACTIONS = ['🔥', '😂', '😮', '👏', '🤔', '💀', '😭', '🎯'] as const
+export const CHAT_REACTIONS = ['🔥', '😂', '🤔', '👏', '😱', '❤️'] as const
 export type ChatReaction = (typeof CHAT_REACTIONS)[number]
 
 export const CHAT_LIMITS = {

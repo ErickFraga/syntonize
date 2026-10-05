@@ -99,7 +99,7 @@ const chatMessages: ChatMessage[] = [
     say(8, players[4], 'eu acho que é bem no meio, criança come nugget mas salmão é coisa de adulto'),
     react(9, players[3], '🔥'),
 ]
-const chatProps = { messages: chatMessages, meId: 'p2', onSend: ok }
+const chatProps = { messages: chatMessages, meId: 'p2', playerCount: players.length, onSend: ok }
 const guessingRoom = room('playing', round('guessing', { clue: 'Nuggets de salmão', clueAt: 2000, targetPosition: null }), { players: players.map(p => p.id === 'p3' ? { ...p, hasGuessed: true } : p) })
 const guessingProps = { room: guessingRoom, me: players[1], isHost: false, isSeer: false, secondsLeft: 27, timerPhase: 'guess', onGiveClue: ok, onSubmitGuess: ok, onSetReady: noop, onNextRound: noop, onSkipRound: noop }
 

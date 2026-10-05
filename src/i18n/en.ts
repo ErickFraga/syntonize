@@ -228,7 +228,7 @@ export const en: Dictionary = {
     'teamResults.sidesHint': 'correct side calls',
 
     // ---------- chat ----------
-    'chat.title': 'Chat',
+    'chat.title': 'Chat · {count} in the room',
     'chat.region': 'Room chat',
     'chat.open': 'Open chat',
     'chat.openUnread': { one: 'Open chat ({count} unread)', other: 'Open chat ({count} unread)' },
@@ -236,7 +236,7 @@ export const en: Dictionary = {
     'chat.empty': 'Nobody said anything yet. Drop a 🔥!',
     'chat.reactions': 'Quick reactions',
     'chat.react': 'React with {emoji}',
-    'chat.placeholder': 'Send a message…',
+    'chat.placeholder': 'Say something… (max {max})',
     'chat.seerLocked': 'Psychic: reactions only',
     'chat.inputLabel': 'Message',
     'chat.send': 'Send',
