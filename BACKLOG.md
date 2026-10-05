@@ -10,7 +10,6 @@ completo · **P3** polimento.
 
 | Branch | Item | Prioridade |
 |---|---|---|
-| `claude/feature-persistencia` | Persistência das salas (sobreviver a reinício/sono do Render) | P1 |
 | `claude/feature-historico-rodadas` | Histórico de rodadas na partida | P2 |
 
 Já na `main` (PRs #2–#6, #8, #10, #11): modo em equipes, internacionalização,

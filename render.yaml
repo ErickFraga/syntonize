@@ -2,7 +2,9 @@
 # Deploy em um clique: https://render.com/deploy?repo=https://github.com/ErickFraga/syntonize
 #
 # O Syntonize precisa de um processo Node vivo (Socket.io + salas em memória),
-# por isso é um "web service" e deve rodar com uma única instância.
+# por isso é um "web service" e deve rodar com uma única instância. As salas
+# são gravadas no Key Value (Redis) abaixo e voltam quando o serviço reinicia
+# (deploy, crash ou o plano free dormindo e acordando).
 services:
   - type: web
     name: syntonize
@@ -18,3 +20,21 @@ services:
         value: "22"
       # Não definir NODE_ENV=production aqui: o build do Next precisa das
       # devDependencies, e o script `npm start` já exporta NODE_ENV sozinho.
+      # URL interna do Key Value (rede privada do Render, mesma região).
+      # Sem ela o servidor guarda as salas só em memória, como antes.
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: syntonize-kv
+          property: connectionString
+
+  # Key Value grátis (25 MB, compatível com Redis). Cada sala ocupa poucos KB
+  # e expira 24 h depois da última alteração.
+  - type: keyvalue
+    name: syntonize-kv
+    plan: free
+    region: oregon
+    # Lista vazia: só serviços da mesma conta acessam, pela rede interna.
+    ipAllowList: []
+    # Se lotar, descarta as salas menos usadas em vez de recusar gravações.
+    maxmemoryPolicy: allkeys-lru

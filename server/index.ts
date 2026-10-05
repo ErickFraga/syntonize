@@ -5,6 +5,8 @@ import { Server, type Socket } from 'socket.io'
 
 import type { ServerToClientEvents, ClientToServerEvents, SimpleResult } from '../shared/types.ts'
 import { RoomManager, type Transport } from './roomManager.ts'
+import { MemoryStore, type RoomStore } from './roomStore.ts'
+import { RedisStore } from './redisStore.ts'
 import { handleApiRequest } from './httpApi.ts'
 import { msg, roomViewFor } from '../shared/gameLogic.ts'
 
@@ -17,7 +19,31 @@ const handle = app.getRequestHandler()
 
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>
 
-app.prepare().then(() => {
+/** Redis when REDIS_URL is set (rooms survive restarts); otherwise memory, as before. */
+function createStore(): RoomStore {
+    const url = process.env.REDIS_URL?.trim()
+    return url ? RedisStore.fromUrl(url) : new MemoryStore()
+}
+
+/** Loads the saved rooms, retrying a few times while the store wakes up. */
+async function loadRooms(manager: RoomManager, store: RoomStore): Promise<void> {
+    for (let attempt = 1; ; attempt++) {
+        try {
+            const count = await manager.loadFromStore()
+            console.log(`> ${count} sala(s) restaurada(s) do store (${store.name})`)
+            return
+        } catch (error) {
+            console.error(`> falha ao carregar as salas (${store.name}, tentativa ${attempt}): ${(error as Error).message}`)
+            if (attempt >= 5) {
+                console.error('> seguindo sem as salas salvas')
+                return
+            }
+            await new Promise(resolve => setTimeout(resolve, attempt * 2000))
+        }
+    }
+}
+
+app.prepare().then(async () => {
     // Assigned below, once the transport (which needs `io`) exists.
     let manager: RoomManager
 
@@ -44,8 +70,24 @@ app.prepare().then(() => {
         },
     }
 
-    manager = new RoomManager(transport, { log: (m) => console.log(`[game] ${m}`) })
+    const store = createStore()
+    manager = new RoomManager(transport, { store, log: (m) => console.log(`[game] ${m}`) })
+    // Before accepting connections: returning clients must find their rooms.
+    await loadRooms(manager, store)
     setInterval(() => manager.sweep(), 10_000).unref()
+
+    // Render sends SIGTERM on deploys: write pending saves before exiting.
+    let shuttingDown = false
+    const shutdown = async (signal: string) => {
+        if (shuttingDown) return
+        shuttingDown = true
+        console.log(`> ${signal}: salvando as salas`)
+        const timeout = new Promise(resolve => setTimeout(resolve, 5000).unref())
+        await Promise.race([manager.flush().then(() => store.close()), timeout]).catch(() => {})
+        process.exit(0)
+    }
+    process.on('SIGTERM', () => void shutdown('SIGTERM'))
+    process.on('SIGINT', () => void shutdown('SIGINT'))
 
     function bind(socket: GameSocket, playerId: string, roomCode: string) {
         const previous = socketsByPlayer.get(playerId)
@@ -73,12 +115,24 @@ app.prepare().then(() => {
 
     io.on('connection', (socket: GameSocket) => {
         const token = socket.handshake.auth?.sessionToken as string | undefined
-        const restored = manager.restoreSession(token)
-        if (restored) {
-            bind(socket, restored.playerId, restored.room.code)
-            socket.emit('room:restored', { room: roomViewFor(restored.room, restored.playerId), playerId: restored.playerId })
-            manager.sendState(restored.playerId)
-        }
+        // Async because a room restored from the store is re-read when its
+        // first player comes back; the listeners below are bound meanwhile.
+        void manager.resumeSession(token).then(restored => {
+            if (!socket.connected || currentPlayerId(socket)) {
+                // Gone already, or created/joined another room in the meantime.
+                if (restored && !socketsByPlayer.has(restored.playerId)) manager.disconnect(restored.playerId)
+                return
+            }
+            if (restored) {
+                bind(socket, restored.playerId, restored.room.code)
+                socket.emit('room:restored', { room: roomViewFor(restored.room, restored.playerId), playerId: restored.playerId })
+                manager.sendState(restored.playerId)
+            } else if (token) {
+                // The room is gone (expired, deleted, or lost with the store):
+                // tell the client so it drops the token instead of waiting forever.
+                socket.emit('room:sessionExpired')
+            }
+        })
 
         socket.on('room:create', (nickname, callback) => {
             const existing = currentPlayerId(socket)
@@ -96,7 +150,8 @@ app.prepare().then(() => {
             callback({ success: true, code: result.data.room.code, playerId: result.data.playerId, sessionToken: result.data.sessionToken })
         })
 
-        socket.on('room:join', (code, nickname, callback) => {
+        socket.on('room:join', async (code, nickname, callback) => {
+            await manager.wake(String(code ?? ''))
             const existing = currentPlayerId(socket)
             if (existing) {
                 const room = manager.getRoomOfPlayer(existing)

@@ -312,6 +312,8 @@ export interface SimpleResult {
 export interface ServerToClientEvents {
     'room:state': (room: Room) => void
     'room:restored': (data: { room: Room; playerId: string }) => void
+    /** The session token sent on connect no longer matches a room (expired or deleted). */
+    'room:sessionExpired': () => void
     'room:notice': (notice: Notice) => void
     'room:error': (message: Message) => void
     'room:kicked': () => void
