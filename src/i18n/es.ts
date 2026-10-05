@@ -126,7 +126,7 @@ export const es: Dictionary = {
     'packs.cards': { one: '{count} carta', other: '{count} cartas' },
     'packs.classic': 'Clásico',
     'packs.classicHint': 'El mazo original: opiniones, cosas, situaciones y naturaleza',
-    'packs.food': 'Comida y bebida',
+    'packs.food': 'Comida',
     'packs.foodHint': 'Del bar de barrio al restaurante de lujo',
     'packs.pop': 'Cultura pop',
     'packs.popHint': 'Pelis, series, música, videojuegos y memes',
