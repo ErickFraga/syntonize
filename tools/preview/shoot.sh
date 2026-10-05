@@ -8,7 +8,11 @@ bun --preload ./plugin.ts --tsconfig-override ./tsconfig.json main.ts 2>&1 | gre
 cd out
 CHROME=${CHROME:-$(ls -d /opt/pw-browsers/chromium-*/chrome-linux/chrome 2>/dev/null | head -1)}
 <<<<<<< HEAD
+<<<<<<< HEAD
 for f in ${@:-home join lobby lobby-guest game-seer-clue game-guesser-wait game-guessing game-seer-guessing game-revealed results lobby-teams team-guessing team-opponent-wait team-side-guess team-revealed team-results home-en lobby-en lobby-teams-en game-revealed-en lobby-guest-es team-side-guess-es results-es home-light lobby-light game-guessing-light game-revealed-light results-light lobby-teams-light team-revealed-light game-chat game-chat-open game-seer-chat lobby-chat game-chat-open-en game-chat-light game-chat-open-light}; do
+=======
+for f in ${@:-home join lobby lobby-guest game-seer-clue game-guesser-wait game-guessing game-seer-guessing game-revealed results lobby-teams team-guessing team-opponent-wait team-side-guess team-revealed team-results home-en lobby-en lobby-teams-en game-revealed-en lobby-guest-es team-side-guess-es results-es home-light lobby-light game-guessing-light game-revealed-light results-light lobby-teams-light team-revealed-light lobby-qr lobby-qr-en lobby-qr-light}; do
+>>>>>>> claude/feature-qrcode
 =======
 for f in ${@:-home join lobby lobby-guest game-seer-clue game-guesser-wait game-guessing game-seer-guessing game-revealed results lobby-teams team-guessing team-opponent-wait team-side-guess team-revealed team-results home-en lobby-en lobby-teams-en game-revealed-en lobby-guest-es team-side-guess-es results-es home-light lobby-light game-guessing-light game-revealed-light results-light lobby-teams-light team-revealed-light dial-lid dial-lid-light}; do
 >>>>>>> origin/claude/features-equipes-i18n

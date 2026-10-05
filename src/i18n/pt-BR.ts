@@ -53,6 +53,7 @@ export const ptBR = {
     'home.or': 'ou',
     'home.joinTitle': 'Entrar em uma sala',
     'home.joinText': 'Pede o código de 6 letras para quem criou.',
+    'home.joinQrHint': 'Ou aponte a câmera para o QR code do anfitrião.',
     'home.codeAria': 'Código da sala',
     'home.codeLength': 'O código da sala tem 6 caracteres',
     'home.join': 'Entrar',
@@ -143,6 +144,16 @@ export const ptBR = {
     'packs.spicy': 'Picante',
     'packs.spicyHint': 'Paquera, encontros e noitadas. Picante, sem baixaria',
     'packs.adultBadge': '18+',
+
+    // ---------- QR code ----------
+    'qr.label': 'QR code do convite para a sala {code}',
+    'qr.expand': 'Ampliar QR code',
+    'qr.expandShort': 'Ampliar',
+    'qr.expandLabel': 'Ampliar QR code do convite para a sala {code}',
+    'qr.dialog': 'QR code da sala',
+    'qr.close': 'Fechar',
+    'qr.scanHint': 'Aponte a câmera para entrar',
+
     'settings.targetScore': 'Pontos para vencer',
     'settings.targetScoreHint': 'A partida termina quando alguém chega lá',
     'settings.targetScoreHintTeams': 'A partida termina quando um time chega lá',

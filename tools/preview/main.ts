@@ -13,7 +13,11 @@ import TeamGame from '../../src/components/TeamGame/TeamGame.tsx'
 import TeamResults from '../../src/components/TeamResults/TeamResults.tsx'
 import Logo from '../../src/components/ui/Logo.tsx'
 <<<<<<< HEAD
+<<<<<<< HEAD
 import Chat from '../../src/components/Chat/Chat.tsx'
+=======
+import { QrFullscreen } from '../../src/components/QrCode/QrCode.tsx'
+>>>>>>> claude/feature-qrcode
 =======
 import Dial from '../../src/components/Dial/Dial.tsx'
 >>>>>>> origin/claude/features-equipes-i18n
@@ -135,6 +139,12 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
     lobby: {
         node: page(jsx(Lobby, { room: room('waiting', null, { settings: { ...DEFAULT_SETTINGS, packs: ['classic', 'food', 'spicy'] } }), me: players[0], isHost: true, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
     },
+    'lobby-qr': {
+        node: jsx('div', { children: [
+            page(jsx(Lobby, { room: room('waiting', null), me: players[0], isHost: true, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
+            jsx(QrFullscreen, { value: 'https://syntonize.onrender.com/join/K7PX2Q', code: 'K7PX2Q', onClose: noop }),
+        ] }),
+    },
     'lobby-guest': {
         node: page(jsx(Lobby, { room: room('waiting', null, { settings: { ...DEFAULT_SETTINGS, cardLocale: 'en', packs: ['pop', 'people'] } }), me: players[1], isHost: false, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
     },
@@ -211,12 +221,20 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
 g.__params = { code: 'K7PX2Q' }
 
 // Same screens in other interface languages (the shim's useContext reads the context default).
+<<<<<<< HEAD
 for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-revealed', 'game-chat-open']], ['es', ['lobby-guest', 'team-side-guess', 'results']]] as const) {
+=======
+for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-revealed', 'lobby-qr']], ['es', ['lobby-guest', 'team-side-guess', 'results']]] as const) {
+>>>>>>> claude/feature-qrcode
     for (const name of names) screens[`${name}-${locale}`] = { ...screens[name], locale }
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 const LIGHT = new Set(['home', 'lobby', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'game-chat', 'game-chat-open'])
+=======
+const LIGHT = new Set(['home', 'lobby', 'lobby-qr', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed'])
+>>>>>>> claude/feature-qrcode
 =======
 const LIGHT = new Set(['home', 'lobby', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid'])
 >>>>>>> origin/claude/features-equipes-i18n
