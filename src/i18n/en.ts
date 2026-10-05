@@ -372,6 +372,7 @@ export const en: Dictionary = {
     'msg.chat_too_long': 'Messages can have at most {max} characters',
     'msg.chat_invalid_reaction': 'Invalid reaction',
     'msg.chat_seer_reactions_only': 'The Psychic can only react while the round is open',
+    'msg.rate_limited': 'Too many attempts in a row. Wait a moment and try again',
     'msg.chat_rate_limited': 'Easy! Wait a few seconds before sending another message',
     'msg.player_joined': '{name} joined the room',
     'msg.player_left': '{name} left the room',

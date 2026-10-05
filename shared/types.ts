@@ -309,7 +309,7 @@ export const MESSAGE_CODES = [
     'host_only_kick', 'player_not_found', 'cannot_kick_self', 'host_only_settings', 'settings_lobby_only',
     'host_only_move', 'teams_lobby_only', 'invalid_team', 'host_only_start', 'host_only_lobby',
     'needle_throttled', 'not_next_round_time', 'host_only_next', 'host_only_skip', 'skip_only_waiting_clue',
-    'not_in_room', 'packs_empty',
+    'not_in_room', 'packs_empty', 'rate_limited',
     // chat
     'chat_invalid', 'chat_empty', 'chat_too_long', 'chat_invalid_reaction', 'chat_seer_reactions_only', 'chat_rate_limited',
     // room notices

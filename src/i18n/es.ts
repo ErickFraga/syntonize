@@ -372,6 +372,7 @@ export const es: Dictionary = {
     'msg.chat_too_long': 'El mensaje puede tener como máximo {max} caracteres',
     'msg.chat_invalid_reaction': 'Reacción inválida',
     'msg.chat_seer_reactions_only': 'El Vidente solo puede reaccionar mientras la ronda está abierta',
+    'msg.rate_limited': 'Demasiados intentos seguidos. Espera un momento e inténtalo de nuevo',
     'msg.chat_rate_limited': '¡Calma! Espera unos segundos para mandar otro mensaje',
     'msg.player_joined': '{name} entró en la sala',
     'msg.player_left': '{name} salió de la sala',
