@@ -1,6 +1,8 @@
 .packs {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    /* Every row as tall as the tallest card, so a name that wraps doesn't make one row bigger. */
+    grid-auto-rows: 1fr;
     gap: 8px;
 }
 

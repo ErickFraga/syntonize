@@ -83,7 +83,7 @@ independente do idioma da interface de cada um) e quais **pacotes** entram no ba
 | Pacote | Cartas | Tema |
 |---|---|---|
 | Clássico | 142 | o baralho original: opinião, coisas, situações, natureza |
-| Comida e bebida | 44 | do boteco ao restaurante chique |
+| Alimentos | 44 | do boteco ao restaurante chique |
 | Cultura pop | 44 | filmes, séries, música, jogos e memes |
 | Pessoas | 44 | manias, amizades e comportamento |
 | Picante (18+) | 44 | paquera, encontros e noitadas, sem conteúdo explícito ou ofensivo |

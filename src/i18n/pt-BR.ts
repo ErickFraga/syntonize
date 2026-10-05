@@ -135,7 +135,7 @@ export const ptBR = {
     'packs.cards': { one: '{count} carta', other: '{count} cartas' },
     'packs.classic': 'Clássico',
     'packs.classicHint': 'O baralho original: opinião, coisas, situações e natureza',
-    'packs.food': 'Comida e bebida',
+    'packs.food': 'Alimentos',
     'packs.foodHint': 'Do boteco ao restaurante chique',
     'packs.pop': 'Cultura pop',
     'packs.popHint': 'Filmes, séries, música, jogos e memes',

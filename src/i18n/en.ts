@@ -123,7 +123,7 @@ export const en: Dictionary = {
     'packs.cards': { one: '{count} card', other: '{count} cards' },
     'packs.classic': 'Classic',
     'packs.classicHint': 'The original deck: opinions, things, situations and nature',
-    'packs.food': 'Food & drink',
+    'packs.food': 'Food',
     'packs.foodHint': 'From dive bars to fine dining',
     'packs.pop': 'Pop culture',
     'packs.popHint': 'Movies, TV, music, games and memes',
