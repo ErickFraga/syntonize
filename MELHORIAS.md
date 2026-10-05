@@ -17,7 +17,7 @@ Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `
 |---|---|---|
 | ✅ | **Dial semicircular com ponteiro** | A barra reta com gradiente virou um dial em SVG, com face creme, marcações, aro e ponteiro vermelho girando a partir do eixo. É a imagem do jogo físico. |
 | ✅ | **Cunha 2 \| 3 \| 4 \| 3 \| 2** | O alvo é desenhado como cunha com os números impressos, nas proporções do jogo (cerca de um quarto do dial). Antes era um círculo verde/amarelo numa barra. |
-| ✅ | **"Tela" que esconde o alvo** | Quem não é o Vidente vê o dial coberto com um `?`, como a tampa do jogo físico. Na revelação a cunha "abre" com animação. |
+| ✅ | **"Tela" que esconde o alvo** | Quem não é o Vidente vê o dial coberto com um `?`, como a tampa do jogo físico. Na revelação a tampa gira em torno do eixo e some atrás do mostrador, mostrando a cunha que já estava por baixo. |
 | ✅ | **Carta de espectro embaixo do dial** | Os dois conceitos ficam nos cantos, com setas, como a carta encaixada no dispositivo. |
 | ✅ | **Regra da dica** | A dica não pode conter as palavras da carta (comparação sem acento e sem caixa). O servidor recusa e explica. |
 | ✅ | **Ponteiros de todo mundo na revelação** | Cada palpite aparece como uma agulha fina na cor do jogador, com avatar na ponta. Quem zerou aparece esmaecido. |
@@ -66,7 +66,7 @@ Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `
 | ✅ | **Tela de jogo** | Barra da rodada (número, Vidente com avatar, timer em anel), dispositivo com dial + carta + dica em destaque, painel de fase contextual, placar lateral (ou abaixo no celular). |
 | ✅ | **Palpite** | Arrasta no dial (mouse e toque), slider fino, botões −1/+1, teclado (setas, Shift para pular de 5, Home/End) e leitura do valor. Depois de travar, o ponteiro muda de cor. |
 | ✅ | **Quem já travou** | Avatares com check para o Vidente e para quem já palpitou. |
-| ✅ | **Revelação** | Animação da cunha, agulhas de todos, lista de resultado com zona (4/3/2/0), rótulo ("Na mosca!", "Quase lá"…), bônus de mais perto e pontos do Vidente. Botão "Pronto" com contagem e countdown para a próxima rodada; anfitrião pode forçar. |
+| ✅ | **Revelação** | Tampa abrindo, agulhas de todos, lista de resultado com zona (4/3/2/0), rótulo ("Na mosca!", "Quase lá"…), bônus de mais perto e pontos do Vidente. Botão "Pronto" com contagem e countdown para a próxima rodada; anfitrião pode forçar. |
 | ✅ | **Resultados** | Pódio com os 3 primeiros, lista do resto, destaques (mira certeira, melhor Vidente, sua melhor rodada), confete para quem venceu, "jogar de novo" e "voltar ao lobby". |
 | ✅ | **Cores por jogador** | Cada jogador recebe uma cor estável usada no lobby, placar, lista de resultado e no dial. |
 | ✅ | **Toasts** | Avisos do servidor (entrou/saiu, novo anfitrião, rodada pulada, erros) aparecem como notificação, não como `alert`. |
@@ -84,7 +84,7 @@ Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `
 | ✅ | **Tema claro** | Paleta clara (creme, branco, lilás) e toggle sol/lua. |
 | ⬜ P3 | **PWA** | Manifesto + ícone para "instalar" no celular. |
 | ✅ | **Internacionalização** | pt-BR (padrão), en e es sem biblioteca: dicionários em `src/i18n/<locale>.ts` tipados pelo pt-BR (chave faltando quebra o typecheck), `useT()` com interpolação `{nome}`, plural simples e texto rico, seletor de idioma no cabeçalho da sala e na home/convite, escolha salva no localStorage + cookie (o servidor usa o cookie ou o `Accept-Language` para `<html lang>` e os metadados). O servidor não manda mais texto: erros e avisos são `{ code, params }` (`MESSAGE_CODES` em `shared/types.ts`) traduzidos no cliente. Testes em `tests/i18n.test.ts` (cobertura de chaves e placeholders nos 3 idiomas). |
-| ⬜ P3 | **Animação da tampa** | Hoje a cunha "cresce"; uma tampa deslizando como no jogo físico seria ainda mais fiel. |
+| ✅ | **Animação da tampa** | Na revelação a tampa (o mesmo semicírculo `--cream-2` com `?`, borda `--line-soft` para a beirada aparecer no giro) gira 180° em torno do eixo do ponteiro em 700 ms (`cubic-bezier(0.22, 1, 0.36, 1)`) e é recortada na linha do mostrador, como se fosse para trás dele; a cunha já está desenhada por baixo, sem animação de crescer. O `Dial` lembra se o jogador tinha a tampa, então ela abre mesmo com `covered` já `false` e não aparece para o Vidente. Marcadores entram depois (0,75 s + 0,08 s por jogador). Com `prefers-reduced-motion` a tampa some na hora e os marcadores entram sem atraso. Quadros intermediários na tela `dial-lid` do preview. |
 
 ## 4. Código, testes e tooling
 
