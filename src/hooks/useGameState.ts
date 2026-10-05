@@ -1,223 +1,234 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { getSocket, saveSessionToken, clearSessionToken } from '@/lib/socket'
-import { Room, Player, TimerUpdate } from '@/types/game'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { getSocket, session } from '@/lib/socket'
+import { sounds } from '@/lib/sounds'
+import type { Room, Player, TimerUpdate, Notice, RoomSettings, JoinResult, SimpleResult, RoomInfo } from '@/types/game'
+
+export interface Toast extends Notice {
+    id: number
+}
+
+export interface TimerState {
+    phase: TimerUpdate['phase']
+    endsAt: number
+}
+
+let toastId = 0
 
 export function useGameState() {
     const [room, setRoom] = useState<Room | null>(null)
-    const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null)
-    const [timer, setTimer] = useState<number>(0)
-    const [error, setError] = useState<string | null>(null)
+    const [playerId, setPlayerId] = useState<string | null>(null)
     const [isConnected, setIsConnected] = useState(false)
-    const [sessionRestored, setSessionRestored] = useState<string | null>(null) // room code if restored
-    const [readyPlayers, setReadyPlayers] = useState<Set<string>>(new Set())
+    const [restoredCode, setRestoredCode] = useState<string | null>(null)
+    const [toasts, setToasts] = useState<Toast[]>([])
+    const [timer, setTimer] = useState<TimerState | null>(null)
+    const [serverOffset, setServerOffset] = useState(0)
+    const [wasKicked, setWasKicked] = useState(false)
 
-    // Track server time offset for accurate timer display
-    const serverTimeOffset = useRef<number>(0)
+    const pushToast = useCallback((notice: Notice, ttl = 3500) => {
+        const id = ++toastId
+        setToasts(prev => [...prev.slice(-3), { ...notice, id }])
+        window.setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), ttl)
+    }, [])
 
     useEffect(() => {
         const socket = getSocket()
+        setPlayerId(session.getPlayerId())
 
         const onConnect = () => {
             setIsConnected(true)
-            setError(null)
+            socket.emit('game:requestState')
+        }
+        const onDisconnect = () => setIsConnected(false)
+
+        const onState = (next: Room) => {
+            setRoom(next)
+            // Timers only exist while a round is in progress.
+            if (!next.currentRound || next.status !== 'playing') setTimer(null)
         }
 
-        const onDisconnect = () => {
-            setIsConnected(false)
-        }
-
-        const onRoomState = (newRoom: Room) => {
-            setRoom(newRoom)
-
-            // Store room code for quick reference
-            sessionStorage.setItem('syntonize-room', newRoom.code)
-
-            const player = newRoom.players.find(p => p.id === socket.id)
-            if (player) {
-                setCurrentPlayer(player)
-            }
-        }
-
-        const onRoomRestored = (data: { room: Room; sessionToken: string }) => {
+        const onRestored = (data: { room: Room; playerId: string }) => {
             setRoom(data.room)
-            sessionStorage.setItem('syntonize-room', data.room.code)
-
-            const player = data.room.players.find(p => p.id === socket.id)
-            if (player) {
-                setCurrentPlayer(player)
-            }
-
-            // Signal that session was restored - page will redirect
-            setSessionRestored(data.room.code)
-            console.log('Session restored for room:', data.room.code)
+            setPlayerId(data.playerId)
+            session.save(session.getToken() ?? '', data.playerId)
+            setRestoredCode(data.room.code)
         }
 
-        const onError = (message: string) => {
-            setError(message)
-            setTimeout(() => setError(null), 3000)
-        }
-
-        const onTimerUpdate = (timerData: TimerUpdate) => {
-            // Calculate server time offset for accurate sync
-            const now = Date.now()
-            serverTimeOffset.current = timerData.serverTime - now
-
-            setTimer(timerData.secondsLeft)
-        }
+        const onNotice = (notice: Notice) => pushToast(notice)
+        const onError = (message: string) => pushToast({ kind: 'error', message })
 
         const onKicked = () => {
+            session.clear()
             setRoom(null)
-            setCurrentPlayer(null)
-            sessionStorage.removeItem('syntonize-room')
-            clearSessionToken()
-            setError('Você foi removido da sala pelo host')
+            setPlayerId(null)
+            setWasKicked(true)
         }
 
-        const onPlayerReady = (playerId: string) => {
-            setReadyPlayers(prev => new Set(prev).add(playerId))
-        }
-
-        const onAllReady = () => {
-            setReadyPlayers(new Set())
+        const onTimer = (update: TimerUpdate) => {
+            setServerOffset(update.serverTime - Date.now())
+            setTimer({ phase: update.phase, endsAt: update.endsAt })
         }
 
         const onRoundStart = () => {
-            setReadyPlayers(new Set())
+            setTimer(null)
+            sounds.roundStart()
+        }
+        const onClue = () => sounds.clue()
+        const onReveal = () => {
+            setTimer(null)
+            sounds.reveal()
+        }
+        const onFinished = () => {
+            setTimer(null)
+            sounds.finish()
         }
 
         socket.on('connect', onConnect)
         socket.on('disconnect', onDisconnect)
-        socket.on('room:state', onRoomState)
-        socket.on('room:restored', onRoomRestored)
+        socket.on('room:state', onState)
+        socket.on('room:restored', onRestored)
+        socket.on('room:notice', onNotice)
         socket.on('room:error', onError)
         socket.on('room:kicked', onKicked)
-        socket.on('game:timerUpdate', onTimerUpdate)
-        socket.on('game:playerReady', onPlayerReady)
-        socket.on('game:allReady', onAllReady)
+        socket.on('game:timer', onTimer)
         socket.on('game:roundStart', onRoundStart)
+        socket.on('game:clueGiven', onClue)
+        socket.on('game:reveal', onReveal)
+        socket.on('game:finished', onFinished)
 
-        if (socket.connected) {
-            setIsConnected(true)
-            // Request state in case session was restored before hook mounted
-            socket.emit('game:requestState')
-        }
+        if (socket.connected) onConnect()
 
         return () => {
             socket.off('connect', onConnect)
             socket.off('disconnect', onDisconnect)
-            socket.off('room:state', onRoomState)
-            socket.off('room:restored', onRoomRestored)
+            socket.off('room:state', onState)
+            socket.off('room:restored', onRestored)
+            socket.off('room:notice', onNotice)
             socket.off('room:error', onError)
             socket.off('room:kicked', onKicked)
-            socket.off('game:timerUpdate', onTimerUpdate)
-            socket.off('game:playerReady', onPlayerReady)
-            socket.off('game:allReady', onAllReady)
+            socket.off('game:timer', onTimer)
             socket.off('game:roundStart', onRoundStart)
+            socket.off('game:clueGiven', onClue)
+            socket.off('game:reveal', onReveal)
+            socket.off('game:finished', onFinished)
         }
-    }, [])
+    }, [pushToast])
 
-    const createRoom = useCallback((nickname: string): Promise<{ success: boolean; code?: string; sessionToken?: string; error?: string }> => {
-        return new Promise((resolve) => {
-            const socket = getSocket()
-            socket.emit('room:create', nickname, (result) => {
-                if (result.success && result.code && result.sessionToken) {
-                    sessionStorage.setItem('syntonize-nickname', nickname)
-                    sessionStorage.setItem('syntonize-room', result.code)
-                    saveSessionToken(result.sessionToken)
+    // ---------- actions ----------
+
+    const createRoom = useCallback((nickname: string) => {
+        return new Promise<JoinResult>((resolve) => {
+            getSocket().emit('room:create', nickname, (result) => {
+                if (result.success && result.sessionToken && result.playerId) {
+                    session.save(result.sessionToken, result.playerId)
+                    session.saveNickname(nickname)
+                    setPlayerId(result.playerId)
                 }
                 resolve(result)
             })
         })
     }, [])
 
-    const joinRoom = useCallback((code: string, nickname: string): Promise<{ success: boolean; sessionToken?: string; error?: string }> => {
-        return new Promise((resolve) => {
-            const socket = getSocket()
-            socket.emit('room:join', code, nickname, (result) => {
-                if (result.success && result.sessionToken) {
-                    sessionStorage.setItem('syntonize-nickname', nickname)
-                    sessionStorage.setItem('syntonize-room', code)
-                    saveSessionToken(result.sessionToken)
+    const joinRoom = useCallback((code: string, nickname: string) => {
+        return new Promise<JoinResult>((resolve) => {
+            getSocket().emit('room:join', code, nickname, (result) => {
+                if (result.success && result.playerId) {
+                    if (result.sessionToken) session.save(result.sessionToken, result.playerId)
+                    session.saveNickname(nickname)
+                    setPlayerId(result.playerId)
                 }
                 resolve(result)
             })
         })
     }, [])
 
-    const rejoinRoom = useCallback((code: string): Promise<{ success: boolean; error?: string }> => {
-        return new Promise((resolve) => {
-            const socket = getSocket()
-            socket.emit('room:rejoin', code, resolve)
+    const getRoomInfo = useCallback((code: string) => {
+        return new Promise<{ success: boolean; info?: RoomInfo; error?: string }>((resolve) => {
+            getSocket().emit('room:info', code, resolve)
         })
     }, [])
 
     const leaveRoom = useCallback(() => {
-        const socket = getSocket()
-        socket.emit('room:leave')
+        getSocket().emit('room:leave')
+        session.clear()
         setRoom(null)
-        setCurrentPlayer(null)
-        sessionStorage.removeItem('syntonize-room')
-        clearSessionToken() // Clear token on intentional leave
+        setPlayerId(null)
+        setTimer(null)
     }, [])
 
-    const startGame = useCallback(() => {
-        const socket = getSocket()
-        socket.emit('game:start')
+    const kickPlayer = useCallback((targetId: string) => {
+        return new Promise<SimpleResult>((resolve) => getSocket().emit('room:kick', targetId, resolve))
     }, [])
 
+    const updateSettings = useCallback((settings: Partial<RoomSettings>) => {
+        return new Promise<SimpleResult>((resolve) => getSocket().emit('room:updateSettings', settings, resolve))
+    }, [])
+
+    const startGame = useCallback(() => getSocket().emit('game:start'), [])
     const giveClue = useCallback((clue: string) => {
-        const socket = getSocket()
-        socket.emit('game:giveClue', clue)
+        return new Promise<SimpleResult>((resolve) => getSocket().emit('game:giveClue', clue, resolve))
     }, [])
-
     const submitGuess = useCallback((position: number) => {
-        const socket = getSocket()
-        socket.emit('game:submitGuess', position)
+        return new Promise<SimpleResult>((resolve) => getSocket().emit('game:submitGuess', position, resolve))
     }, [])
+    const setReady = useCallback(() => getSocket().emit('game:ready'), [])
+    const nextRound = useCallback(() => getSocket().emit('game:nextRound'), [])
+    const skipRound = useCallback(() => getSocket().emit('game:skipRound'), [])
+    const backToLobby = useCallback(() => getSocket().emit('game:backToLobby'), [])
 
-    const getRoomInfo = useCallback((code: string): Promise<{ success: boolean; hostName?: string; playerCount?: number; error?: string }> => {
-        return new Promise((resolve) => {
-            const socket = getSocket()
-            socket.emit('room:info', code, resolve)
-        })
-    }, [])
+    // ---------- derived ----------
 
-    const kickPlayer = useCallback((playerId: string): Promise<{ success: boolean; error?: string }> => {
-        return new Promise((resolve) => {
-            const socket = getSocket()
-            socket.emit('room:kickPlayer', playerId, resolve)
-        })
-    }, [])
-
-    const setReady = useCallback(() => {
-        const socket = getSocket()
-        socket.emit('game:ready')
-    }, [])
-
-    const isSeer = room?.currentRound?.seerId === currentPlayer?.id
-    const isReady = currentPlayer ? readyPlayers.has(currentPlayer.id) : false
+    const me: Player | null = useMemo(
+        () => room?.players.find(p => p.id === playerId) ?? null,
+        [room, playerId],
+    )
+    const isHost = !!me?.isHost
+    const isSeer = !!room?.currentRound && room.currentRound.seerId === playerId
 
     return {
         room,
-        currentPlayer,
-        timer,
-        error,
-        isConnected,
+        me,
+        playerId,
+        isHost,
         isSeer,
-        isReady,
-        readyPlayers,
-        sessionRestored,
+        isConnected,
+        restoredCode,
+        wasKicked,
+        toasts,
+        timer,
+        serverOffset,
+        pushToast,
         createRoom,
         joinRoom,
-        rejoinRoom,
+        getRoomInfo,
         leaveRoom,
+        kickPlayer,
+        updateSettings,
         startGame,
         giveClue,
         submitGuess,
-        getRoomInfo,
-        kickPlayer,
         setReady,
+        nextRound,
+        skipRound,
+        backToLobby,
     }
+}
+
+/** Seconds left on a server-anchored timer, updated 4x per second. */
+export function useCountdown(timer: TimerState | null, serverOffset: number): number | null {
+    const [seconds, setSeconds] = useState<number | null>(null)
+
+    useEffect(() => {
+        if (!timer) {
+            setSeconds(null)
+            return
+        }
+        const compute = () => Math.max(0, Math.ceil((timer.endsAt - (Date.now() + serverOffset)) / 1000))
+        setSeconds(compute())
+        const id = window.setInterval(() => setSeconds(compute()), 250)
+        return () => window.clearInterval(id)
+    }, [timer, serverOffset])
+
+    return seconds
 }

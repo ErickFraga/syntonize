@@ -1,233 +1,345 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Room, Player, SCORING } from '@/types/game'
-import Spectrum from './Spectrum'
+import { useEffect, useMemo, useState } from 'react'
+import type { Room, Player, SimpleResult } from '@/types/game'
+import { LIMITS } from '@/types/game'
+import Dial, { type DialMarker } from '@/components/Dial/Dial'
+import Avatar from '@/components/ui/Avatar'
+import CountdownRing from '@/components/ui/CountdownRing'
+import { EyeIcon, LockIcon, CheckIcon, SkipIcon, LightbulbIcon, ChevronRightIcon, SparklesIcon } from '@/components/ui/Icons'
 import Scoreboard from './Scoreboard'
+import { sounds } from '@/lib/sounds'
 import styles from './Game.module.css'
 
 interface GameProps {
     room: Room
-    currentPlayer: Player | null
+    me: Player | null
+    isHost: boolean
     isSeer: boolean
-    timer: number
-    isReady: boolean
-    readyPlayers: Set<string>
-    onGiveClue: (clue: string) => void
-    onSubmitGuess: (position: number) => void
+    secondsLeft: number | null
+    timerPhase: 'clue' | 'guess' | 'next' | null
+    onGiveClue: (clue: string) => Promise<SimpleResult>
+    onSubmitGuess: (position: number) => Promise<SimpleResult>
     onSetReady: () => void
+    onNextRound: () => void
+    onSkipRound: () => void
+}
+
+const ZONE_LABEL: Record<number, string> = {
+    4: 'Na mosca!',
+    3: 'Quase lá',
+    2: 'Pegou a vibe',
+    0: 'Passou longe',
 }
 
 export default function Game({
     room,
-    currentPlayer,
+    me,
+    isHost,
     isSeer,
-    timer,
-    isReady,
-    readyPlayers,
+    secondsLeft,
+    timerPhase,
     onGiveClue,
     onSubmitGuess,
-    onSetReady
+    onSetReady,
+    onNextRound,
+    onSkipRound,
 }: GameProps) {
-    const round = room.currentRound
-    const [clue, setClue] = useState('')
-    const [guessPosition, setGuessPosition] = useState(50)
-    const [hasSubmitted, setHasSubmitted] = useState(false)
+    const round = room.currentRound!
+    const seer = room.players.find(p => p.id === round.seerId)
+    const phase = round.phase
 
-    // Reset state on new round
+    const [clue, setClue] = useState('')
+    const [clueError, setClueError] = useState<string | null>(null)
+    const [sending, setSending] = useState(false)
+    const [needle, setNeedle] = useState(50)
+    const [justRevealed, setJustRevealed] = useState(false)
+
+    // Reset local state whenever a new round starts (skipped rounds keep the
+    // same number, so key on the start timestamp).
     useEffect(() => {
         setClue('')
-        setGuessPosition(50)
-        setHasSubmitted(false)
-    }, [round?.roundNumber])
+        setClueError(null)
+        setSending(false)
+        setNeedle(50)
+    }, [round.startedAt])
 
-    // Track if player has already guessed
     useEffect(() => {
-        if (currentPlayer?.hasGuessed) {
-            setHasSubmitted(true)
+        if (phase === 'revealed') {
+            setJustRevealed(true)
+            const id = window.setTimeout(() => setJustRevealed(false), 1200)
+            return () => window.clearTimeout(id)
         }
-    }, [currentPlayer?.hasGuessed])
+        setJustRevealed(false)
+    }, [phase, round.startedAt])
 
-    if (!round) return null
+    // Tick in the last seconds of a guess.
+    useEffect(() => {
+        if (timerPhase === 'guess' && secondsLeft !== null && secondsLeft <= 5 && secondsLeft > 0) sounds.tick()
+    }, [secondsLeft, timerPhase])
 
-    const seer = room.players.find(p => p.id === round.seerId)
-    const isWaitingClue = round.phase === 'waiting_clue'
-    const isGuessing = round.phase === 'guessing'
-    const isRevealed = round.phase === 'revealed'
+    const myGuess = me ? round.guesses[me.id] : undefined
+    const hasLocked = !!me?.hasGuessed
+    const guessers = useMemo(() => room.players.filter(p => p.id !== round.seerId), [room.players, round.seerId])
+    const lockedCount = guessers.filter(p => p.hasGuessed).length
+    const connectedCount = room.players.filter(p => p.isConnected).length
+    const readyCount = room.players.filter(p => p.isConnected && p.isReady).length
 
-    const handleSubmitClue = () => {
-        if (clue.trim()) {
-            onGiveClue(clue.trim())
-        }
+    const submitClue = async () => {
+        if (!clue.trim() || sending) return
+        setSending(true)
+        setClueError(null)
+        const result = await onGiveClue(clue.trim())
+        setSending(false)
+        if (!result.success) setClueError(result.error ?? 'Não deu para enviar a dica')
     }
 
-    const handleSubmitGuess = () => {
-        onSubmitGuess(guessPosition)
-        setHasSubmitted(true)
+    const lockGuess = async () => {
+        const result = await onSubmitGuess(needle)
+        if (result.success) sounds.lock()
     }
 
-    const getScoreLabel = (score: number) => {
-        if (score >= SCORING.BULLSEYE_POINTS) return '🎯 Bullseye!'
-        if (score >= SCORING.CLOSE_POINTS) return '👍 Muito perto!'
-        if (score >= SCORING.ACCEPTABLE_POINTS) return '👌 Quase lá'
-        return '😅 Errou'
-    }
+    const markers: DialMarker[] = phase === 'revealed'
+        ? guessers
+            .filter(p => round.guesses[p.id] !== undefined)
+            .map(p => ({ id: p.id, name: p.nickname, colorIndex: p.colorIndex, position: round.guesses[p.id], dim: (round.zones[p.id] ?? 0) === 0 }))
+        : []
+
+    const showTarget = phase === 'revealed' || (isSeer && round.targetPosition !== null)
+    const dialNeedle = phase === 'revealed' ? null : isSeer ? null : hasLocked && myGuess !== undefined ? myGuess : needle
+
+    const totalForTimer = timerPhase === 'guess' ? room.settings.timePerGuess : timerPhase === 'clue' ? room.settings.timePerClue : room.settings.timeBetweenRounds
+
+    const resultRows = useMemo(() => {
+        if (phase !== 'revealed') return []
+        return room.players
+            .filter(p => round.scores[p.id] !== undefined)
+            .map(p => ({ player: p, points: round.scores[p.id] ?? 0, zone: round.zones[p.id], closest: round.closestIds.includes(p.id), isSeer: p.id === round.seerId }))
+            .sort((a, b) => b.points - a.points || (a.isSeer ? 1 : 0) - (b.isSeer ? 1 : 0))
+    }, [phase, room.players, round])
 
     return (
         <div className={styles.game}>
-            <div className={styles.mainContent}>
-                {/* Round info */}
-                <div className={styles.roundInfo}>
-                    <span className={styles.roundNumber}>Rodada {round.roundNumber}</span>
-                    <div className={styles.seerInfo}>
-                        <span className={styles.seerLabel}>Vidente:</span>
-                        <span className={styles.seerName}>
-                            {seer?.nickname}
-                            {isSeer && ' (Você)'}
+            <div className={styles.main}>
+                {/* Round bar */}
+                <div className={`${styles.roundBar} anim-fade-in`}>
+                    <div className={styles.roundInfo}>
+                        <span className="chip chip-accent">Rodada {round.roundNumber}</span>
+                        <span className={styles.seerChip}>
+                            <EyeIcon size={16} />
+                            <span>Vidente</span>
+                            {seer && <Avatar name={seer.nickname} colorIndex={seer.colorIndex} size="sm" offline={!seer.isConnected} />}
+                            <strong>{seer?.nickname ?? '…'}{isSeer ? ' (você)' : ''}</strong>
                         </span>
                     </div>
-                </div>
-
-                {/* Spectrum Card */}
-                <div className={`glass ${styles.spectrumCard}`}>
-                    <div className={styles.cardConcepts}>
-                        <span className={styles.leftConcept}>{round.spectrumCard.leftConcept}</span>
-                        <span className={styles.rightConcept}>{round.spectrumCard.rightConcept}</span>
-                    </div>
-
-                    <Spectrum
-                        targetPosition={isRevealed || isSeer ? round.targetPosition : null}
-                        guessPosition={isSeer ? null : guessPosition}
-                        playerGuesses={isRevealed ? room.players.filter(p => p.id !== round.seerId).map(p => ({
-                            id: p.id,
-                            nickname: p.nickname,
-                            position: round.guesses[p.id] ?? 50
-                        })) : undefined}
-                        isInteractive={isGuessing && !isSeer && !hasSubmitted}
-                        onPositionChange={setGuessPosition}
-                    />
-
-                    {/* Clue display */}
-                    {round.clue && (
-                        <div className={styles.clueDisplay}>
-                            <span className={styles.clueLabel}>Dica:</span>
-                            <span className={styles.clueText}>&ldquo;{round.clue}&rdquo;</span>
-                        </div>
+                    {secondsLeft !== null && timerPhase && timerPhase !== 'next' && (
+                        <CountdownRing seconds={secondsLeft} total={totalForTimer} label={timerPhase === 'guess' ? 'palpite' : 'dica'} />
                     )}
                 </div>
 
-                {/* Seer controls */}
-                {isSeer && isWaitingClue && (
-                    <div className={styles.seerControls}>
-                        <p className={styles.seerHint}>
-                            Você é o Vidente! O alvo está na posição indicada.
-                            <br />
-                            Dê uma dica para os outros jogadores acertarem.
-                        </p>
-                        <div className={styles.clueInput}>
-                            <input
-                                type="text"
-                                className="input"
-                                placeholder="Digite sua dica..."
-                                value={clue}
-                                onChange={(e) => setClue(e.target.value)}
-                                maxLength={50}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSubmitClue()}
-                            />
-                            <button
-                                className="btn btn-primary"
-                                onClick={handleSubmitClue}
-                                disabled={!clue.trim()}
-                            >
-                                Enviar Dica
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {/* Device */}
+                <section className={`card-solid ${styles.device}`} key={round.startedAt}>
+                    <Dial
+                        target={showTarget ? round.targetPosition : null}
+                        covered={!showTarget}
+                        revealing={phase === 'revealed' && justRevealed}
+                        needle={dialNeedle}
+                        onNeedleChange={setNeedle}
+                        interactive={phase === 'guessing' && !isSeer && !hasLocked}
+                        locked={hasLocked}
+                        markers={markers}
+                    />
 
-                {/* Player controls */}
-                {!isSeer && isGuessing && (
-                    <div className={styles.playerControls}>
-                        {!hasSubmitted ? (
-                            <>
-                                <p className={styles.guessHint}>
-                                    Arraste o ponteiro para onde você acha que está o alvo!
-                                </p>
-                                <button
-                                    className="btn btn-primary"
-                                    onClick={handleSubmitGuess}
-                                >
-                                    ✓ Confirmar Palpite
-                                </button>
-                            </>
+                    <div className={styles.concepts}>
+                        <span className={styles.conceptLeft}>◀ {round.spectrumCard.leftConcept}</span>
+                        <span className={styles.conceptRight}>{round.spectrumCard.rightConcept} ▶</span>
+                    </div>
+
+                    <div className={styles.clueArea}>
+                        {round.clue ? (
+                            <div className={`${styles.clue} anim-pop`}>
+                                <span className="eyebrow">Dica de {seer?.nickname}</span>
+                                <strong>&ldquo;{round.clue}&rdquo;</strong>
+                            </div>
                         ) : (
-                            <p className={styles.waitingOthers}>
-                                ✓ Palpite enviado! Aguardando outros jogadores...
-                            </p>
+                            <div className={styles.cluePending}>
+                                <span className="eyebrow">Dica</span>
+                                <span className={styles.cluePlaceholder}>{isSeer ? 'sua vez de pensar numa dica' : `${seer?.nickname ?? 'o Vidente'} está pensando…`}</span>
+                            </div>
                         )}
                     </div>
-                )}
+                </section>
 
-                {/* Waiting for clue */}
-                {!isSeer && isWaitingClue && (
-                    <div className={styles.waitingClue}>
-                        <div className={styles.waitingAnimation}>
-                            <span></span>
-                            <span></span>
-                            <span></span>
+                {/* Phase panel */}
+                <section className={`card ${styles.panel} anim-fade-up`} key={`${round.startedAt}-${phase}-${hasLocked}`}>
+                    {phase === 'waiting_clue' && isSeer && (
+                        <div className={styles.seerPanel}>
+                            <div className={styles.panelHead}>
+                                <LightbulbIcon size={22} />
+                                <div>
+                                    <h3>Você é o Vidente</h3>
+                                    <p className="muted">O alvo está marcado no dial. Dê uma dica que leve todo mundo até lá, sem usar as palavras da carta.</p>
+                                </div>
+                            </div>
+                            <form
+                                className={styles.clueForm}
+                                onSubmit={(e) => {
+                                    e.preventDefault()
+                                    submitClue()
+                                }}
+                            >
+                                <input
+                                    className={`input ${styles.clueInput}`}
+                                    placeholder="Ex: pizza fria de ontem"
+                                    value={clue}
+                                    maxLength={LIMITS.CLUE_MAX}
+                                    onChange={(e) => {
+                                        setClue(e.target.value)
+                                        setClueError(null)
+                                    }}
+                                    autoFocus
+                                    autoComplete="off"
+                                />
+                                <button type="submit" className="btn btn-primary" disabled={!clue.trim() || sending}>
+                                    {sending ? <span className="spinner spinner-sm" /> : <SparklesIcon />}
+                                    Enviar dica
+                                </button>
+                            </form>
+                            <div className={styles.clueMeta}>
+                                {clueError ? <span className={styles.error}>{clueError}</span> : <span className="muted">Pode ser uma coisa, um lugar, uma situação… vale criatividade.</span>}
+                                <span className={styles.counter}>{clue.length}/{LIMITS.CLUE_MAX}</span>
+                            </div>
                         </div>
-                        <p>Aguardando {seer?.nickname} dar a dica...</p>
-                    </div>
-                )}
+                    )}
 
-                {/* Results display */}
-                {isRevealed && (
-                    <div className={styles.resultsPanel}>
-                        <h3>Resultados da Rodada</h3>
-                        <div className={styles.scoresGrid}>
-                            {room.players
-                                .filter(p => round.scores[p.id] !== undefined)
-                                .sort((a, b) => (round.scores[b.id] || 0) - (round.scores[a.id] || 0))
-                                .map(player => (
-                                    <div key={player.id} className={`${styles.scoreItem} ${readyPlayers.has(player.id) ? styles.ready : ''}`}>
-                                        <span className={styles.playerScoreName}>
-                                            {player.nickname}
-                                            {readyPlayers.has(player.id) && ' ✓'}
-                                        </span>
-                                        <span className={styles.playerScoreLabel}>
-                                            {getScoreLabel(round.scores[player.id] || 0)}
-                                        </span>
-                                        <span className={styles.playerScoreValue}>
-                                            +{round.scores[player.id] || 0}
-                                        </span>
-                                    </div>
-                                ))}
-                        </div>
-
-                        <div className={styles.readySection}>
-                            {isReady ? (
-                                <p className={styles.readyStatus}>✓ Você está pronto! Aguardando outros...</p>
-                            ) : (
-                                <button className="btn btn-primary" onClick={onSetReady}>
-                                    Pronto para próxima rodada
+                    {phase === 'waiting_clue' && !isSeer && (
+                        <div className={styles.waitingPanel}>
+                            <span className="dots"><span /><span /><span /></span>
+                            <p>Esperando <strong>{seer?.nickname}</strong> dar a dica…</p>
+                            {isHost && (
+                                <button className="btn btn-ghost btn-sm" onClick={onSkipRound} title="Pula para o próximo Vidente">
+                                    <SkipIcon size={16} /> Pular rodada
                                 </button>
                             )}
-                            <span className={styles.readyCount}>
-                                {readyPlayers.size}/{room.players.filter(p => p.isConnected).length} prontos
-                            </span>
                         </div>
-                    </div>
-                )}
+                    )}
+
+                    {phase === 'guessing' && isSeer && (
+                        <div className={styles.waitingPanel}>
+                            <p>Agora é com eles. <strong>{lockedCount}/{guessers.length}</strong> já travaram o palpite.</p>
+                            <LockedList players={guessers} />
+                        </div>
+                    )}
+
+                    {phase === 'guessing' && !isSeer && !hasLocked && (
+                        <div className={styles.guessPanel}>
+                            <div className={styles.guessHint}>
+                                <p>Arraste o ponteiro para onde você acha que está o alvo.</p>
+                                <span className={styles.needleValue}>{needle}</span>
+                            </div>
+                            <div className={styles.fineTune}>
+                                <button className="btn btn-secondary btn-sm" onClick={() => setNeedle(v => Math.max(0, v - 1))} aria-label="Um para a esquerda">−1</button>
+                                <input
+                                    type="range"
+                                    min={0}
+                                    max={100}
+                                    value={needle}
+                                    onChange={(e) => setNeedle(Number(e.target.value))}
+                                    className={styles.range}
+                                    aria-label="Posição do ponteiro"
+                                />
+                                <button className="btn btn-secondary btn-sm" onClick={() => setNeedle(v => Math.min(100, v + 1))} aria-label="Um para a direita">+1</button>
+                            </div>
+                            <button className="btn btn-primary btn-lg btn-block" onClick={lockGuess}>
+                                <LockIcon /> Travar palpite
+                            </button>
+                        </div>
+                    )}
+
+                    {phase === 'guessing' && !isSeer && hasLocked && (
+                        <div className={styles.waitingPanel}>
+                            <span className={styles.lockedBadge}><CheckIcon size={16} /> Palpite travado em {myGuess}</span>
+                            <p>Esperando os outros… <strong>{lockedCount}/{guessers.length}</strong></p>
+                            <LockedList players={guessers} />
+                        </div>
+                    )}
+
+                    {phase === 'revealed' && (
+                        <div className={styles.revealPanel}>
+                            <header className={styles.revealHead}>
+                                <h3>Resultado da rodada</h3>
+                                <span className="chip">alvo em {round.targetPosition}</span>
+                            </header>
+                            <ul className={styles.resultList}>
+                                {resultRows.map(({ player, points, zone, closest, isSeer: rowIsSeer }, i) => (
+                                    <li key={player.id} className={`${styles.resultRow} ${player.id === me?.id ? styles.resultMe : ''} anim-fade-up`} style={{ animationDelay: `${0.3 + i * 0.07}s` }}>
+                                        <Avatar name={player.nickname} colorIndex={player.colorIndex} size="sm" />
+                                        <span className={styles.resultName}>{player.nickname}</span>
+                                        <span className={styles.resultLabel}>
+                                            {rowIsSeer ? (
+                                                <span className={styles.seerTag}><EyeIcon size={13} /> Vidente</span>
+                                            ) : (
+                                                <>
+                                                    <span className={`${styles.zoneTag} ${styles[`zoneTag${zone ?? 0}`]}`}>{zone ?? 0}</span>
+                                                    {ZONE_LABEL[zone ?? 0]}
+                                                    {closest && <span className={styles.closestTag}>mais perto +1</span>}
+                                                </>
+                                            )}
+                                        </span>
+                                        <span className={`${styles.resultPoints} ${points === 0 ? styles.resultZero : ''}`}>+{points}</span>
+                                    </li>
+                                ))}
+                                {guessers.filter(p => round.guesses[p.id] === undefined).map(p => (
+                                    <li key={p.id} className={`${styles.resultRow} ${styles.resultSkipped}`}>
+                                        <Avatar name={p.nickname} colorIndex={p.colorIndex} size="sm" offline />
+                                        <span className={styles.resultName}>{p.nickname}</span>
+                                        <span className={styles.resultLabel}>não palpitou</span>
+                                        <span className={`${styles.resultPoints} ${styles.resultZero}`}>+0</span>
+                                    </li>
+                                ))}
+                            </ul>
+
+                            <footer className={styles.readyBar}>
+                                <div className={styles.readyInfo}>
+                                    <strong>{readyCount}/{connectedCount}</strong> prontos
+                                    {secondsLeft !== null && timerPhase === 'next' && <span className="muted"> · próxima em {secondsLeft}s</span>}
+                                </div>
+                                <div className={styles.readyActions}>
+                                    {me?.isReady ? (
+                                        <span className={styles.lockedBadge}><CheckIcon size={16} /> Você está pronto</span>
+                                    ) : (
+                                        <button className="btn btn-primary" onClick={onSetReady}>
+                                            <CheckIcon /> Pronto!
+                                        </button>
+                                    )}
+                                    {isHost && (
+                                        <button className="btn btn-ghost btn-sm" onClick={onNextRound}>
+                                            Próxima rodada <ChevronRightIcon size={16} />
+                                        </button>
+                                    )}
+                                </div>
+                            </footer>
+                        </div>
+                    )}
+                </section>
             </div>
 
-            {/* Scoreboard sidebar */}
-            <div className={styles.sidebar}>
-                <Scoreboard
-                    players={room.players}
-                    targetScore={room.targetScore}
-                    currentSeerId={round.seerId}
-                />
-            </div>
+            <aside className={styles.sidebar}>
+                <Scoreboard room={room} meId={me?.id ?? null} />
+            </aside>
         </div>
+    )
+}
+
+function LockedList({ players }: { players: Player[] }) {
+    return (
+        <ul className={styles.lockedList}>
+            {players.map(p => (
+                <li key={p.id} className={`${styles.lockedItem} ${p.hasGuessed ? styles.lockedDone : ''}`} title={p.nickname}>
+                    <Avatar name={p.nickname} colorIndex={p.colorIndex} size="sm" offline={!p.isConnected} />
+                    {p.hasGuessed && <span className={styles.lockedCheck}><CheckIcon size={10} /></span>}
+                </li>
+            ))}
+        </ul>
     )
 }

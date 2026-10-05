@@ -1,127 +1,180 @@
 'use client'
 
-import { Room, Player } from '@/types/game'
+import { useState } from 'react'
+import type { Room, Player, RoomSettings } from '@/types/game'
+import { SETTINGS_OPTIONS, LIMITS } from '@/types/game'
+import Avatar from '@/components/ui/Avatar'
+import { CopyIcon, CheckIcon, ShareIcon, PlayIcon, CrownIcon, XIcon, UsersIcon, SettingsIcon } from '@/components/ui/Icons'
 import styles from './Lobby.module.css'
-
-// SVG Icons
-const ClipboardIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
-        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-    </svg>
-)
-
-const PlayIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="6 3 20 12 6 21 6 3" />
-    </svg>
-)
-
-const XIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18 6 6 18" />
-        <path d="m6 6 12 12" />
-    </svg>
-)
 
 interface LobbyProps {
     room: Room
-    currentPlayer: Player | null
+    me: Player | null
+    isHost: boolean
     onStartGame: () => void
-    onCopyLink: () => void
-    onKickPlayer?: (playerId: string) => void
+    onKickPlayer: (playerId: string) => void
+    onUpdateSettings: (settings: Partial<RoomSettings>) => void
+    onNotify: (message: string, kind?: 'info' | 'success' | 'warning' | 'error') => void
 }
 
-export default function Lobby({ room, currentPlayer, onStartGame, onCopyLink, onKickPlayer }: LobbyProps) {
-    const isHost = currentPlayer?.isHost
-    const canStart = room.players.length >= 2
+const SETTING_LABELS: Record<keyof RoomSettings, { title: string; hint: string; format: (v: number) => string }> = {
+    targetScore: { title: 'Pontos para vencer', hint: 'A partida termina quando alguém chega lá', format: v => `${v}` },
+    maxRounds: { title: 'Limite de rodadas', hint: 'Termina antes se o limite chegar primeiro', format: v => (v === 0 ? 'Sem limite' : `${v}`) },
+    timePerGuess: { title: 'Tempo para palpitar', hint: 'Contado a partir da dica', format: v => `${v}s` },
+    timePerClue: { title: 'Tempo para a dica', hint: 'O Vidente perde a vez se estourar', format: v => (v === 0 ? 'Livre' : `${v}s`) },
+    timeBetweenRounds: { title: 'Pausa entre rodadas', hint: 'Ou quando todos estiverem prontos', format: v => `${v}s` },
+}
 
-    const handleKick = (playerId: string) => {
-        if (onKickPlayer) {
-            onKickPlayer(playerId)
+export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onUpdateSettings, onNotify }: LobbyProps) {
+    const [copied, setCopied] = useState<'code' | 'link' | null>(null)
+    const connected = room.players.filter(p => p.isConnected).length
+    const canStart = connected >= LIMITS.MIN_PLAYERS
+
+    const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}/join/${room.code}` : `/join/${room.code}`
+
+    const copy = async (text: string, what: 'code' | 'link') => {
+        try {
+            await navigator.clipboard.writeText(text)
+            setCopied(what)
+            onNotify(what === 'code' ? 'Código copiado!' : 'Link de convite copiado!', 'success')
+            window.setTimeout(() => setCopied(null), 2000)
+        } catch {
+            onNotify('Não deu para copiar. Selecione e copie manualmente.', 'warning')
         }
+    }
+
+    const share = async () => {
+        const nav = navigator as Navigator & { share?: (data: { title: string; text: string; url: string }) => Promise<void> }
+        if (nav.share) {
+            try {
+                await nav.share({ title: 'Syntonize', text: `Bora jogar Syntonize! Entra na minha sala ${room.code}`, url: inviteUrl })
+                return
+            } catch {
+                /* user cancelled: fall through to copy */
+            }
+        }
+        copy(inviteUrl, 'link')
     }
 
     return (
         <div className={styles.lobby}>
-            <div className={styles.header}>
-                <h1 className={styles.title}>Sala de Espera</h1>
-                <p className={styles.subtitle}>
-                    Compartilhe o link para seus amigos entrarem!
-                </p>
-            </div>
+            <section className={`card-solid ${styles.invite} anim-fade-up`}>
+                <div className={styles.inviteText}>
+                    <span className="eyebrow">Sala de espera</span>
+                    <h1 className={styles.title}>Chama a galera</h1>
+                    <p className="muted">Compartilhe o código ou o link. Quem entrar aparece aqui na hora.</p>
+                </div>
 
-            <button className={`btn btn-secondary ${styles.shareBtn}`} onClick={onCopyLink}>
-                <ClipboardIcon />
-                Copiar Link da Sala
-            </button>
+                <div className={styles.codeBlock}>
+                    <button className={styles.code} onClick={() => copy(room.code, 'code')} title="Copiar código">
+                        <span className={styles.codeLabel}>Código da sala</span>
+                        <span className={styles.codeValue}>{room.code}</span>
+                        <span className={styles.codeCopy}>{copied === 'code' ? <CheckIcon size={16} /> : <CopyIcon size={16} />}</span>
+                    </button>
+                    <div className={styles.inviteActions}>
+                        <button className="btn btn-secondary" onClick={() => copy(inviteUrl, 'link')}>
+                            {copied === 'link' ? <CheckIcon /> : <CopyIcon />}
+                            Copiar link
+                        </button>
+                        <button className="btn btn-primary" onClick={share}>
+                            <ShareIcon />
+                            Convidar
+                        </button>
+                    </div>
+                </div>
+            </section>
 
-            <div className={`glass ${styles.playersList}`}>
-                <h3>Jogadores ({room.players.length})</h3>
-                <ul>
-                    {room.players.map((player, index) => (
-                        <li
-                            key={player.id}
-                            className={`${styles.playerItem} animate-slideIn`}
-                            style={{ animationDelay: `${index * 0.1}s` }}
-                        >
-                            <span className={styles.playerAvatar}>
-                                {player.nickname.charAt(0).toUpperCase()}
-                            </span>
-                            <span className={styles.playerName}>
-                                {player.nickname}
-                                {player.isHost && <span className={styles.hostBadge}>Host</span>}
-                                {player.id === currentPlayer?.id && <span className={styles.youBadge}>Você</span>}
-                            </span>
-                            <div className={styles.playerActions}>
-                                <span className={`${styles.statusDot} ${player.isConnected ? styles.online : ''}`} />
-                                {isHost && !player.isHost && player.id !== currentPlayer?.id && (
-                                    <button
-                                        className={styles.kickBtn}
-                                        onClick={() => handleKick(player.id)}
-                                        title="Remover jogador"
-                                    >
-                                        <XIcon />
+            <div className={styles.columns}>
+                <section className={`card ${styles.players} anim-fade-up`} style={{ animationDelay: '0.05s' }}>
+                    <header className={styles.sectionHeader}>
+                        <h2><UsersIcon size={20} /> Jogadores</h2>
+                        <span className="chip">{room.players.length}/{LIMITS.MAX_PLAYERS}</span>
+                    </header>
+
+                    <ul className={styles.playerList}>
+                        {room.players.map((player, index) => (
+                            <li key={player.id} className={`${styles.player} ${player.isConnected ? '' : styles.playerOffline} anim-pop`} style={{ animationDelay: `${index * 0.05}s` }}>
+                                <Avatar name={player.nickname} colorIndex={player.colorIndex} offline={!player.isConnected} />
+                                <div className={styles.playerInfo}>
+                                    <span className={styles.playerName}>
+                                        {player.nickname}
+                                        {player.id === me?.id && <span className={styles.you}>você</span>}
+                                    </span>
+                                    <span className={styles.playerMeta}>
+                                        {player.isHost && <span className={styles.hostTag}><CrownIcon size={12} /> Anfitrião</span>}
+                                        {!player.isConnected && <span className={styles.offlineTag}>reconectando…</span>}
+                                    </span>
+                                </div>
+                                {isHost && player.id !== me?.id && (
+                                    <button className={styles.kick} onClick={() => onKickPlayer(player.id)} title={`Remover ${player.nickname}`} aria-label={`Remover ${player.nickname}`}>
+                                        <XIcon size={16} />
                                     </button>
                                 )}
-                            </div>
-                        </li>
-                    ))}
-                </ul>
+                            </li>
+                        ))}
+                        {room.players.length < LIMITS.MIN_PLAYERS && (
+                            <li className={styles.playerPlaceholder}>
+                                <span className={styles.placeholderAvatar} />
+                                <span>Esperando mais gente…</span>
+                            </li>
+                        )}
+                    </ul>
+                </section>
+
+                <section className={`card ${styles.settings} anim-fade-up`} style={{ animationDelay: '0.1s' }}>
+                    <header className={styles.sectionHeader}>
+                        <h2><SettingsIcon size={20} /> Regras da partida</h2>
+                        {!isHost && <span className="chip">só o anfitrião edita</span>}
+                    </header>
+
+                    <div className={styles.settingList}>
+                        {(Object.keys(SETTINGS_OPTIONS) as Array<keyof RoomSettings>).map(key => {
+                            const meta = SETTING_LABELS[key]
+                            const options = SETTINGS_OPTIONS[key] as readonly number[]
+                            const value = room.settings[key]
+                            return (
+                                <div key={key} className={styles.setting}>
+                                    <div className={styles.settingText}>
+                                        <span className={styles.settingTitle}>{meta.title}</span>
+                                        <span className={styles.settingHint}>{meta.hint}</span>
+                                    </div>
+                                    <div className={styles.segmented} role="radiogroup" aria-label={meta.title}>
+                                        {options.map(opt => (
+                                            <button
+                                                key={opt}
+                                                role="radio"
+                                                aria-checked={opt === value}
+                                                className={`${styles.segment} ${opt === value ? styles.segmentActive : ''}`}
+                                                disabled={!isHost}
+                                                onClick={() => onUpdateSettings({ [key]: opt })}
+                                            >
+                                                {meta.format(opt)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </section>
             </div>
 
-            {isHost ? (
-                <div className={styles.hostControls}>
-                    <button
-                        className="btn btn-primary"
-                        onClick={onStartGame}
-                        disabled={!canStart}
-                    >
-                        {canStart ? (
-                            <>
-                                <PlayIcon />
-                                Iniciar Jogo
-                            </>
-                        ) : (
-                            'Aguardando jogadores...'
-                        )}
-                    </button>
-                    {!canStart && (
-                        <p className={styles.waitingText}>
-                            Mínimo 2 jogadores para começar
-                        </p>
-                    )}
-                </div>
-            ) : (
-                <div className={styles.waitingHost}>
-                    <div className={styles.waitingAnimation}>
-                        <span></span>
-                        <span></span>
-                        <span></span>
+            <section className={`${styles.footer} anim-fade-up`} style={{ animationDelay: '0.15s' }}>
+                {isHost ? (
+                    <>
+                        <button className="btn btn-primary btn-lg" onClick={onStartGame} disabled={!canStart}>
+                            <PlayIcon />
+                            {canStart ? 'Começar partida' : `Faltam ${LIMITS.MIN_PLAYERS - connected} jogador${LIMITS.MIN_PLAYERS - connected > 1 ? 'es' : ''}`}
+                        </button>
+                        <p className="muted">Mínimo de {LIMITS.MIN_PLAYERS} jogadores. Dá para entrar depois que a partida começar também.</p>
+                    </>
+                ) : (
+                    <div className={styles.waiting}>
+                        <span className="dots"><span /><span /><span /></span>
+                        <p>Esperando o anfitrião começar a partida…</p>
                     </div>
-                    <p>Aguardando o host iniciar o jogo...</p>
-                </div>
-            )}
+                )}
+            </section>
         </div>
     )
 }

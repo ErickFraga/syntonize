@@ -1,136 +1,129 @@
-.scoreboard {
-    padding: 20px;
-}
-
-.title {
-    font-size: 1rem;
-    color: var(--text-secondary);
-    margin-bottom: 16px;
+.board {
+    padding: 18px;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.header {
+    display: flex;
     align-items: center;
+    justify-content: space-between;
 }
 
-.targetScore {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-muted);
+.header h3 {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
 }
 
-.playerList {
+.header h3 svg {
+    color: var(--orange);
+}
+
+.list {
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-}
-
-.playerItem {
-    display: flex;
-    flex-direction: column;
     gap: 6px;
-    padding: 12px;
-    background: var(--bg-glass);
-    border-radius: var(--radius-md);
-    border-left: 3px solid transparent;
-    transition: all var(--transition-fast);
 }
 
-.playerItem.rank1 {
-    border-left-color: #ffd700;
-    background: rgba(255, 215, 0, 0.1);
-}
-
-.playerItem.rank2 {
-    border-left-color: #c0c0c0;
-}
-
-.playerItem.rank3 {
-    border-left-color: #cd7f32;
-}
-
-.playerInfo {
-    display: flex;
+.row {
+    display: grid;
+    grid-template-columns: 18px auto minmax(0, 1fr) 16px auto;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    border: 1px solid transparent;
+    transition: background var(--t-fast);
+}
+
+.me {
+    border-color: rgba(46, 230, 214, 0.35);
+    background: rgba(46, 230, 214, 0.06);
+}
+
+.offline {
+    opacity: 0.55;
 }
 
 .rank {
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
+    font-family: var(--font-display);
     font-weight: 700;
-    color: var(--text-muted);
+    font-size: 14px;
+    color: var(--text-3);
+    text-align: center;
 }
 
-.playerItem.rank1 .rank {
-    color: #ffd700;
+.rankLeader {
+    color: var(--orange);
 }
 
-.playerItem.rank2 .rank {
-    color: #c0c0c0;
-}
-
-.playerItem.rank3 .rank {
-    color: #cd7f32;
-}
-
-.avatar {
-    width: 28px;
-    height: 28px;
-    background: var(--accent-gradient);
-    border-radius: 50%;
+.info {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
 }
 
 .name {
-    flex: 1;
-    font-size: 14px;
-    font-weight: 500;
     display: flex;
     align-items: center;
     gap: 6px;
+    font-weight: 800;
+    font-size: 14px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.seerBadge {
-    font-size: 11px;
-    opacity: 0.8;
+.crown {
+    color: var(--orange);
+    flex: 0 0 auto;
 }
 
-.scoreInfo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding-left: 28px;
+.seer {
+    display: inline-flex;
+    color: var(--orange);
 }
 
-.progressBar {
-    flex: 1;
-    height: 6px;
-    background: var(--bg-tertiary);
-    border-radius: var(--radius-full);
+.bar {
+    display: block;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.35);
     overflow: hidden;
 }
 
-.progressFill {
+.fill {
+    display: block;
     height: 100%;
-    background: var(--accent-gradient);
-    border-radius: var(--radius-full);
-    transition: width var(--transition-normal);
+    border-radius: 3px;
+    background: var(--brand-gradient);
+    transition: width var(--t-slow) var(--ease-out);
+}
+
+.status {
+    display: inline-flex;
+    justify-content: center;
+    color: var(--green);
 }
 
 .score {
-    font-size: 14px;
+    font-family: var(--font-display);
+    font-size: 20px;
     font-weight: 700;
-    min-width: 32px;
+    min-width: 2ch;
     text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.footer {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-3);
+    text-align: center;
 }

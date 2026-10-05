@@ -1,637 +1,178 @@
 import { createServer } from 'http'
-import { Server } from 'socket.io'
 import { parse } from 'url'
 import next from 'next'
+import { Server, type Socket } from 'socket.io'
 
-// Import shared types and logic
-import {
-    Room,
-    Player,
-    TimerUpdate,
-    SCORING,
-    generateRoomCode,
-    createRoom,
-    createPlayer,
-    addPlayerToRoom,
-    removePlayerFromRoom,
-    startNewRound,
-    processRoundResults,
-    allPlayersGuessed,
-    canJoinRoom,
-    canStartGame,
-    resetGameState,
-} from '../shared'
+import type { ServerToClientEvents, ClientToServerEvents } from '../shared/types.ts'
+import { RoomManager, type Transport } from './roomManager.ts'
 
-// Server setup
 const dev = process.env.NODE_ENV !== 'production'
-const hostname = 'localhost'
+const hostname = process.env.HOSTNAME || '0.0.0.0'
 const port = parseInt(process.env.PORT || '3000', 10)
 
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
-// Store rooms in memory
-const rooms = new Map<string, Room>()
-const playerRooms = new Map<string, string>()
-const roomTimers = new Map<string, NodeJS.Timeout>()
-
-// Helper to get existing room codes
-function getExistingCodes(): Set<string> {
-    return new Set(rooms.keys())
-}
-
-// Timer management with server timestamp sync
-interface TimerState {
-    endTime: number
-    phase: 'clue' | 'guess'
-}
-const timerStates = new Map<string, TimerState>()
-
-// Ready players for next round (per room)
-const readyPlayers = new Map<string, Set<string>>() // roomCode -> Set of playerIds
-const nextRoundTimeouts = new Map<string, NodeJS.Timeout>() // roomCode -> timeout
-
-// Session token mapping for reconnection
-interface SessionToken {
-    token: string
-    roomCode: string
-    nickname: string
-    createdAt: number
-}
-const sessionTokens = new Map<string, SessionToken>() // token -> session
-
-// Generate unique session token
-function generateSessionToken(): string {
-    return `${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 12)}`
-}
+type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>
 
 app.prepare().then(() => {
     const httpServer = createServer((req, res) => {
-        const parsedUrl = parse(req.url!, true)
-        handle(req, res, parsedUrl)
+        handle(req, res, parse(req.url!, true))
     })
 
-    const io = new Server(httpServer, {
-        cors: {
-            origin: '*',
-            methods: ['GET', 'POST']
+    const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
+        cors: { origin: process.env.CORS_ORIGIN || '*', methods: ['GET', 'POST'] },
+    })
+
+    // playerId -> active socket. A player has at most one live socket; a new
+    // connection with the same session token replaces the previous one.
+    const socketsByPlayer = new Map<string, GameSocket>()
+    const playerBySocket = new Map<string, string>()
+
+    const transport: Transport = {
+        toRoom: (code, event, ...args) => {
+            io.to(code).emit(event, ...args)
+        },
+        toPlayer: (playerId, event, ...args) => {
+            socketsByPlayer.get(playerId)?.emit(event, ...args)
+        },
+    }
+
+    const manager = new RoomManager(transport, { log: (m) => console.log(`[game] ${m}`) })
+    setInterval(() => manager.sweep(), 10_000).unref()
+
+    function bind(socket: GameSocket, playerId: string, roomCode: string) {
+        const previous = socketsByPlayer.get(playerId)
+        if (previous && previous.id !== socket.id) {
+            playerBySocket.delete(previous.id)
+            previous.disconnect(true)
         }
-    })
+        socketsByPlayer.set(playerId, socket)
+        playerBySocket.set(socket.id, playerId)
+        socket.join(roomCode)
+    }
 
-    io.on('connection', (socket) => {
-        const sessionToken = socket.handshake.auth?.sessionToken as string | undefined
-        console.log('Client connected:', socket.id, 'token:', sessionToken ? sessionToken.slice(0, 15) + '...' : 'none')
+    function unbind(socket: GameSocket) {
+        const playerId = playerBySocket.get(socket.id)
+        if (!playerId) return
+        playerBySocket.delete(socket.id)
+        if (socketsByPlayer.get(playerId)?.id === socket.id) socketsByPlayer.delete(playerId)
+        const room = manager.getRoomOfPlayer(playerId)
+        if (room) socket.leave(room.code)
+    }
 
-        // Try to restore session from token
-        if (sessionToken) {
-            const session = sessionTokens.get(sessionToken)
-            if (session) {
-                const room = rooms.get(session.roomCode)
-                if (room) {
-                    // Find player by nickname (since socket ID changed)
-                    const existingPlayer = room.players.find(p => p.nickname === session.nickname)
-                    if (existingPlayer) {
-                        // Update player's socket ID
-                        const oldId = existingPlayer.id
-                        existingPlayer.id = socket.id
-                        existingPlayer.isConnected = true
+    function currentPlayerId(socket: GameSocket): string | undefined {
+        return playerBySocket.get(socket.id)
+    }
 
-                        // Update mappings
-                        playerRooms.delete(oldId)
-                        playerRooms.set(socket.id, session.roomCode)
+    io.on('connection', (socket: GameSocket) => {
+        const token = socket.handshake.auth?.sessionToken as string | undefined
+        const restored = manager.restoreSession(token)
+        if (restored) {
+            bind(socket, restored.playerId, restored.room.code)
+            socket.emit('room:restored', { room: restored.room, playerId: restored.playerId })
+            manager.sendState(restored.playerId)
+        }
 
-                        socket.join(session.roomCode)
+        socket.on('room:create', (nickname, callback) => {
+            const existing = currentPlayerId(socket)
+            if (existing) {
+                manager.leaveRoom(existing)
+                unbind(socket)
+            }
+            const result = manager.createRoom(nickname)
+            if (!result.success || !result.data) {
+                callback({ success: false, error: result.error })
+                return
+            }
+            bind(socket, result.data.playerId, result.data.room.code)
+            manager.sendState(result.data.playerId)
+            callback({ success: true, code: result.data.room.code, playerId: result.data.playerId, sessionToken: result.data.sessionToken })
+        })
 
-                        // Emit restored event to trigger redirect
-                        socket.emit('room:restored', { room, sessionToken })
-                        io.to(session.roomCode).emit('room:state', room)
-
-                        // Resync timer if game is in progress
-                        resyncTimerForSocket(socket, session.roomCode)
-
-                        console.log(`Session restored for ${session.nickname} in room ${session.roomCode}`)
-                    }
-                } else {
-                    // Room no longer exists, clear session
-                    sessionTokens.delete(sessionToken)
-                    console.log(`Session expired - room ${session.roomCode} no longer exists`)
+        socket.on('room:join', (code, nickname, callback) => {
+            const existing = currentPlayerId(socket)
+            if (existing) {
+                const room = manager.getRoomOfPlayer(existing)
+                if (room && room.code === String(code).toUpperCase()) {
+                    // Already in this room with this socket: just resync.
+                    manager.sendState(existing)
+                    callback({ success: true, code: room.code, playerId: existing })
+                    return
                 }
+                manager.leaveRoom(existing)
+                unbind(socket)
             }
-        }
-
-        // Create room
-        socket.on('room:create', (nickname: string, callback: (result: { success: boolean; code?: string; sessionToken?: string; error?: string }) => void) => {
-            try {
-                const code = generateRoomCode(getExistingCodes())
-                const room = createRoom(socket.id, nickname, code)
-
-                rooms.set(code, room)
-                playerRooms.set(socket.id, code)
-                socket.join(code)
-
-                // Generate and save session token
-                const newToken = generateSessionToken()
-                sessionTokens.set(newToken, {
-                    token: newToken,
-                    roomCode: code,
-                    nickname,
-                    createdAt: Date.now()
-                })
-
-                callback({ success: true, code, sessionToken: newToken })
-                socket.emit('room:state', room)
-
-                console.log(`Room ${code} created by ${nickname}`)
-            } catch (error) {
-                console.error('Error creating room:', error)
-                callback({ success: false, error: 'Failed to create room' })
-            }
-        })
-
-        // Get room info (for invite page)
-        socket.on('room:info', (code: string, callback: (result: { success: boolean; hostName?: string; playerCount?: number; error?: string }) => void) => {
-            const room = rooms.get(code.toUpperCase())
-
-            if (!room) {
-                callback({ success: false, error: 'Sala não encontrada' })
+            const result = manager.joinRoom(code, nickname)
+            if (!result.success || !result.data) {
+                callback({ success: false, error: result.error })
                 return
             }
-
-            const host = room.players.find(p => p.isHost)
-            callback({
-                success: true,
-                hostName: host?.nickname || 'Alguém',
-                playerCount: room.players.length
-            })
+            bind(socket, result.data.playerId, result.data.room.code)
+            manager.sendState(result.data.playerId)
+            callback({ success: true, code: result.data.room.code, playerId: result.data.playerId, sessionToken: result.data.sessionToken })
         })
 
-        // Join room
-        socket.on('room:join', (code: string, nickname: string, callback: (result: { success: boolean; sessionToken?: string; error?: string }) => void) => {
-            const room = rooms.get(code.toUpperCase())
-
-            if (!room) {
-                callback({ success: false, error: 'Sala não encontrada' })
-                return
-            }
-
-            // Check if player is already in the room (reconnection)
-            const existingPlayer = room.players.find(p => p.id === socket.id)
-            if (existingPlayer) {
-                existingPlayer.isConnected = true
-                socket.join(room.code)
-                callback({ success: true })
-                socket.emit('room:state', room)
-
-                // Resync timer if game is in progress
-                resyncTimerForSocket(socket, room.code)
-                return
-            }
-
-            // Validate join
-            const validation = canJoinRoom(room, nickname)
-            if (!validation.ok) {
-                callback({ success: false, error: validation.error })
-                return
-            }
-
-            const player = createPlayer(socket.id, nickname)
-            addPlayerToRoom(room, player)
-            playerRooms.set(socket.id, room.code)
-            socket.join(room.code)
-
-            // Generate and save session token
-            const newToken = generateSessionToken()
-            sessionTokens.set(newToken, {
-                token: newToken,
-                roomCode: room.code,
-                nickname,
-                createdAt: Date.now()
-            })
-
-            callback({ success: true, sessionToken: newToken })
-            io.to(room.code).emit('room:state', room)
-            socket.to(room.code).emit('room:playerJoined', player)
-
-            console.log(`${nickname} joined room ${room.code}`)
+        socket.on('room:info', (code, callback) => {
+            const result = manager.getRoomInfo(String(code ?? ''))
+            callback(result.success ? { success: true, info: result.data } : { success: false, error: result.error })
         })
 
-        // Rejoin room (for reconnection scenarios)
-        socket.on('room:rejoin', (code: string, callback: (result: { success: boolean; error?: string }) => void) => {
-            const room = rooms.get(code.toUpperCase())
-
-            if (!room) {
-                callback({ success: false, error: 'Sala não encontrada' })
-                return
-            }
-
-            // Allow rejoin - just reconnect the socket
-            socket.join(room.code)
-            playerRooms.set(socket.id, room.code)
-
-            callback({ success: true })
-            socket.emit('room:state', room)
-
-            // Resync timer
-            resyncTimerForSocket(socket, room.code)
-        })
-
-        // Request current state (for resync after reconnection)
-        socket.on('game:requestState', () => {
-            const roomCode = playerRooms.get(socket.id)
-            if (!roomCode) return
-
-            const room = rooms.get(roomCode)
-            if (!room) return
-
-            socket.emit('room:state', room)
-            resyncTimerForSocket(socket, roomCode)
-        })
-
-        // Leave room
         socket.on('room:leave', () => {
-            // Clear session token on intentional leave
-            if (sessionToken) {
-                sessionTokens.delete(sessionToken)
-            }
-            handlePlayerLeave(socket.id)
+            const playerId = currentPlayerId(socket)
+            if (!playerId) return
+            manager.leaveRoom(playerId)
+            unbind(socket)
         })
 
-        // Host kicks a player
-        socket.on('room:kickPlayer', (targetPlayerId: string, callback: (result: { success: boolean; error?: string }) => void) => {
-            const roomCode = playerRooms.get(socket.id)
-            if (!roomCode) {
-                callback({ success: false, error: 'Sala não encontrada' })
-                return
+        socket.on('room:kick', (targetId, callback) => {
+            const playerId = currentPlayerId(socket)
+            if (!playerId) return callback({ success: false, error: 'Você não está em uma sala' })
+            const result = manager.kickPlayer(playerId, String(targetId))
+            if (result.success) {
+                const target = socketsByPlayer.get(String(targetId))
+                if (target) unbind(target)
             }
-
-            const room = rooms.get(roomCode)
-            if (!room) {
-                callback({ success: false, error: 'Sala não encontrada' })
-                return
-            }
-
-            const hostPlayer = room.players.find(p => p.id === socket.id)
-            if (!hostPlayer?.isHost) {
-                callback({ success: false, error: 'Apenas o host pode remover jogadores' })
-                return
-            }
-
-            const targetPlayer = room.players.find(p => p.id === targetPlayerId)
-            if (!targetPlayer) {
-                callback({ success: false, error: 'Jogador não encontrado' })
-                return
-            }
-
-            if (targetPlayer.isHost) {
-                callback({ success: false, error: 'Não é possível remover o host' })
-                return
-            }
-
-            // Clear session token for kicked player
-            Array.from(sessionTokens.entries()).forEach(([token, session]) => {
-                if (session.roomCode === roomCode && session.nickname === targetPlayer.nickname) {
-                    sessionTokens.delete(token)
-                }
-            })
-
-            // Remove player
-            handlePlayerLeave(targetPlayerId)
-
-            // Notify the kicked player
-            io.to(targetPlayerId).emit('room:kicked')
-
-            callback({ success: true })
-            console.log(`Host kicked ${targetPlayer.nickname} from room ${roomCode}`)
+            callback({ success: result.success, error: result.error })
         })
 
-        // Start game
-        socket.on('game:start', () => {
-            const roomCode = playerRooms.get(socket.id)
-            if (!roomCode) return
-
-            const room = rooms.get(roomCode)
-            if (!room) return
-
-            const player = room.players.find(p => p.id === socket.id)
-            if (!player?.isHost) {
-                socket.emit('room:error', 'Apenas o host pode iniciar o jogo')
-                return
-            }
-
-            const validation = canStartGame(room)
-            if (!validation.ok) {
-                socket.emit('room:error', validation.error)
-                return
-            }
-
-            // Reset game state if restarting
-            resetGameState(room)
-
-            // Start first round
-            startNewRound(room)
-
-            io.to(room.code).emit('room:state', room)
-            io.to(room.code).emit('game:roundStart', room.currentRound!)
-
-            // No timer for clue phase - unlimited time
-
-            console.log(`Game started in room ${roomCode}`)
+        socket.on('room:updateSettings', (settings, callback) => {
+            const playerId = currentPlayerId(socket)
+            if (!playerId) return callback({ success: false, error: 'Você não está em uma sala' })
+            const result = manager.updateSettings(playerId, settings ?? {})
+            callback({ success: result.success, error: result.error })
         })
 
-        // Give clue
-        socket.on('game:giveClue', (clue: string) => {
-            const roomCode = playerRooms.get(socket.id)
-            if (!roomCode) return
-
-            const room = rooms.get(roomCode)
-            if (!room || !room.currentRound) return
-
-            if (room.currentRound.seerId !== socket.id) {
-                socket.emit('room:error', 'Você não é o Vidente desta rodada')
-                return
+        const withPlayer = (fn: (playerId: string) => { success: boolean; error?: string }) =>
+            (callback?: (result: { success: boolean; error?: string }) => void) => {
+                const playerId = currentPlayerId(socket)
+                const result = playerId ? fn(playerId) : { success: false, error: 'Você não está em uma sala' }
+                if (!result.success && result.error) socket.emit('room:error', result.error)
+                callback?.({ success: result.success, error: result.error })
             }
 
-            if (room.currentRound.phase !== 'waiting_clue') return
+        socket.on('game:start', (callback) => withPlayer(id => manager.startGame(id))(callback))
+        socket.on('game:giveClue', (clue, callback) => withPlayer(id => manager.giveClue(id, clue))(callback))
+        socket.on('game:submitGuess', (position, callback) => withPlayer(id => manager.submitGuess(id, Number(position)))(callback))
+        socket.on('game:ready', () => withPlayer(id => manager.setReady(id))())
+        socket.on('game:nextRound', () => withPlayer(id => manager.forceNextRound(id))())
+        socket.on('game:skipRound', () => withPlayer(id => manager.skipRound(id))())
+        socket.on('game:backToLobby', () => withPlayer(id => manager.backToLobby(id))())
 
-            clearRoomTimer(roomCode)
-
-            room.currentRound.clue = clue
-            room.currentRound.phase = 'guessing'
-            room.currentRound.startTime = Date.now()
-
-            io.to(room.code).emit('room:state', room)
-            io.to(room.code).emit('game:clueGiven', clue)
-
-            startGuessTimer(roomCode)
-
-            console.log(`Clue given in room ${roomCode}: ${clue}`)
+        socket.on('game:requestState', () => {
+            const playerId = currentPlayerId(socket)
+            if (playerId) manager.sendState(playerId)
         })
 
-        // Submit guess
-        socket.on('game:submitGuess', (position: number) => {
-            const roomCode = playerRooms.get(socket.id)
-            if (!roomCode) return
-
-            const room = rooms.get(roomCode)
-            if (!room || !room.currentRound) return
-
-            if (room.currentRound.phase !== 'guessing') return
-
-            if (room.currentRound.seerId === socket.id) {
-                socket.emit('room:error', 'Vidente não pode dar palpite')
-                return
-            }
-
-            const player = room.players.find(p => p.id === socket.id)
-            if (!player || player.hasGuessed) return
-
-            const clampedPosition = Math.max(0, Math.min(100, position))
-
-            player.guessPosition = clampedPosition
-            player.hasGuessed = true
-            room.currentRound.guesses[socket.id] = clampedPosition
-
-            io.to(room.code).emit('room:state', room)
-            io.to(room.code).emit('game:playerGuessed', socket.id)
-
-            console.log(`${player.nickname} guessed ${clampedPosition} in room ${roomCode}`)
-
-            if (allPlayersGuessed(room)) {
-                clearRoomTimer(roomCode)
-                endRound(roomCode)
-            }
-        })
-
-        // Player ready for next round
-        socket.on('game:ready', () => {
-            const roomCode = playerRooms.get(socket.id)
-            if (!roomCode) return
-
-            const room = rooms.get(roomCode)
-            if (!room || !room.currentRound || room.currentRound.phase !== 'revealed') return
-
-            // Initialize ready set for this room if needed
-            if (!readyPlayers.has(roomCode)) {
-                readyPlayers.set(roomCode, new Set())
-            }
-
-            const ready = readyPlayers.get(roomCode)!
-            ready.add(socket.id)
-
-            io.to(roomCode).emit('game:playerReady', socket.id)
-
-            // Check if all connected players are ready (including seer)
-            const connectedPlayers = room.players.filter(p => p.isConnected)
-            if (ready.size >= connectedPlayers.length) {
-                // Cancel the auto-advance timeout
-                const timeout = nextRoundTimeouts.get(roomCode)
-                if (timeout) {
-                    clearTimeout(timeout)
-                    nextRoundTimeouts.delete(roomCode)
-                }
-
-                // Clear ready state
-                readyPlayers.delete(roomCode)
-
-                // Emit all ready event
-                io.to(roomCode).emit('game:allReady')
-
-                // Start next round immediately
-                if (room.status === 'playing') {
-                    startNewRound(room)
-                    io.to(roomCode).emit('room:state', room)
-                    io.to(roomCode).emit('game:roundStart', room.currentRound)
-                }
-            }
-        })
-
-        // Disconnect
         socket.on('disconnect', () => {
-            console.log('Client disconnected:', socket.id)
-            handlePlayerDisconnect(socket.id)
+            const playerId = currentPlayerId(socket)
+            unbind(socket)
+            // Only mark offline if no newer socket took over this player.
+            if (playerId && !socketsByPlayer.has(playerId)) manager.disconnect(playerId)
         })
-
-        // Helper functions
-        function handlePlayerDisconnect(playerId: string) {
-            const roomCode = playerRooms.get(playerId)
-            if (!roomCode) return
-
-            const room = rooms.get(roomCode)
-            if (!room) return
-
-            const player = room.players.find(p => p.id === playerId)
-            if (player) {
-                player.isConnected = false
-            }
-
-            // Notify others of disconnection - player stays in room but marked offline
-            io.to(room.code).emit('room:state', room)
-
-            console.log(`${player?.nickname || 'Player'} is now offline in room ${roomCode}`)
-        }
-
-        function handlePlayerLeave(playerId: string) {
-            const roomCode = playerRooms.get(playerId)
-            if (!roomCode) return
-
-            const room = rooms.get(roomCode)
-            if (!room) return
-
-            removePlayerFromRoom(room, playerId)
-            playerRooms.delete(playerId)
-
-            io.to(room.code).emit('room:playerLeft', playerId)
-            io.to(room.code).emit('room:state', room)
-
-            if (room.players.length === 0) {
-                clearRoomTimer(roomCode)
-                timerStates.delete(roomCode)
-                rooms.delete(roomCode)
-                console.log(`Room ${roomCode} deleted (empty)`)
-            }
-        }
-
-        function startClueTimer(roomCode: string) {
-            const room = rooms.get(roomCode)
-            if (!room) return
-
-            const duration = room.timePerClue * 1000
-            const endTime = Date.now() + duration
-
-            timerStates.set(roomCode, { endTime, phase: 'clue' })
-
-            const timer = setInterval(() => {
-                const state = timerStates.get(roomCode)
-                if (!state) {
-                    clearInterval(timer)
-                    return
-                }
-
-                const timeLeft = Math.max(0, Math.ceil((state.endTime - Date.now()) / 1000))
-
-                const timerUpdate: TimerUpdate = {
-                    secondsLeft: timeLeft,
-                    serverTime: Date.now(),
-                    phase: 'clue'
-                }
-                io.to(roomCode).emit('game:timerUpdate', timerUpdate)
-
-                if (timeLeft <= 0) {
-                    clearInterval(timer)
-                    roomTimers.delete(roomCode)
-                    timerStates.delete(roomCode)
-
-                    const currentRoom = rooms.get(roomCode)
-                    if (currentRoom?.currentRound?.phase === 'waiting_clue') {
-                        currentRoom.currentRound.clue = '...'
-                        currentRoom.currentRound.phase = 'guessing'
-                        currentRoom.currentRound.startTime = Date.now()
-
-                        io.to(roomCode).emit('room:state', currentRoom)
-                        io.to(roomCode).emit('game:clueGiven', '...')
-
-                        startGuessTimer(roomCode)
-                    }
-                }
-            }, 1000)
-
-            roomTimers.set(roomCode, timer)
-        }
-
-        function startGuessTimer(roomCode: string) {
-            const room = rooms.get(roomCode)
-            if (!room) return
-
-            const duration = room.timePerGuess * 1000
-            const endTime = Date.now() + duration
-
-            timerStates.set(roomCode, { endTime, phase: 'guess' })
-
-            const timer = setInterval(() => {
-                const state = timerStates.get(roomCode)
-                if (!state) {
-                    clearInterval(timer)
-                    return
-                }
-
-                const timeLeft = Math.max(0, Math.ceil((state.endTime - Date.now()) / 1000))
-
-                const timerUpdate: TimerUpdate = {
-                    secondsLeft: timeLeft,
-                    serverTime: Date.now(),
-                    phase: 'guess'
-                }
-                io.to(roomCode).emit('game:timerUpdate', timerUpdate)
-
-                if (timeLeft <= 0) {
-                    clearInterval(timer)
-                    roomTimers.delete(roomCode)
-                    timerStates.delete(roomCode)
-                    endRound(roomCode)
-                }
-            }, 1000)
-
-            roomTimers.set(roomCode, timer)
-        }
-
-        function resyncTimerForSocket(socket: any, roomCode: string) {
-            const state = timerStates.get(roomCode)
-            if (!state) return
-
-            const timeLeft = Math.max(0, Math.ceil((state.endTime - Date.now()) / 1000))
-            const timerUpdate: TimerUpdate = {
-                secondsLeft: timeLeft,
-                serverTime: Date.now(),
-                phase: state.phase
-            }
-            socket.emit('game:timerUpdate', timerUpdate)
-        }
-
-        function clearRoomTimer(roomCode: string) {
-            const timer = roomTimers.get(roomCode)
-            if (timer) {
-                clearInterval(timer)
-                roomTimers.delete(roomCode)
-            }
-            timerStates.delete(roomCode)
-        }
-
-        function endRound(roomCode: string) {
-            const room = rooms.get(roomCode)
-            if (!room || !room.currentRound) return
-
-            processRoundResults(room)
-
-            io.to(roomCode).emit('game:roundResult', room.currentRound)
-            io.to(roomCode).emit('room:state', room)
-
-            if (room.status === 'finished') {
-                io.to(roomCode).emit('game:finished', room)
-                console.log(`Game finished in room ${roomCode}. Winner: ${room.winnerId}`)
-            } else {
-                // Clear any previous ready state
-                readyPlayers.delete(roomCode)
-
-                // Auto-start next round after 20 seconds (or earlier if all players ready)
-                const timeout = setTimeout(() => {
-                    nextRoundTimeouts.delete(roomCode)
-                    readyPlayers.delete(roomCode)
-
-                    const currentRoom = rooms.get(roomCode)
-                    if (currentRoom && currentRoom.status === 'playing') {
-                        startNewRound(currentRoom)
-                        io.to(roomCode).emit('room:state', currentRoom)
-                        io.to(roomCode).emit('game:roundStart', currentRoom.currentRound)
-                        // No timer for clue phase - unlimited time
-                    }
-                }, 20000)
-
-                nextRoundTimeouts.set(roomCode, timeout)
-            }
-        }
     })
 
     httpServer.listen(port, () => {
-        console.log(`> Ready on http://${hostname}:${port}`)
+        console.log(`> Syntonize ready on http://localhost:${port}`)
     })
 })

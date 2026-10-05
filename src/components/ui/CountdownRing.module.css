@@ -1,0 +1,65 @@
+.ring {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    --ring-color: var(--teal);
+}
+
+.ring svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.track {
+    fill: rgba(0, 0, 0, 0.35);
+    stroke: rgba(255, 255, 255, 0.12);
+    stroke-width: 4;
+}
+
+.progress {
+    fill: none;
+    stroke: var(--ring-color);
+    stroke-width: 4;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.25s linear, stroke var(--t-med);
+}
+
+.value {
+    position: relative;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--text);
+}
+
+.label {
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    white-space: nowrap;
+}
+
+.warning {
+    --ring-color: var(--orange);
+}
+
+.danger {
+    --ring-color: var(--red);
+}
+
+.danger .value {
+    color: var(--red);
+    animation: pulse 0.5s ease-in-out infinite;
+}

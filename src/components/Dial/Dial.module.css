@@ -1,0 +1,194 @@
+.dial {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow: visible;
+}
+
+.interactive {
+    cursor: grab;
+}
+
+.dragging {
+    cursor: grabbing;
+}
+
+.interactive:focus-visible {
+    outline: none;
+}
+
+.interactive:focus-visible .hub {
+    stroke: var(--teal);
+    stroke-width: 4;
+}
+
+/* Wedge */
+.zone2 {
+    fill: var(--zone-2);
+    stroke: rgba(27, 26, 46, 0.35);
+    stroke-width: 1;
+}
+
+.zone3 {
+    fill: var(--zone-3);
+    stroke: rgba(27, 26, 46, 0.35);
+    stroke-width: 1;
+}
+
+.zone4 {
+    fill: var(--zone-4);
+    stroke: rgba(27, 26, 46, 0.35);
+    stroke-width: 1;
+}
+
+.zoneLabel {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 700;
+    fill: var(--ink);
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+}
+
+.zoneLabelBig {
+    font-size: 23px;
+}
+
+.revealing {
+    animation: wedgeReveal 0.9s var(--ease-spring) both;
+}
+
+@keyframes wedgeReveal {
+    from {
+        opacity: 0;
+        transform: scale(0.2);
+    }
+
+    60% {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Cover */
+.cover {
+    pointer-events: none;
+}
+
+.coverMark {
+    font-family: var(--font-display);
+    font-size: 56px;
+    font-weight: 700;
+    fill: rgba(255, 255, 255, 0.16);
+    text-anchor: middle;
+    dominant-baseline: central;
+}
+
+/* Ticks */
+.ticks {
+    pointer-events: none;
+}
+
+.tick {
+    stroke: rgba(27, 26, 46, 0.45);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+}
+
+.tickBig {
+    stroke: var(--ink);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+}
+
+.rim {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 3;
+    pointer-events: none;
+}
+
+/* Needle */
+.needle {
+    transition: transform 140ms var(--ease-out);
+    pointer-events: none;
+}
+
+.dragging .needle {
+    transition: none;
+}
+
+.needleBody {
+    fill: var(--needle);
+    stroke: #fff;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+}
+
+.needleLocked .needleBody {
+    fill: var(--ink);
+    stroke: var(--teal);
+}
+
+.hub {
+    fill: var(--ink);
+    stroke: #fff;
+    stroke-width: 2;
+    transition: stroke var(--t-fast);
+}
+
+.hubDot {
+    fill: var(--needle);
+}
+
+/* Markers */
+.marker {
+    animation: markerIn 0.5s var(--ease-spring) both;
+    pointer-events: none;
+}
+
+@keyframes markerIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.markerLine {
+    stroke-width: 3;
+    stroke-linecap: round;
+    opacity: 0.9;
+}
+
+.markerDot {
+    stroke: #131129;
+    stroke-width: 2.5;
+}
+
+.markerText {
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    font-weight: 800;
+    fill: #131129;
+    text-anchor: middle;
+    dominant-baseline: central;
+}
+
+.markerDim {
+    opacity: 0.55;
+}

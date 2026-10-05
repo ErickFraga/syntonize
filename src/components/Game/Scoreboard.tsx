@@ -1,56 +1,68 @@
 'use client'
 
-import { Player } from '@/types/game'
+import type { Room } from '@/types/game'
+import Avatar from '@/components/ui/Avatar'
+import { TrophyIcon, EyeIcon, CheckIcon, CrownIcon } from '@/components/ui/Icons'
 import styles from './Scoreboard.module.css'
 
 interface ScoreboardProps {
-    players: Player[]
-    targetScore: number
-    currentSeerId: string
+    room: Room
+    meId: string | null
 }
 
-export default function Scoreboard({ players, targetScore, currentSeerId }: ScoreboardProps) {
-    const sortedPlayers = [...players].sort((a, b) => b.score - a.score)
-    const maxScore = Math.max(...players.map(p => p.score), 1)
+export default function Scoreboard({ room, meId }: ScoreboardProps) {
+    const round = room.currentRound
+    const sorted = [...room.players].sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname))
+    const target = room.settings.targetScore
+    const leader = sorted[0]?.score ?? 0
 
     return (
-        <div className={`glass ${styles.scoreboard}`}>
-            <h3 className={styles.title}>
-                Placar
-                <span className={styles.targetScore}>Meta: {targetScore} pts</span>
-            </h3>
+        <div className={`card ${styles.board}`}>
+            <header className={styles.header}>
+                <h3><TrophyIcon size={18} /> Placar</h3>
+                <span className="chip">meta {target}</span>
+            </header>
 
-            <ul className={styles.playerList}>
-                {sortedPlayers.map((player, index) => (
-                    <li
-                        key={player.id}
-                        className={`${styles.playerItem} ${index < 3 ? styles[`rank${index + 1}`] : ''}`}
-                    >
-                        <div className={styles.playerInfo}>
-                            <span className={styles.rank}>{index + 1}</span>
-                            <span className={styles.avatar}>
-                                {player.nickname.charAt(0).toUpperCase()}
-                            </span>
-                            <span className={styles.name}>
-                                {player.nickname}
-                                {player.id === currentSeerId && (
-                                    <span className={styles.seerBadge}>👁️ Vidente</span>
-                                )}
-                            </span>
-                        </div>
-
-                        <div className={styles.scoreInfo}>
-                            <div className={styles.progressBar}>
-                                <div
-                                    className={styles.progressFill}
-                                    style={{ width: `${(player.score / targetScore) * 100}%` }}
-                                />
+            <ol className={styles.list}>
+                {sorted.map((player, index) => {
+                    const pct = Math.max(0, Math.min(100, (player.score / target) * 100))
+                    const isSeer = round?.seerId === player.id
+                    const showLock = round?.phase === 'guessing' && !isSeer
+                    const showReady = round?.phase === 'revealed'
+                    return (
+                        <li
+                            key={player.id}
+                            className={`${styles.row} ${player.id === meId ? styles.me : ''} ${player.isConnected ? '' : styles.offline}`}
+                        >
+                            <span className={`${styles.rank} ${index === 0 && leader > 0 ? styles.rankLeader : ''}`}>{index + 1}</span>
+                            <Avatar name={player.nickname} colorIndex={player.colorIndex} size="sm" offline={!player.isConnected} />
+                            <div className={styles.info}>
+                                <span className={styles.name}>
+                                    {player.nickname}
+                                    {player.isHost && <CrownIcon size={12} className={styles.crown} />}
+                                    {isSeer && <span className={styles.seer}><EyeIcon size={12} /></span>}
+                                </span>
+                                <span className={styles.bar}>
+                                    <span className={styles.fill} style={{ width: `${pct}%` }} />
+                                </span>
                             </div>
+                            <span className={styles.status}>
+                                {showLock && player.hasGuessed && <CheckIcon size={14} />}
+                                {showReady && player.isReady && <CheckIcon size={14} />}
+                            </span>
                             <span className={styles.score}>{player.score}</span>
-                        </div>
-                    </li>
-                ))}
-            </ul>
+                        </li>
+                    )
+                })}
+            </ol>
+
+            {room.roundHistory.length > 0 && (
+                <footer className={styles.footer}>
+                    {room.settings.maxRounds > 0
+                        ? `Rodada ${room.roundHistory.length}${round?.phase !== 'revealed' ? ' + 1' : ''} de ${room.settings.maxRounds}`
+                        : `${room.roundHistory.length} rodada${room.roundHistory.length === 1 ? '' : 's'} jogada${room.roundHistory.length === 1 ? '' : 's'}`}
+                </footer>
+            )}
         </div>
     )
 }

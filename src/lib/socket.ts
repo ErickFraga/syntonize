@@ -1,50 +1,68 @@
 'use client'
 
 import { io, Socket } from 'socket.io-client'
-import { ServerToClientEvents, ClientToServerEvents } from '@/types/game'
+import type { ServerToClientEvents, ClientToServerEvents } from '@/types/game'
 
-let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null
+export type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>
 
-const SESSION_TOKEN_KEY = 'syntonize-session-token'
+let socket: GameSocket | null = null
 
-// Get stored session token
-export function getSessionToken(): string | null {
-    if (typeof window === 'undefined') return null
-    return localStorage.getItem(SESSION_TOKEN_KEY)
+const SESSION_TOKEN_KEY = 'syntonize:session-token'
+const PLAYER_ID_KEY = 'syntonize:player-id'
+const NICKNAME_KEY = 'syntonize:nickname'
+const MUTED_KEY = 'syntonize:muted'
+
+function safeGet(storage: Storage | undefined, key: string): string | null {
+    try {
+        return storage?.getItem(key) ?? null
+    } catch {
+        return null
+    }
 }
 
-// Save session token
-export function saveSessionToken(token: string): void {
-    if (typeof window === 'undefined') return
-    localStorage.setItem(SESSION_TOKEN_KEY, token)
+function safeSet(storage: Storage | undefined, key: string, value: string | null): void {
+    try {
+        if (value === null) storage?.removeItem(key)
+        else storage?.setItem(key, value)
+    } catch {
+        /* storage unavailable (private mode, etc.) */
+    }
 }
 
-// Clear session token
-export function clearSessionToken(): void {
-    if (typeof window === 'undefined') return
-    localStorage.removeItem(SESSION_TOKEN_KEY)
+const local = () => (typeof window === 'undefined' ? undefined : window.localStorage)
+
+export const session = {
+    getToken: () => safeGet(local(), SESSION_TOKEN_KEY),
+    getPlayerId: () => safeGet(local(), PLAYER_ID_KEY),
+    getNickname: () => safeGet(local(), NICKNAME_KEY),
+    isMuted: () => safeGet(local(), MUTED_KEY) === '1',
+    setMuted: (muted: boolean) => safeSet(local(), MUTED_KEY, muted ? '1' : null),
+    saveNickname: (nickname: string) => safeSet(local(), NICKNAME_KEY, nickname),
+    save(token: string, playerId: string) {
+        safeSet(local(), SESSION_TOKEN_KEY, token)
+        safeSet(local(), PLAYER_ID_KEY, playerId)
+    },
+    clear() {
+        safeSet(local(), SESSION_TOKEN_KEY, null)
+        safeSet(local(), PLAYER_ID_KEY, null)
+    },
 }
 
-export function getSocket(): Socket<ServerToClientEvents, ClientToServerEvents> {
+export function getSocket(): GameSocket {
     if (!socket) {
-        const sessionToken = getSessionToken()
-
         socket = io({
             autoConnect: true,
             reconnection: true,
-            reconnectionAttempts: 10,
-            reconnectionDelay: 1000,
-            auth: {
-                sessionToken: sessionToken || undefined
-            }
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 800,
+            reconnectionDelayMax: 5000,
+            auth: (cb: (data: { sessionToken?: string }) => void) => cb({ sessionToken: session.getToken() ?? undefined }),
         })
     }
     return socket
 }
 
 export function disconnectSocket(): void {
-    if (socket) {
-        socket.disconnect()
-        socket = null
-    }
+    socket?.disconnect()
+    socket = null
 }
