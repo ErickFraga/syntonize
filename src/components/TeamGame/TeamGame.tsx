@@ -66,7 +66,8 @@ export default function TeamGame({
     const seer = room.players.find(p => p.id === round.seerId)
     const activeTeam = play.team
     const otherTeam: TeamId = activeTeam === 0 ? 1 : 0
-    const onActiveTeam = me?.team === activeTeam
+    const coop = room.settings.mode === 'coop'
+    const onActiveTeam = coop ? !!me : me?.team === activeTeam
     const canDrag = phase === 'guessing' && onActiveTeam && !isSeer
 
     const [clue, setClue] = useState('')
@@ -152,7 +153,7 @@ export default function TeamGame({
                         <span className="chip chip-accent">{t('common.round', { n: round.roundNumber })}</span>
                         <span className={styles.turnChip} style={teamStyle(activeTeam)}>
                             <span className={styles.dot} />
-                            {rich('teamGame.turn', { team: <strong>{activeName}</strong> })}
+                            {coop ? <strong>{t('coop.turn')}</strong> : rich('teamGame.turn', { team: <strong>{activeName}</strong> })}
                         </span>
                         <span className={gameStyles.seerChip}>
                             <EyeIcon size={16} />
@@ -206,8 +207,8 @@ export default function TeamGame({
                             <div className={gameStyles.panelHead}>
                                 <LightbulbIcon size={22} />
                                 <div>
-                                    <h3>{t('teamGame.seerTitle')}</h3>
-                                    <p className="muted">{t('teamGame.seerHelp')}</p>
+                                    <h3>{t(coop ? 'game.youAreSeer' : 'teamGame.seerTitle')}</h3>
+                                    <p className="muted">{t(coop ? 'coop.seerHelp' : 'teamGame.seerHelp')}</p>
                                 </div>
                             </div>
                             <form
@@ -244,7 +245,7 @@ export default function TeamGame({
                     {phase === 'waiting_clue' && !isSeer && (
                         <div className={gameStyles.waitingPanel}>
                             <span className="dots"><span /><span /><span /></span>
-                            <p>{rich('teamGame.waitingClue', { name: <strong>{seer?.nickname}</strong>, team: activeName })}</p>
+                            <p>{coop ? rich('coop.waitingClue', { name: <strong>{seer?.nickname}</strong> }) : rich('teamGame.waitingClue', { name: <strong>{seer?.nickname}</strong>, team: activeName })}</p>
                             {isHost && (
                                 <button className="btn btn-ghost btn-sm" onClick={onSkipRound} title={t('game.skipTitle')}>
                                     <SkipIcon size={16} /> {t('game.skip')}
@@ -256,7 +257,7 @@ export default function TeamGame({
                     {phase === 'guessing' && canDrag && (
                         <div className={gameStyles.guessPanel}>
                             <div className={gameStyles.guessHint}>
-                                <p>{t('teamGame.dragHint')}</p>
+                                <p>{t(coop ? 'coop.dragHint' : 'teamGame.dragHint')}</p>
                                 <span className={gameStyles.needleValue}>{needle}</span>
                             </div>
                             <div className={gameStyles.fineTune}>
@@ -267,7 +268,7 @@ export default function TeamGame({
                                 </span>
                             </div>
                             <button className="btn btn-primary btn-lg btn-block" onClick={lockGuess}>
-                                <LockIcon /> {t('teamGame.lock')}
+                                <LockIcon /> {t(coop ? 'coop.lock' : 'teamGame.lock')}
                             </button>
                         </div>
                     )}
@@ -276,7 +277,7 @@ export default function TeamGame({
                         <div className={gameStyles.waitingPanel}>
                             <span className="dots"><span /><span /><span /></span>
                             {onActiveTeam ? (
-                                <p>{t('teamGame.ownTeamWatching')}</p>
+                                <p>{t(coop ? 'coop.watching' : 'teamGame.ownTeamWatching')}</p>
                             ) : (
                                 <p>{rich('teamGame.otherDeciding', { team: <strong>{activeName}</strong> })}</p>
                             )}
@@ -321,7 +322,7 @@ export default function TeamGame({
                                 <li className={styles.outcomeRow} style={teamStyle(activeTeam)}>
                                     <span className={styles.dot} />
                                     <span className={styles.outcomeText}>
-                                        <strong>{activeName}</strong>
+                                        <strong>{coop ? t('coop.team') : activeName}</strong>
                                         <span className="muted">
                                             <span className={`${gameStyles.zoneTag} ${gameStyles[`zoneTag${play.zone ?? 0}`]}`}>{play.zone ?? 0}</span>
                                             {' '}{t('teamGame.needleAt', { zone: t(ZONE_LABEL[play.zone ?? 0]), n: play.guess ?? '' })}
@@ -329,6 +330,7 @@ export default function TeamGame({
                                     </span>
                                     <span className={`${gameStyles.resultPoints} ${play.points[activeTeam] === 0 ? gameStyles.resultZero : ''}`}>+{play.points[activeTeam]}</span>
                                 </li>
+                                {!coop && (
                                 <li className={styles.outcomeRow} style={teamStyle(otherTeam)}>
                                     <span className={styles.dot} />
                                     <span className={styles.outcomeText}>
@@ -341,6 +343,7 @@ export default function TeamGame({
                                     </span>
                                     <span className={`${gameStyles.resultPoints} ${play.points[otherTeam] === 0 ? gameStyles.resultZero : ''}`}>+{play.points[otherTeam]}</span>
                                 </li>
+                                )}
                             </ul>
                             {play.catchUp && room.status === 'playing' && (
                                 <p className={styles.catchUp} style={teamStyle(activeTeam)}>

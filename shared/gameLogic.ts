@@ -2,7 +2,7 @@
 // Nothing in here talks to sockets or timers; the server orchestrates.
 
 import type { Room, Player, GameRound, RoundPlayer, RoundHistory, SkippedRound, SkipReason, SpectrumCard, RoomSettings, CardLocale, Zone, TeamId, Side, TeamRoundState, NumericSetting, Message, MessageCode, MessageParams, ChatInput, ChatReaction } from './types.ts'
-import { SCORING, LIMITS, CHAT_LIMITS, CHAT_REACTIONS, DEFAULT_SETTINGS, SETTINGS_OPTIONS, PLAYER_COLORS, TEAM_DEFAULT_TARGET, TEAM_RULES, CARD_LOCALES, CARD_PACKS, settingOptionsFor } from './types.ts'
+import { SCORING, LIMITS, CHAT_LIMITS, CHAT_REACTIONS, DEFAULT_SETTINGS, SETTINGS_OPTIONS, PLAYER_COLORS, TEAM_DEFAULT_TARGET, COOP_DEFAULT_TARGET, COOP_DEFAULT_ROUNDS, TEAM_RULES, CARD_LOCALES, CARD_PACKS, settingOptionsFor } from './types.ts'
 import { deckFor } from './cards/index.ts'
 import { sanitizeCustomCards } from './customCards.ts'
 
@@ -152,9 +152,13 @@ export function sanitizeSettings(partial: Partial<RoomSettings>, current: RoomSe
 
     // Switching modes resets the target to that mode's default (team points
     // add up much slower); an explicit valid targetScore below still wins.
-    if ((input.mode === 'ffa' || input.mode === 'teams') && input.mode !== next.mode) {
+    // Cooperative mode also fixes the number of rounds (and leaving it frees them).
+    if ((input.mode === 'ffa' || input.mode === 'teams' || input.mode === 'coop') && input.mode !== next.mode) {
+        const leavingCoop = next.mode === 'coop'
         next.mode = input.mode
-        next.targetScore = input.mode === 'teams' ? TEAM_DEFAULT_TARGET : DEFAULT_SETTINGS.targetScore
+        next.targetScore = input.mode === 'teams' ? TEAM_DEFAULT_TARGET : input.mode === 'coop' ? COOP_DEFAULT_TARGET : DEFAULT_SETTINGS.targetScore
+        if (input.mode === 'coop') next.maxRounds = COOP_DEFAULT_ROUNDS
+        else if (leavingCoop) next.maxRounds = DEFAULT_SETTINGS.maxRounds
     }
     if (typeof input.catchUp === 'boolean') next.catchUp = input.catchUp
     if ((CARD_LOCALES as readonly unknown[]).includes(input.cardLocale)) next.cardLocale = input.cardLocale!
@@ -324,6 +328,9 @@ export function canStartGame(room: Room): { ok: boolean; error?: Message } {
     if (connected.length < LIMITS.MIN_PLAYERS) {
         return { ok: false, error: msg('not_enough_players', { min: LIMITS.MIN_PLAYERS }) }
     }
+    if (isCoop(room) && !canTeamPlay(room, 0)) {
+        return { ok: false, error: msg('not_enough_players', { min: TEAM_RULES.MIN_PER_TEAM }) }
+    }
     if (room.settings.mode === 'teams' && !([0, 1] as TeamId[]).every(t => canTeamPlay(room, t))) {
         return { ok: false, error: msg('team_needs_players', { min: TEAM_RULES.MIN_PER_TEAM }) }
     }
@@ -334,12 +341,23 @@ export function canStartGame(room: Room): { ok: boolean; error?: Message } {
 // TEAMS
 // ============================================
 
+export function isCoop(room: Room): boolean {
+    return room.settings.mode === 'coop'
+}
+
+/** Whether the player plays for `team` (in cooperative mode everyone is on team 0). */
+export function isOnTeam(room: Room, player: Player, team: TeamId): boolean {
+    return isCoop(room) ? team === 0 : player.team === team
+}
+
 export function otherTeam(team: TeamId): TeamId {
     return team === 0 ? 1 : 0
 }
 
 /** Members of a team, in seer-rotation order. */
 export function teamMembers(room: Room, team: TeamId): Player[] {
+    // Cooperative: the whole room is team 0 and nobody is on the other side.
+    if (isCoop(room)) return team === 0 ? room.seerOrder.map(id => room.players.find(p => p.id === id)).filter((p): p is Player => !!p) : []
     return room.seerOrder
         .map(id => room.players.find(p => p.id === id))
         .filter((p): p is Player => !!p && p.team === team)
@@ -411,7 +429,7 @@ function activeTeamGuesser(room: Room, playerId: string): { ok: boolean; error?:
     if (round.seerId === playerId) return { ok: false, error: msg('seer_cannot_guess') }
     const player = room.players.find(p => p.id === playerId)
     if (!player) return { ok: false, error: msg('player_not_in_room') }
-    if (player.team !== play.team) return { ok: false, error: msg('not_your_team_turn') }
+    if (!isOnTeam(room, player, play.team)) return { ok: false, error: msg('not_your_team_turn') }
     return { ok: true, player, play }
 }
 
@@ -483,7 +501,7 @@ function processTeamRoundResults(room: Room, round: GameRound, play: TeamRoundSt
 
     const points: [number, number] = [0, 0]
     points[play.team] = play.zone
-    if (play.side) {
+    if (play.side && !isCoop(room)) {
         play.sideCorrect = play.side === sideOfTarget(guess, target)
         if (play.sideCorrect) points[otherTeam(play.team)] = TEAM_RULES.SIDE_POINTS
     }
@@ -493,8 +511,8 @@ function processTeamRoundResults(room: Room, round: GameRound, play: TeamRoundSt
     // Catch-up rule from the original game: a bullseye by a team that is
     // still behind after scoring earns it another turn.
     const other = otherTeam(play.team)
-    play.catchUp = room.settings.catchUp && play.zone === 4 && room.teamScores[play.team] < room.teamScores[other]
-    room.nextTeam = play.catchUp ? play.team : other
+    play.catchUp = !isCoop(room) && room.settings.catchUp && play.zone === 4 && room.teamScores[play.team] < room.teamScores[other]
+    room.nextTeam = play.catchUp || isCoop(room) ? play.team : other
 
     round.phase = 'revealed'
     round.revealedAt = now
@@ -505,8 +523,9 @@ function processTeamRoundResults(room: Room, round: GameRound, play: TeamRoundSt
 
     const { targetScore, maxRounds } = room.settings
     const [a, b] = room.teamScores
-    // A tie at the target keeps going: the next round breaks it.
-    const reachedScore = Math.max(a, b) >= targetScore && a !== b
+    // A tie at the target keeps going: the next round breaks it. Cooperative
+    // always plays every round: the goal only decides whether the group won.
+    const reachedScore = !isCoop(room) && Math.max(a, b) >= targetScore && a !== b
     const reachedRounds = maxRounds > 0 && room.roundHistory.length >= maxRounds
     if (reachedScore || reachedRounds) finishGame(room)
     return round
@@ -545,7 +564,7 @@ export function pickNextSeer(room: Room): string | null {
 }
 
 export function startNewRound(room: Room, now: number = Date.now(), rng: () => number = Math.random): GameRound | null {
-    const teams = room.settings.mode === 'teams'
+    const teams = room.settings.mode !== 'ffa' // teams and coop both rotate the seer inside a team
     let seerId: string | null
     let teamPlay: TeamRoundState | null = null
     if (teams) {
@@ -699,7 +718,7 @@ export function recordSkippedRound(room: Room, reason: SkipReason, now: number =
         roundNumber: round.roundNumber,
         seer: seer ? roundPlayer(seer) : null,
         spectrumCard: round.spectrumCard,
-        team: round.teamPlay?.team ?? null,
+        team: round.teamPlay && !isCoop(room) ? round.teamPlay.team : null,
         reason,
         startedAt: round.startedAt,
         skippedAt: now,
@@ -712,6 +731,11 @@ export function recordSkippedRound(room: Room, reason: SkipReason, now: number =
 export function finishGame(room: Room): void {
     room.status = 'finished'
     room.nextRoundAt = null
+    if (isCoop(room)) {
+        room.winnerTeam = room.teamScores[0] >= room.settings.targetScore ? 0 : null
+        room.winnerId = null
+        return
+    }
     if (room.settings.mode === 'teams') {
         const [a, b] = room.teamScores
         room.winnerTeam = a === b ? null : a > b ? 0 : 1
@@ -788,7 +812,7 @@ export function roomViewFor(room: Room, viewerId: string | null): Room {
     // Team mode: the live needle belongs to the active team until it locks.
     if (round.teamPlay) {
         const viewer = room.players.find(p => p.id === viewerId)
-        const onActiveTeam = !!viewer && viewer.team === round.teamPlay.team
+        const onActiveTeam = !!viewer && isOnTeam(room, viewer, round.teamPlay.team)
         const needleVisible = onActiveTeam || round.phase === 'side_guess' || revealed
         visibleRound.teamPlay = { ...round.teamPlay, needle: needleVisible ? round.teamPlay.needle : null }
     }

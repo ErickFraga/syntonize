@@ -29,8 +29,6 @@ GitHub Actions) e conferir o visual das telas novas contra os mocks do canvas.
 
 ## P2 — deixa o jogo mais completo
 
-- [ ] **Modo cooperativo.** Como no app oficial: todos no mesmo time, 7 rodadas,
-      meta de pontos conjunta. Deriva do modo atual.
 - [ ] **Modo espectador.** Entrar na sala só para assistir, fora da rotação de Videntes.
 - [ ] **Rate limiting.** Nada impede criar milhares de salas ou spammar `room:join`.
       Limitar por IP/socket.

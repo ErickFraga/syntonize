@@ -12,6 +12,7 @@ import Game from '@/components/Game/Game'
 import Results from '@/components/Results/Results'
 import TeamGame from '@/components/TeamGame/TeamGame'
 import TeamResults from '@/components/TeamResults/TeamResults'
+import CoopResults from '@/components/CoopResults/CoopResults'
 import Chat from '@/components/Chat/Chat'
 import Logo from '@/components/ui/Logo'
 import Toasts from '@/components/ui/Toasts'
@@ -262,7 +263,18 @@ export default function RoomPage() {
                     />
                 )}
 
-                {room.status === 'finished' && room.settings.mode !== 'teams' && (
+                {room.status === 'finished' && room.settings.mode === 'coop' && (
+                    <CoopResults
+                        room={room}
+                        me={me}
+                        isHost={isHost}
+                        onPlayAgain={startGame}
+                        onBackToLobby={backToLobby}
+                        onLeave={handleLeave}
+                    />
+                )}
+
+                {room.status === 'finished' && room.settings.mode === 'ffa' && (
                     <Results
                         room={room}
                         me={me}

@@ -51,6 +51,7 @@ import {
     activeTeamHasGuessers,
     opposingTeamPresent,
     teamMembers,
+    isCoop,
     validateChatInput,
     canSendChatText,
     LIMITS,
@@ -884,7 +885,9 @@ export class RoomManager {
         const winner = room.players.find(p => p.id === room.winnerId)
         const params: Record<string, string | number> = room.settings.mode === 'teams'
             ? (room.winnerTeam !== null ? { team: room.winnerTeam } : {})
-            : (winner ? { name: winner.nickname } : {})
+            : room.settings.mode === 'coop'
+                ? { won: room.winnerTeam !== null ? 1 : 0 }
+                : (winner ? { name: winner.nickname } : {})
         this.systemChat(room, 'game_finished', params)
     }
 
@@ -1009,6 +1012,11 @@ export class RoomManager {
 
     private afterTeamLock(room: Room): void {
         if (room.currentRound?.phase !== 'side_guess') return
+        // Cooperative has no left/right call: the locked needle is the answer.
+        if (isCoop(room)) {
+            this.endRound(room)
+            return
+        }
         this.broadcastState(room)
         if (opposingTeamPresent(room)) {
             this.startPhaseTimer(room, 'side', TEAM_RULES.SIDE_GUESS_SECONDS)
