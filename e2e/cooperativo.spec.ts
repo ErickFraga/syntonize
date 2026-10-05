@@ -39,7 +39,7 @@ test('modo cooperativo: lobby, ponteiro compartilhado e fim de partida', async (
     for (let n = 1; n <= 5; n++) {
         const seer = await findSeer(all)
         const guessers = all.filter(p => p !== seer)
-        await seer.page.getByPlaceholder(CLUE_INPUT).fill('Pizza fria')
+        await seer.page.getByPlaceholder(CLUE_INPUT).fill('Sorvete derretendo')
         await seer.page.getByRole('button', { name: 'Enviar dica' }).click()
 
         const [first, second] = guessers
