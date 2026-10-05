@@ -5,6 +5,7 @@ import type { Room, Player, RoomSettings, TeamId, NumericSetting, GameMode } fro
 import { SETTINGS_OPTIONS, LIMITS, TEAM_RULES, settingOptionsFor } from '@/types/game'
 import Avatar from '@/components/ui/Avatar'
 import TeamColumns from '@/components/TeamColumns/TeamColumns'
+import CardPackPicker from '@/components/CardPackPicker/CardPackPicker'
 import { useT, type Translator } from '@/i18n/I18nProvider'
 import type { TranslationKey } from '@/i18n'
 import { CopyIcon, CheckIcon, ShareIcon, PlayIcon, CrownIcon, XIcon, UsersIcon, SettingsIcon } from '@/components/ui/Icons'
@@ -186,6 +187,7 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
                                 </div>
                             </div>
                         )}
+                        <CardPackPicker settings={room.settings} isHost={isHost} onUpdateSettings={onUpdateSettings} />
                         {(Object.keys(SETTINGS_OPTIONS) as NumericSetting[]).map(key => {
                             const meta = SETTING_LABELS[key]
                             const options = settingOptionsFor(room.settings.mode, key)
