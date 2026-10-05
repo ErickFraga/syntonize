@@ -1,8 +1,8 @@
 {
     "compilerOptions": {
-        "target": "ES2020",
+        "target": "ES2022",
         "lib": [
-            "ES2020"
+            "ES2022"
         ],
         "module": "ESNext",
         "moduleResolution": "bundler",
@@ -21,7 +21,8 @@
             ]
         },
         "allowImportingTsExtensions": true,
-        "noEmit": true
+        "noEmit": true,
+        "allowSyntheticDefaultImports": true
     },
     "include": [
         "server/**/*.ts",
