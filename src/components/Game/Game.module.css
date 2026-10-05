@@ -229,13 +229,13 @@
 .fineTune {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
 }
 
-.range {
-    flex: 1;
-    accent-color: var(--violet);
-    height: 32px;
+.fineTuneButtons {
+    display: inline-flex;
+    gap: 8px;
 }
 
 .lockedBadge {
