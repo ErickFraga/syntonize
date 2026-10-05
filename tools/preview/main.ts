@@ -15,6 +15,7 @@ import Logo from '../../src/components/ui/Logo.tsx'
 import Dial from '../../src/components/Dial/Dial.tsx'
 import { QrFullscreen } from '../../src/components/QrCode/QrCode.tsx'
 import Chat from '../../src/components/Chat/Chat.tsx'
+import MusicToggle from '../../src/components/ui/MusicToggle.tsx'
 import { I18nContext, makeTranslator } from '../../src/i18n/I18nProvider.tsx'
 
 const g = globalThis as any
@@ -164,6 +165,9 @@ const teamHistory: GameRound[] = [
 
 const screens: Record<string, { node: any; mobile?: boolean }> = {
     home: { node: jsx(Home, {}) },
+    'music-panel': {
+        node: jsx('div', { style: 'padding:24px;display:flex;justify-content:flex-end', children: jsx(MusicToggle, { initialOpen: true }) }),
+    },
     join: { node: jsx(JoinPage, {}) },
     lobby: {
         node: page(jsx(Lobby, { room: room('waiting', null, { settings: { ...DEFAULT_SETTINGS, packs: ['classic', 'food', 'spicy'] } }), me: players[0], isHost: true, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
@@ -274,7 +278,7 @@ for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-rev
     for (const name of names) screens[`${name}-${locale}`] = { ...screens[name], locale }
 }
 
-const LIGHT = new Set(['home', 'lobby', 'lobby-custom', 'lobby-custom-guest', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid', 'lobby-qr', 'game-chat', 'game-chat-open', 'game-history', 'team-history', 'results-history'])
+const LIGHT = new Set(['home', 'music-panel', 'lobby', 'lobby-custom', 'lobby-custom-guest', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid', 'lobby-qr', 'game-chat', 'game-chat-open', 'game-history', 'team-history', 'results-history'])
 for (const [name, screen] of Object.entries(screens) as Array<[string, { node: any; locale?: 'en' | 'es' }]>) {
     ;(I18nContext as any)._value = makeTranslator(screen.locale ?? 'pt-BR')
     const body = renderToString(screen.node)

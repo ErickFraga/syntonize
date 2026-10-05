@@ -89,6 +89,14 @@ export const es: Dictionary = {
     'room.mute': 'Silenciar',
     'room.leave': 'Salir',
 
+    // ---------- background music ----------
+    'music.title': 'Música de fondo',
+    'music.turnOn': 'Activar música',
+    'music.turnOff': 'Desactivar música',
+    'music.volume': 'Volumen de la música',
+    'music.startsOnTap': 'Empieza con el primer toque',
+    'music.unavailable': 'Música no disponible ahora',
+
     'lobby.eyebrow': 'Sala de espera',
     'lobby.title': 'Llama a tus amigos',
     'lobby.subtitle': 'Comparte el código o el enlace. Quien entre aparece aquí al instante.',

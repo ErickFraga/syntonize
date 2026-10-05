@@ -75,6 +75,7 @@ Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `
 | ✅ | **Cores por jogador** | Cada jogador recebe uma cor estável usada no lobby, placar, lista de resultado e no dial. |
 | ✅ | **Toasts** | Avisos do servidor (entrou/saiu, novo anfitrião, rodada pulada, erros) aparecem como notificação, não como `alert`. |
 | ✅ | **Sons** | Efeitos sintetizados (sem arquivos): início de rodada, dica, travar palpite, tique nos últimos 5 s, revelação, fim de partida. Botão de mudo no cabeçalho, lembrado no navegador. |
+| ✅ | **Música de fundo** | Loop lo-fi (gerado no Suno a partir de um prompt chill com ar de mistério) tocando baixinho pelo Web Audio, com emenda calculada por um script: análise do andamento e dos compassos, corte em 32 compassos e crossfade de 50 ms. Botão no cabeçalho (home e sala) com ligar/desligar e volume, lembrado no navegador; começa no primeiro toque por causa do autoplay. Some sozinho se o arquivo não existir. |
 | ✅ | **Timer sincronizado** | O cliente usa `endsAt` do servidor + offset e atualiza 4x por segundo; o anel fica laranja em 10 s e vermelho em 5 s. |
 | ✅ | **Estado de conexão** | "Reconectando…" no cabeçalho; botão de sair pede confirmação durante a partida. |
 | ✅ | **Mobile** | Layouts testados a 390 px: dial ocupa a largura, placar vai para baixo, painel de resultado reorganiza em duas linhas, botões em coluna. |

@@ -100,6 +100,14 @@ export const ptBR = {
     'room.mute': 'Silenciar',
     'room.leave': 'Sair',
 
+    // ---------- background music ----------
+    'music.title': 'Música de fundo',
+    'music.turnOn': 'Ligar música',
+    'music.turnOff': 'Desligar música',
+    'music.volume': 'Volume da música',
+    'music.startsOnTap': 'Começa no primeiro toque na tela',
+    'music.unavailable': 'Música indisponível neste momento',
+
     // ---------- lobby ----------
     'lobby.eyebrow': 'Sala de espera',
     'lobby.title': 'Chama a galera',
