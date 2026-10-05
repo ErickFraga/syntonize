@@ -12,11 +12,8 @@ import Results from '../../src/components/Results/Results.tsx'
 import TeamGame from '../../src/components/TeamGame/TeamGame.tsx'
 import TeamResults from '../../src/components/TeamResults/TeamResults.tsx'
 import Logo from '../../src/components/ui/Logo.tsx'
-<<<<<<< HEAD
-import { QrFullscreen } from '../../src/components/QrCode/QrCode.tsx'
-=======
 import Dial from '../../src/components/Dial/Dial.tsx'
->>>>>>> origin/claude/features-equipes-i18n
+import { QrFullscreen } from '../../src/components/QrCode/QrCode.tsx'
 import { I18nContext, makeTranslator } from '../../src/i18n/I18nProvider.tsx'
 
 const g = globalThis as any
@@ -180,11 +177,7 @@ for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-rev
     for (const name of names) screens[`${name}-${locale}`] = { ...screens[name], locale }
 }
 
-<<<<<<< HEAD
-const LIGHT = new Set(['home', 'lobby', 'lobby-qr', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed'])
-=======
-const LIGHT = new Set(['home', 'lobby', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid'])
->>>>>>> origin/claude/features-equipes-i18n
+const LIGHT = new Set(['home', 'lobby', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid', 'lobby-qr'])
 for (const [name, screen] of Object.entries(screens) as Array<[string, { node: any; locale?: 'en' | 'es' }]>) {
     ;(I18nContext as any)._value = makeTranslator(screen.locale ?? 'pt-BR')
     const body = renderToString(screen.node)
