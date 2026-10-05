@@ -9,7 +9,8 @@ completo · **P3** polimento.
 ## Na `release`, aguardando a PR para a `main`
 
 PRs #13 (CI e remoção das dependências não usadas), #14 (cartas personalizadas),
-#15 (persistência das salas com Redis) e #16 (histórico de rodadas). Já na `main`
+#15 (persistência das salas com Redis), #16 (histórico de rodadas) e a de rate limiting
+e TTL do token de sessão. Já na `main`
 (PRs #2–#6, #8, #10–#12): modo em equipes, internacionalização, cartas em três
 idiomas e pacotes temáticos, imagem Open Graph (home e convite, com o nome do
 anfitrião e quantos estão na sala), QR code no lobby, chat e reações, animação
@@ -32,10 +33,6 @@ GitHub Actions) e conferir o visual das telas novas contra os mocks do canvas.
 - [ ] **Modo cooperativo.** Como no app oficial: todos no mesmo time, 7 rodadas,
       meta de pontos conjunta. Deriva do modo atual.
 - [ ] **Modo espectador.** Entrar na sala só para assistir, fora da rotação de Videntes.
-- [ ] **Rate limiting.** Nada impede criar milhares de salas ou spammar `room:join`.
-      Limitar por IP/socket.
-- [ ] **Expiração de token de sessão.** Hoje o token vive até a sala morrer; com
-      persistência, dar TTL.
 - [ ] **Testes de componente.** Formalizar com Vitest + Testing Library o que o
       `tools/preview` faz hoje (Dial: ângulo e teclado; Game: painéis por fase).
 
