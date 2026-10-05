@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "noEmit": true, "strict": true, "target": "es2022", "module": "esnext", "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true, "lib": ["es2022", "dom", "dom.iterable"], "types": [], "skipLibCheck": true,
+    "isolatedModules": true, "jsx": "preserve", "ignoreDeprecations": "6.0", "baseUrl": "../..",
+    "paths": { "@/*": ["src/*"], "@shared/*": ["shared/*"] }
+  },
+  "include": ["types/*.d.ts", "../../src/**/*.ts", "../../src/**/*.tsx", "../../shared/**/*.ts", "../../server/roomManager.ts", "../../tests/helpers.ts"]
+}
