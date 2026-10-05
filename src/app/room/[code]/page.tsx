@@ -58,8 +58,9 @@ export default function RoomPage() {
         }
         if (room) {
             if (room.code !== code) {
+                // Sessão de outra sala: o link desta é um convite, não um atalho de volta.
                 setStage('redirecting')
-                router.replace(`/room/${room.code}`)
+                router.replace(`/join/${code}`)
                 return
             }
             setStage('ready')

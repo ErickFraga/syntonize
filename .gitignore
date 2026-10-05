@@ -34,3 +34,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# e2e (Playwright): prints, relatório e traces são gerados a cada rodada
+/e2e/prints/
+/e2e/report/
+/e2e/test-results/
