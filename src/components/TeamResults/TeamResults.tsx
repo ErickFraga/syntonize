@@ -6,6 +6,7 @@ import { computeTeamStats } from '@shared/gameLogic'
 import Avatar from '@/components/ui/Avatar'
 import { TrophyIcon, RotateIcon, HomeIcon, LogOutIcon, TargetIcon, EyeIcon, SparklesIcon } from '@/components/ui/Icons'
 import { TEAM_IDS, teamColor, teamKey } from '@/lib/teams'
+import RoundHistory from '@/components/RoundHistory/RoundHistory'
 import { useT } from '@/i18n/I18nProvider'
 import resultStyles from '@/components/Results/Results.module.css'
 import styles from './TeamResults.module.css'
@@ -17,6 +18,8 @@ interface TeamResultsProps {
     onPlayAgain: () => void
     onBackToLobby: () => void
     onLeave: () => void
+    /** Starts with the round history open (static preview). */
+    historyOpen?: boolean
 }
 
 const CONFETTI = Array.from({ length: 36 }, (_, i) => ({
@@ -26,7 +29,7 @@ const CONFETTI = Array.from({ length: 36 }, (_, i) => ({
     rotate: (i * 53) % 360,
 }))
 
-export default function TeamResults({ room, me, isHost, onPlayAgain, onBackToLobby, onLeave }: TeamResultsProps) {
+export default function TeamResults({ room, me, isHost, onPlayAgain, onBackToLobby, onLeave, historyOpen = false }: TeamResultsProps) {
     const { t } = useT()
     const winner = room.winnerTeam
     const myTeamWon = !!me && winner !== null && me.team === winner
@@ -127,6 +130,7 @@ export default function TeamResults({ room, me, isHost, onPlayAgain, onBackToLob
                         {t('results.waitHost')}
                     </p>
                 )}
+                <RoundHistory room={room} meId={me?.id ?? null} variant="results" defaultOpen={historyOpen} />
                 <button className="btn btn-ghost" onClick={onLeave}>
                     <LogOutIcon /> {t('results.leave')}
                 </button>

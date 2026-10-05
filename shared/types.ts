@@ -97,6 +97,38 @@ export interface GameRound {
     revealedAt: number | null
     /** Team-mode state of the round; null in free-for-all. */
     teamPlay: TeamRoundState | null
+    /**
+     * Who took part, as they were on the reveal (the seer, guessers and, in
+     * team mode, whoever locked or called the side), so the round history can
+     * still name players who left. Empty until the reveal.
+     */
+    roster: RoundPlayer[]
+}
+
+/** A player as they were in a past round. */
+export interface RoundPlayer {
+    id: string
+    nickname: string
+    colorIndex: number
+    team: TeamId
+}
+
+/** Why a round ended without a reveal. */
+export type SkipReason = 'host' | 'clue_timeout' | 'seer_left' | 'seer_kicked' | 'seer_disconnected'
+
+/**
+ * A round that was skipped before the clue. It does not count (the next
+ * round reuses its number) and never carries the target.
+ */
+export interface SkippedRound {
+    roundNumber: number
+    seer: RoundPlayer | null
+    spectrumCard: SpectrumCard
+    /** Team whose turn it was (team mode), null in free-for-all. */
+    team: TeamId | null
+    reason: SkipReason
+    startedAt: number
+    skippedAt: number
 }
 
 export interface TeamRoundState {
@@ -121,6 +153,12 @@ export interface TeamRoundState {
     sideCorrect: boolean | null
     /** Bullseye while still behind: the same team plays again. */
     catchUp: boolean
+}
+
+/** What `game:history` carries: the same for every player (only revealed rounds). */
+export interface RoundHistory {
+    rounds: GameRound[]
+    skipped: SkippedRound[]
 }
 
 // ============================================
@@ -162,7 +200,14 @@ export interface Room {
     status: RoomStatus
     settings: RoomSettings
     currentRound: GameRound | null
+    /**
+     * Revealed rounds, oldest first (the round in play only joins on its
+     * reveal). `roomViewFor` sends it empty: it travels in `game:history`,
+     * only when it changes, and the client merges it back (see README).
+     */
     roundHistory: GameRound[]
+    /** Rounds skipped before the clue, oldest first (last LIMITS.SKIPPED_KEPT). Same transport as `roundHistory`. */
+    skippedRounds: SkippedRound[]
     /** Player ids in seer rotation order. */
     seerOrder: string[]
     currentSeerIndex: number
@@ -324,6 +369,8 @@ export interface ServerToClientEvents {
     'game:timer': (timer: TimerUpdate) => void
     /** Team mode: live needle of the active team (sent only to that team). */
     'game:needle': (data: { position: number; by: string }) => void
+    /** Round history (revealed and skipped rounds), sent on join/resync and whenever it changes. */
+    'game:history': (history: RoundHistory) => void
     'chat:message': (message: ChatMessage) => void
     /** Full chat history, sent to one player with their state (join, restore, resync). */
     'chat:history': (messages: ChatMessage[]) => void
@@ -379,6 +426,8 @@ export const LIMITS = {
     /** Target is kept away from the edges so the whole wedge fits the dial. */
     TARGET_MIN: 14,
     TARGET_MAX: 86,
+    /** Skipped rounds kept for the history panel. */
+    SKIPPED_KEPT: 30,
     /** Custom cards: how many pairs, characters per side, and the line separator. */
     CUSTOM_CARDS_MAX: 50,
     CUSTOM_CARD_TEXT_MIN: 2,

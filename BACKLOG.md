@@ -6,17 +6,14 @@ decisões de regra) fica em [MELHORIAS.md](./MELHORIAS.md).
 Prioridade: **P1** faz diferença na próxima partida · **P2** deixa o jogo mais
 completo · **P3** polimento.
 
-## Em andamento (sessões paralelas, uma branch e uma PR por item)
+## Na `release`, aguardando a PR para a `main`
 
-| Branch | Item | Prioridade |
-|---|---|---|
-| `claude/feature-historico-rodadas` | Histórico de rodadas na partida | P2 |
-
-Já na `main` (PRs #2–#6, #8, #10, #11): modo em equipes, internacionalização,
-cartas em três idiomas e pacotes temáticos, imagem Open Graph (home e convite,
-com o nome do anfitrião e quantos estão na sala), QR code no lobby, chat e
-reações, animação da tampa, design "Cozy, versão madura". A PR #12 corrige o
-`target` do `tsconfig.json` para o `next build` passar no Render.
+PRs #13 (CI e remoção das dependências não usadas), #14 (cartas personalizadas),
+#15 (persistência das salas com Redis) e #16 (histórico de rodadas). Já na `main`
+(PRs #2–#6, #8, #10–#12): modo em equipes, internacionalização, cartas em três
+idiomas e pacotes temáticos, imagem Open Graph (home e convite, com o nome do
+anfitrião e quantos estão na sala), QR code no lobby, chat e reações, animação
+da tampa, design "Cozy, versão madura" e o `target` do `tsconfig.json`.
 
 Ao fechar cada PR: CI verde (testes, tipagem, lint e build rodam sozinhos no
 GitHub Actions) e conferir o visual das telas novas contra os mocks do canvas.

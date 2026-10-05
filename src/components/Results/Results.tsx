@@ -5,6 +5,7 @@ import type { Room, Player } from '@/types/game'
 import { computeStats } from '@shared/gameLogic'
 import Avatar from '@/components/ui/Avatar'
 import { TrophyIcon, RotateIcon, HomeIcon, LogOutIcon, TargetIcon, EyeIcon, SparklesIcon } from '@/components/ui/Icons'
+import RoundHistory from '@/components/RoundHistory/RoundHistory'
 import { useT } from '@/i18n/I18nProvider'
 import styles from './Results.module.css'
 
@@ -15,6 +16,8 @@ interface ResultsProps {
     onPlayAgain: () => void
     onBackToLobby: () => void
     onLeave: () => void
+    /** Starts with the round history open (static preview). */
+    historyOpen?: boolean
 }
 
 const CONFETTI = Array.from({ length: 36 }, (_, i) => ({
@@ -25,7 +28,7 @@ const CONFETTI = Array.from({ length: 36 }, (_, i) => ({
     rotate: (i * 53) % 360,
 }))
 
-export default function Results({ room, me, isHost, onPlayAgain, onBackToLobby, onLeave }: ResultsProps) {
+export default function Results({ room, me, isHost, onPlayAgain, onBackToLobby, onLeave, historyOpen = false }: ResultsProps) {
     const { t } = useT()
     const sorted = useMemo(() => [...room.players].sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname)), [room.players])
     const winner = sorted[0]
@@ -141,6 +144,7 @@ export default function Results({ room, me, isHost, onPlayAgain, onBackToLobby, 
                         {t('results.waitHost')}
                     </p>
                 )}
+                <RoundHistory room={room} meId={me?.id ?? null} variant="results" defaultOpen={historyOpen} />
                 <button className="btn btn-ghost" onClick={onLeave}>
                     <LogOutIcon /> {t('results.leave')}
                 </button>

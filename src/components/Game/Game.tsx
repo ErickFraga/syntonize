@@ -8,6 +8,7 @@ import Avatar from '@/components/ui/Avatar'
 import CountdownRing from '@/components/ui/CountdownRing'
 import { EyeIcon, LockIcon, CheckIcon, SkipIcon, LightbulbIcon, ChevronLeftIcon, ChevronRightIcon, SparklesIcon } from '@/components/ui/Icons'
 import Scoreboard from './Scoreboard'
+import RoundHistory from '@/components/RoundHistory/RoundHistory'
 import { sounds } from '@/lib/sounds'
 import { useT } from '@/i18n/I18nProvider'
 import styles from './Game.module.css'
@@ -26,6 +27,8 @@ interface GameProps {
     onSkipRound: () => void
     /** Chat panel, rendered under the scoreboard. */
     chat?: React.ReactNode
+    /** Starts with the round history open (static preview). */
+    historyOpen?: boolean
 }
 
 const ZONE_LABEL = { 4: 'zone.4', 3: 'zone.3', 2: 'zone.2', 0: 'zone.0' } as const
@@ -43,6 +46,7 @@ export default function Game({
     onNextRound,
     onSkipRound,
     chat,
+    historyOpen = false,
 }: GameProps) {
     const { t, rich, msg } = useT()
     const round = room.currentRound!
@@ -132,9 +136,12 @@ export default function Game({
                             <strong>{seer?.nickname ?? '…'}{isSeer ? t('common.youSuffix') : ''}</strong>
                         </span>
                     </div>
-                    {secondsLeft !== null && timerPhase && timerPhase !== 'next' && (
-                        <CountdownRing seconds={secondsLeft} total={totalForTimer} label={t(timerPhase === 'guess' ? 'timer.guess' : 'timer.clue')} />
-                    )}
+                    <div className={styles.roundTools}>
+                        <RoundHistory room={room} meId={me?.id ?? null} defaultOpen={historyOpen} />
+                        {secondsLeft !== null && timerPhase && timerPhase !== 'next' && (
+                            <CountdownRing seconds={secondsLeft} total={totalForTimer} label={t(timerPhase === 'guess' ? 'timer.guess' : 'timer.clue')} />
+                        )}
+                    </div>
                 </div>
 
                 {/* Device */}

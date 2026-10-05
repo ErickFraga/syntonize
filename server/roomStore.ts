@@ -72,7 +72,22 @@ export function decodeSnapshot(raw: string | null | undefined): RoomSnapshot | n
     if (!room || typeof room.code !== 'string' || !Array.isArray(room.players) || !room.settings) return null
     const timer = s.timer
     if (timer !== null && (typeof timer !== 'object' || typeof timer.endsAt !== 'number' || typeof timer.phase !== 'string')) return null
-    return s as RoomSnapshot
+    return withDefaults(s as RoomSnapshot)
+}
+
+/**
+ * Fills fields added after SNAPSHOT_VERSION 1 shipped, so rooms saved by an
+ * older build keep working instead of being dropped by a version bump.
+ */
+function withDefaults(snapshot: RoomSnapshot): RoomSnapshot {
+    const room = snapshot.room
+    // Round history panel: skipped rounds and the roster of each round.
+    if (!Array.isArray(room.skippedRounds)) room.skippedRounds = []
+    if (!Array.isArray(room.roundHistory)) room.roundHistory = []
+    for (const round of [...room.roundHistory, room.currentRound]) {
+        if (round && !Array.isArray(round.roster)) round.roster = []
+    }
+    return snapshot
 }
 
 // ============================================

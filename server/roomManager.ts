@@ -15,6 +15,7 @@ import type {
     ChatMessage,
     ChatSystemCode,
     Message,
+    SkipReason,
 } from '../shared/types.ts'
 import {
     generateRoomCode,
@@ -34,6 +35,8 @@ import {
     canJoinRoom,
     canStartGame,
     startNewRound,
+    recordSkippedRound,
+    historyViewFor,
     submitGuess as applyGuess,
     allGuessersDone,
     allReady,
@@ -408,6 +411,7 @@ export class RoomManager {
         if (!can.ok) return { success: false, error: can.error }
 
         resetGameState(room)
+        this.broadcastHistory(room)
         this.beginRound(room)
         this.log(`game started in ${room.code}`)
         return { success: true }
@@ -421,6 +425,7 @@ export class RoomManager {
 
         this.clearTimers(room.code)
         resetGameState(room)
+        this.broadcastHistory(room)
         this.notify(room, 'info', msg('back_to_lobby'))
         this.broadcastState(room)
         return { success: true }
@@ -543,7 +548,7 @@ export class RoomManager {
             return { success: false, error: msg('skip_only_waiting_clue') }
         }
         this.notify(room, 'warning', msg('round_skipped_by_host'))
-        this.beginRound(room)
+        this.skipCurrentRound(room, 'host')
         return { success: true }
     }
 
@@ -551,6 +556,7 @@ export class RoomManager {
         const room = this.getRoomOfPlayer(playerId)
         if (!room) return
         this.transport.toPlayer(playerId, 'room:state', roomViewFor(room, playerId))
+        this.transport.toPlayer(playerId, 'game:history', historyViewFor(room))
         this.transport.toPlayer(playerId, 'chat:history', room.chat)
         this.resyncTimer(playerId)
     }
@@ -889,6 +895,10 @@ export class RoomManager {
         }
     }
 
+    private broadcastHistory(room: Room): void {
+        this.transport.toRoom(room.code, 'game:history', historyViewFor(room))
+    }
+
     private removePlayer(room: Room, player: Player, reason: GoneReason, broadcast = true): void {
         const wasHost = player.isHost
         this.cancelGone(player.id)
@@ -933,7 +943,7 @@ export class RoomManager {
         const round = room.currentRound
         if (round.phase === 'waiting_clue' && round.seerId === player.id) {
             this.notify(room, 'warning', msg(`seer_${reason}`, { name: player.nickname }))
-            this.beginRound(room)
+            this.skipCurrentRound(room, `seer_${reason}`, player)
         } else if (round.teamPlay) {
             if (round.phase === 'guessing' && !activeTeamHasGuessers(room)) this.lockTeam(room)
             else if (round.phase === 'side_guess' && !opposingTeamPresent(room)) this.endRound(room)
@@ -966,11 +976,19 @@ export class RoomManager {
         }
     }
 
+    /** Logs the round in play as skipped (history panel) and deals the next one. */
+    private skipCurrentRound(room: Room, reason: SkipReason, gone: Player | null = null): void {
+        if (recordSkippedRound(room, reason, this.clock.now(), gone)) this.broadcastHistory(room)
+        this.beginRound(room)
+    }
+
     private endRound(room: Room): void {
         this.clearTimers(room.code)
         const round = processRoundResults(room, this.clock.now())
         if (!round) return
 
+        // History first, so the state of the reveal never counts rounds the client does not have yet.
+        this.broadcastHistory(room)
         this.transport.toRoom(room.code, 'game:reveal', round.roundNumber)
         this.systemChat(room, 'round_revealed', { round: round.roundNumber })
         this.broadcastState(room)
@@ -1006,7 +1024,7 @@ export class RoomManager {
 
         if (phase === 'clue' && round.phase === 'waiting_clue') {
             this.notify(room, 'warning', msg('clue_timeout_skip'))
-            this.beginRound(room)
+            this.skipCurrentRound(room, 'clue_timeout')
         } else if (phase === 'guess' && round.phase === 'guessing') {
             if (round.teamPlay) this.lockTeam(room)
             else this.endRound(room)
