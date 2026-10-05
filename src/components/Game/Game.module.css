@@ -1,262 +1,486 @@
 .game {
     display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 24px;
-    height: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 20px;
     width: 100%;
+    max-width: 1160px;
+    margin: 0 auto;
+    align-items: start;
 }
 
-@media (max-width: 900px) {
-    .game {
-        grid-template-columns: 1fr;
-    }
-
-    .sidebar {
-        order: -1;
-    }
-}
-
-.mainContent {
+.main {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
+    min-width: 0;
+}
+
+.sidebar {
+    position: sticky;
+    top: 16px;
+}
+
+/* Round bar */
+.roundBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 56px;
+    padding: 0 4px;
 }
 
 .roundInfo {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0 8px;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
-.roundNumber {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    background: var(--bg-glass);
-    padding: 6px 12px;
+.seerChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 12px 0 10px;
     border-radius: var(--radius-full);
-}
-
-.seerInfo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.seerLabel {
+    background: var(--surface);
+    border: 1px solid var(--line);
     font-size: 14px;
-    color: var(--text-muted);
+    color: var(--text-2);
 }
 
-.seerName {
-    font-weight: 600;
-    color: var(--accent-secondary);
+.seerChip svg {
+    color: var(--orange);
 }
 
-.spectrumCard {
-    padding: 32px;
+.seerChip strong {
+    color: var(--text);
+}
+
+/* Device */
+.device {
+    padding: 22px 22px 20px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 6px;
+    position: relative;
+    overflow: hidden;
 }
 
-.cardConcepts {
+.device::after {
+    content: '';
+    position: absolute;
+    inset: auto -20% -60% -20%;
+    height: 80%;
+    background: radial-gradient(closest-side, rgba(143, 123, 255, 0.16), transparent);
+    pointer-events: none;
+}
+
+.concepts {
     display: flex;
     justify-content: space-between;
-    font-size: 1.2rem;
-    font-weight: 700;
-}
-
-.leftConcept {
-    color: var(--spectrum-left);
-}
-
-.rightConcept {
-    color: var(--spectrum-right);
-}
-
-.clueDisplay {
-    text-align: center;
-    padding: 16px;
-    background: var(--bg-glass);
-    border-radius: var(--radius-md);
-}
-
-.clueLabel {
-    font-size: 14px;
-    color: var(--text-muted);
-    margin-right: 8px;
-}
-
-.clueText {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--accent-secondary);
-}
-
-.seerControls,
-.playerControls {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    align-items: baseline;
     gap: 16px;
-    padding: 24px;
-    background: var(--bg-glass);
-    border-radius: var(--radius-lg);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(17px, 2.6vw, 26px);
+    line-height: 1.2;
 }
 
-.seerHint,
-.guessHint {
-    text-align: center;
-    color: var(--text-secondary);
-    line-height: 1.6;
+.conceptLeft {
+    color: var(--teal);
 }
 
-.clueInput {
-    display: flex;
-    gap: 12px;
-    width: 100%;
-    max-width: 500px;
-}
-
-.clueInput .input {
-    flex: 1;
-}
-
-.waitingOthers {
-    color: var(--success);
-    font-weight: 500;
-}
-
-.waitingClue {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    padding: 32px;
-}
-
-.waitingClue p {
-    color: var(--text-secondary);
-}
-
-.waitingAnimation {
-    display: flex;
-    gap: 8px;
-}
-
-.waitingAnimation span {
-    width: 12px;
-    height: 12px;
-    background: var(--accent-primary);
-    border-radius: 50%;
-    animation: bounce 1.4s ease-in-out infinite;
-}
-
-.waitingAnimation span:nth-child(1) {
-    animation-delay: 0s;
-}
-
-.waitingAnimation span:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.waitingAnimation span:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-@keyframes bounce {
-
-    0%,
-    80%,
-    100% {
-        transform: scale(0.8);
-        opacity: 0.5;
-    }
-
-    40% {
-        transform: scale(1.2);
-        opacity: 1;
-    }
-}
-
-.resultsPanel {
-    padding: 24px;
-    background: var(--bg-glass);
-    border-radius: var(--radius-lg);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.resultsPanel h3 {
-    text-align: center;
-    margin-bottom: 16px;
-    color: var(--text-secondary);
-}
-
-.scoresGrid {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.scoreItem {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    background: var(--bg-glass);
-    border-radius: var(--radius-md);
-    transition: all var(--transition-fast);
-}
-
-.scoreItem.ready {
-    border-left: 3px solid var(--success);
-}
-
-.playerScoreName {
-    flex: 1;
-    font-weight: 500;
-}
-
-.playerScoreLabel {
-    font-size: 14px;
-    color: var(--text-secondary);
-}
-
-.playerScoreValue {
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: var(--success);
-    min-width: 40px;
+.conceptRight {
+    color: var(--pink);
     text-align: right;
 }
 
-.readySection {
+.clueArea {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+    min-height: 64px;
+    position: relative;
+    z-index: 1;
+}
+
+.clue,
+.cluePending {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+}
+
+.clue strong {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(24px, 4vw, 40px);
+    line-height: 1.15;
+    text-wrap: balance;
+}
+
+.cluePlaceholder {
+    color: var(--text-3);
+    font-style: italic;
+    font-weight: 600;
+}
+
+/* Panel */
+.panel {
+    padding: 20px 22px;
+}
+
+.panelHead {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}
+
+.panelHead svg {
+    color: var(--orange);
+    flex: 0 0 auto;
+    margin-top: 2px;
+}
+
+.panelHead h3 {
+    font-size: 20px;
+    margin-bottom: 2px;
+}
+
+.seerPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.clueForm {
+    display: flex;
+    gap: 10px;
+}
+
+.clueInput {
+    flex: 1;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 500;
+}
+
+.clueMeta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13.5px;
+}
+
+.counter {
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+}
+
+.error {
+    color: var(--red);
+    font-weight: 700;
+}
+
+.waitingPanel {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 12px;
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+    color: var(--text-2);
+    font-weight: 600;
 }
 
-.readyStatus {
-    color: var(--success);
-    font-weight: 500;
+.waitingPanel strong {
+    color: var(--text);
 }
 
-.readyCount {
-    font-size: 14px;
-    color: var(--text-muted);
+.guessPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
 }
 
-.sidebar {
-    position: sticky;
-    top: 100px;
-    height: fit-content;
+.guessHint {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    color: var(--text-2);
+    font-weight: 600;
+}
+
+.needleValue {
+    font-family: var(--font-display);
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1;
+    min-width: 2.2ch;
+    text-align: right;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.fineTune {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.range {
+    flex: 1;
+    accent-color: var(--violet);
+    height: 32px;
+}
+
+.lockedBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: var(--radius-full);
+    background: rgba(91, 227, 125, 0.12);
+    border: 1px solid rgba(91, 227, 125, 0.4);
+    color: var(--green);
+    font-weight: 800;
+}
+
+.lockedList {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+
+.lockedItem {
+    position: relative;
+    opacity: 0.4;
+    transition: opacity var(--t-med);
+}
+
+.lockedDone {
+    opacity: 1;
+}
+
+.lockedCheck {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--green);
+    color: var(--on-accent);
+    border: 2px solid var(--bg-2);
+}
+
+/* Reveal */
+.revealPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.revealHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.revealHead h3 {
+    font-size: 20px;
+}
+
+.resultList {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.resultRow {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    border: 1px solid transparent;
+}
+
+.resultMe {
+    border-color: rgba(46, 230, 214, 0.35);
+    background: rgba(46, 230, 214, 0.06);
+}
+
+.resultSkipped {
+    opacity: 0.55;
+}
+
+.resultName {
+    font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.resultLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-2);
+    white-space: nowrap;
+}
+
+.zoneTag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--ink);
+    background: var(--surface-2);
+}
+
+.zoneTag4 {
+    background: var(--zone-4);
+}
+
+.zoneTag3 {
+    background: var(--zone-3);
+}
+
+.zoneTag2 {
+    background: var(--zone-2);
+}
+
+.zoneTag0 {
+    color: var(--text-3);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.closestTag {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--orange);
+    background: rgba(255, 179, 71, 0.12);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+}
+
+.seerTag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--orange);
+}
+
+.resultPoints {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--green);
+    min-width: 2.5ch;
+    text-align: right;
+}
+
+.resultZero {
+    color: var(--text-3);
+}
+
+.readyBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
+
+.readyInfo {
+    color: var(--text-2);
+    font-weight: 600;
+}
+
+.readyInfo strong {
+    color: var(--text);
+}
+
+.readyActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Responsive */
+@media (max-width: 960px) {
+    .game {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: static;
+        order: 1;
+    }
+}
+
+@media (max-width: 560px) {
+    .device {
+        padding: 14px 12px 14px;
+        border-radius: var(--radius-lg);
+    }
+
+    .panel {
+        padding: 16px;
+    }
+
+    .clueForm {
+        flex-direction: column;
+    }
+
+    .resultRow {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .resultLabel {
+        grid-column: 2 / span 2;
+        grid-row: 2;
+        white-space: normal;
+    }
+
+    .resultPoints {
+        grid-column: 3;
+        grid-row: 1;
+    }
+
+    .readyBar {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .readyActions {
+        justify-content: center;
+    }
 }

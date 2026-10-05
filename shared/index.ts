@@ -1,3 +1,4 @@
 // Shared module exports
-export * from './types'
-export * from './gameLogic'
+export * from './types.ts'
+export * from './cards.ts'
+export * from './gameLogic.ts'

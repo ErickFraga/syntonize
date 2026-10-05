@@ -1,16 +1,43 @@
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
+import type { Metadata, Viewport } from 'next'
+import { Fredoka, Nunito } from 'next/font/google'
+import './globals.css'
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
+const fredoka = Fredoka({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-fredoka',
+  display: 'swap',
+})
+
+const nunito = Nunito({
+  subsets: ['latin'],
+  weight: ['400', '600', '700', '800'],
+  variable: '--font-nunito',
+  display: 'swap',
 })
 
 export const metadata: Metadata = {
-  title: "Syntonize - Jogo de Adivinhação Multiplayer",
-  description: "Leia a mente dos seus amigos! Versão web do jogo de tabuleiro SINTONIA (Wavelength).",
-  keywords: ["jogo", "multiplayer", "sintonia", "wavelength", "adivinhação", "party game"],
+  title: {
+    default: 'Syntonize — leia a mente dos seus amigos',
+    template: '%s · Syntonize',
+  },
+  description:
+    'Versão online do jogo de tabuleiro SINTONIA (Wavelength): o Vidente dá uma dica e todo mundo tenta acertar onde está o alvo no espectro.',
+  keywords: ['jogo', 'multiplayer', 'sintonia', 'wavelength', 'party game', 'online', 'amigos'],
+  applicationName: 'Syntonize',
+  openGraph: {
+    title: 'Syntonize — leia a mente dos seus amigos',
+    description: 'Party game online inspirado no SINTONIA / Wavelength. Crie uma sala e chame a galera.',
+    type: 'website',
+    locale: 'pt_BR',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#0d0b1f',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
@@ -20,7 +47,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={inter.variable}>
+      <body className={`${fredoka.variable} ${nunito.variable}`}>
         {children}
       </body>
     </html>

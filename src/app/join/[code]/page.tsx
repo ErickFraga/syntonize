@@ -1,99 +1,68 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useGameState } from '@/hooks/useGameState'
+import { session } from '@/lib/socket'
+import { LIMITS, type RoomInfo } from '@/types/game'
+import Logo from '@/components/ui/Logo'
+import Toasts from '@/components/ui/Toasts'
+import { ArrowRightIcon, UsersIcon, CrownIcon } from '@/components/ui/Icons'
 import styles from './page.module.css'
 
 export default function JoinPage() {
     const params = useParams()
     const router = useRouter()
-    const code = (params.code as string).toUpperCase()
+    const code = String(params.code ?? '').toUpperCase()
 
-    const { joinRoom, getRoomInfo, isConnected, error, sessionRestored, room } = useGameState()
+    const { joinRoom, getRoomInfo, isConnected, restoredCode, room, toasts, pushToast } = useGameState()
 
     const [nickname, setNickname] = useState('')
-    const [hostName, setHostName] = useState<string | null>(null)
-    const [playerCount, setPlayerCount] = useState<number>(0)
-    const [isJoining, setIsJoining] = useState(false)
-    const [localError, setLocalError] = useState<string | null>(null)
-    const [isLoading, setIsLoading] = useState(true)
+    const [info, setInfo] = useState<RoomInfo | null>(null)
+    const [lookupError, setLookupError] = useState<string | null>(null)
+    const [busy, setBusy] = useState(false)
 
-    // Redirect to room if session was restored OR if we're already in a room
     useEffect(() => {
-        if (sessionRestored) {
-            router.push(`/room/${sessionRestored}`)
-        } else if (room) {
-            router.push(`/room/${room.code}`)
-        }
-    }, [sessionRestored, room, router])
+        setNickname(session.getNickname() ?? '')
+    }, [])
 
-    // Fetch room info to get host name via socket
+    // Already in a room (restored session or just joined): go there.
+    useEffect(() => {
+        const target = restoredCode ?? room?.code
+        if (target) router.replace(`/room/${target}`)
+    }, [restoredCode, room, router])
+
     useEffect(() => {
         if (!isConnected) return
-
-        const fetchRoomInfo = async () => {
-            try {
-                const result = await getRoomInfo(code)
-                if (result.success) {
-                    setHostName(result.hostName || null)
-                    setPlayerCount(result.playerCount || 0)
-                } else {
-                    setLocalError(result.error || 'Sala não encontrada')
-                }
-            } catch {
-                setLocalError('Erro ao buscar informações da sala')
-            } finally {
-                setIsLoading(false)
-            }
+        let cancelled = false
+        getRoomInfo(code).then(result => {
+            if (cancelled) return
+            if (result.success && result.info) setInfo(result.info)
+            else setLookupError(result.error ?? 'Sala não encontrada')
+        })
+        return () => {
+            cancelled = true
         }
-
-        fetchRoomInfo()
     }, [code, isConnected, getRoomInfo])
 
-    const handleJoin = async () => {
-        if (!nickname.trim()) {
-            setLocalError('Digite seu nickname')
-            return
-        }
-
-        setIsJoining(true)
-        setLocalError(null)
-
-        try {
-            const result = await joinRoom(code, nickname.trim())
-            if (result.success) {
-                router.push(`/room/${code}`)
-            } else {
-                setLocalError(result.error || 'Erro ao entrar na sala')
-            }
-        } catch {
-            setLocalError('Erro de conexão')
-        } finally {
-            setIsJoining(false)
-        }
+    const handleJoin = async (e: FormEvent) => {
+        e.preventDefault()
+        if (!nickname.trim()) return pushToast({ kind: 'warning', message: 'Escolhe um apelido primeiro' })
+        setBusy(true)
+        const result = await joinRoom(code, nickname.trim())
+        setBusy(false)
+        if (result.success) router.push(`/room/${code}`)
+        else pushToast({ kind: 'error', message: result.error ?? 'Não deu para entrar na sala' })
     }
 
-    if (!isConnected || isLoading) {
+    if (lookupError) {
         return (
             <main className="page">
-                <div className={styles.loading}>
-                    <div className={styles.spinnerIcon} />
-                    <p>Conectando...</p>
-                </div>
-            </main>
-        )
-    }
-
-    if (localError && !hostName) {
-        return (
-            <main className="page">
-                <div className={`glass ${styles.errorCard}`}>
-                    <h2>😕 Ops!</h2>
-                    <p>{localError}</p>
-                    <button className="btn btn-primary" onClick={() => router.push('/')}>
-                        Voltar ao Início
-                    </button>
+                <div className={`card ${styles.card} ${styles.errorCard} anim-pop`}>
+                    <Logo size="sm" />
+                    <h1>Essa sala não existe mais</h1>
+                    <p className="muted">{lookupError}. Pode ser que a partida já tenha terminado ou o código esteja errado.</p>
+                    <button className="btn btn-primary" onClick={() => router.push('/')}>Criar minha própria sala</button>
                 </div>
             </main>
         )
@@ -101,76 +70,48 @@ export default function JoinPage() {
 
     return (
         <main className="page">
-            {(error || localError) && (
-                <div className="error-toast">{error || localError}</div>
-            )}
+            <Toasts toasts={toasts} />
+            <div className={`${styles.wrap} anim-fade-up`}>
+                <Logo size="md" />
 
-            <div className={styles.container}>
-                <div className={styles.header}>
-                    <h1 className={styles.title}>
-                        <span className={styles.titleGradient}>Syntonize</span>
-                    </h1>
-                    <p className={styles.subtitle}>
-                        {hostName ? `Sala de ${hostName}` : `Entrar na sala ${code}`}
-                    </p>
-                </div>
-
-                <div className={`glass ${styles.card}`}>
-                    <div className={styles.roomBadge}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                            <circle cx="9" cy="7" r="4" />
-                            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                        </svg>
-                        <span>Código: {code}</span>
-                        {playerCount > 0 && <span className={styles.playerCount}>• {playerCount} jogador{playerCount !== 1 ? 'es' : ''}</span>}
+                <div className={`card-solid ${styles.card}`}>
+                    <div className={styles.inviteHead}>
+                        <span className="eyebrow">Você foi convidado</span>
+                        <h1 className={styles.title}>
+                            {info ? <>Sala de <span className="text-gradient">{info.hostName}</span></> : 'Entrar na sala'}
+                        </h1>
+                        <div className={styles.meta}>
+                            <span className="chip"><CrownIcon size={13} /> código {code}</span>
+                            {info && (
+                                <span className="chip"><UsersIcon size={13} /> {info.playerCount} na sala</span>
+                            )}
+                            {info?.status === 'playing' && <span className="chip chip-orange">partida rolando, entra no meio</span>}
+                        </div>
                     </div>
 
-                    <div className={styles.form}>
-                        <div className={styles.inputGroup}>
-                            <label htmlFor="nickname">Seu Nickname</label>
+                    <form className={styles.form} onSubmit={handleJoin}>
+                        <div className="field">
+                            <label htmlFor="nickname">Seu apelido</label>
                             <input
                                 id="nickname"
-                                type="text"
                                 className="input"
-                                placeholder="Como quer ser chamado?"
+                                placeholder="Como a galera te chama?"
                                 value={nickname}
+                                maxLength={LIMITS.NICKNAME_MAX}
                                 onChange={(e) => setNickname(e.target.value)}
-                                maxLength={20}
-                                onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
                                 autoFocus
+                                autoComplete="nickname"
                             />
                         </div>
-
-                        <button
-                            className="btn btn-primary"
-                            onClick={handleJoin}
-                            disabled={!isConnected || isJoining}
-                        >
-                            {isJoining ? (
-                                <>
-                                    <div className={styles.btnSpinner} />
-                                    Entrando...
-                                </>
-                            ) : (
-                                <>
-                                    Entrar na Sala
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M5 12h14" />
-                                        <path d="m12 5 7 7-7 7" />
-                                    </svg>
-                                </>
-                            )}
+                        <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={!isConnected || busy || !info}>
+                            {busy || !isConnected ? <span className="spinner spinner-sm" /> : <ArrowRightIcon />}
+                            {!isConnected ? 'Conectando…' : busy ? 'Entrando…' : 'Entrar na sala'}
                         </button>
-                    </div>
+                    </form>
                 </div>
 
-                <button
-                    className={styles.backLink}
-                    onClick={() => router.push('/')}
-                >
-                    Ou crie sua própria sala
+                <button className="btn btn-ghost" onClick={() => router.push('/')}>
+                    Prefiro criar a minha própria sala
                 </button>
             </div>
         </main>

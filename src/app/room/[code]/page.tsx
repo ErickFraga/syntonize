@@ -1,243 +1,201 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useGameState } from '@/hooks/useGameState'
+import { useGameState, useCountdown } from '@/hooks/useGameState'
+import { session } from '@/lib/socket'
+import { isMuted, setMuted } from '@/lib/sounds'
+import { normalizeRoomCode } from '@shared/gameLogic'
 import Lobby from '@/components/Lobby/Lobby'
 import Game from '@/components/Game/Game'
 import Results from '@/components/Results/Results'
+import Logo from '@/components/ui/Logo'
+import Toasts from '@/components/ui/Toasts'
+import { LogOutIcon, VolumeIcon, VolumeOffIcon, WifiOffIcon, CopyIcon, CheckIcon } from '@/components/ui/Icons'
 import styles from './page.module.css'
+
+type Stage = 'connecting' | 'resolving' | 'ready' | 'redirecting'
 
 export default function RoomPage() {
     const params = useParams()
     const router = useRouter()
-    const code = params.code as string
+    const code = normalizeRoomCode(String(params.code ?? ''))
 
     const {
-        room,
-        currentPlayer,
-        timer,
-        error,
-        isConnected,
-        isSeer,
-        isReady,
-        readyPlayers,
-        joinRoom,
-        rejoinRoom,
-        leaveRoom,
-        startGame,
-        giveClue,
-        submitGuess,
-        kickPlayer,
-        setReady
+        room, me, isHost, isSeer, isConnected, wasKicked, toasts, timer, serverOffset,
+        pushToast, joinRoom, leaveRoom, kickPlayer, updateSettings, startGame, giveClue,
+        submitGuess, setReady, nextRound, skipRound, backToLobby,
     } = useGameState()
 
-    const [isLoading, setIsLoading] = useState(true)
-    const [joinError, setJoinError] = useState<string | null>(null)
-    const [hasAttemptedJoin, setHasAttemptedJoin] = useState(false)
-
-    // Ref to track current room value (fixes closure issue in async functions)
-    const roomRef = useRef(room)
-    roomRef.current = room
+    const secondsLeft = useCountdown(timer, serverOffset)
+    const [stage, setStage] = useState<Stage>('connecting')
+    const [muted, setMutedState] = useState(false)
+    const [copied, setCopied] = useState(false)
+    const attemptedJoin = useRef(false)
 
     useEffect(() => {
-        console.log('[RoomPage] useEffect triggered:', { isConnected, roomCode: room?.code, hasAttemptedJoin })
+        setMutedState(isMuted())
+    }, [])
 
-        // Wait for socket connection
+    // Resolve how this tab gets into the room:
+    //  1. the socket already restored a session for this room -> ready
+    //  2. we have a saved nickname -> join (or re-join) with it
+    //  3. nothing to go on -> invite page, which asks for a nickname
+    useEffect(() => {
+        if (wasKicked) return
         if (!isConnected) {
-            console.log('[RoomPage] Waiting for socket connection...')
+            if (stage === 'connecting' || stage === 'resolving') setStage('connecting')
             return
         }
-
-        // Already in a room
-        if (room?.code === code.toUpperCase()) {
-            console.log('[RoomPage] Already in correct room, stopping loading')
-            setIsLoading(false)
-            return
-        }
-
-        // Already attempted join
-        if (hasAttemptedJoin) {
-            console.log('[RoomPage] Already attempted join, skipping')
-            return
-        }
-
-        const attemptJoin = async () => {
-            setHasAttemptedJoin(true)
-
-            const savedNickname = sessionStorage.getItem('syntonize-nickname')
-            const savedRoom = sessionStorage.getItem('syntonize-room')
-            const sessionToken = localStorage.getItem('syntonize-session-token')
-
-            console.log('[RoomPage] attemptJoin:', { savedNickname, savedRoom, sessionToken: sessionToken?.slice(0, 10), currentRoom: room?.code })
-
-            // Case 1: User just created/joined this room (has nickname)
-            if (savedNickname && savedRoom === code.toUpperCase()) {
-                console.log('[RoomPage] Case 1: Has nickname and matching room, trying rejoin')
-                const rejoinResult = await rejoinRoom(code.toUpperCase())
-                console.log('[RoomPage] Rejoin result:', rejoinResult)
-                if (rejoinResult.success) {
-                    setIsLoading(false)
-                    return
-                }
-            }
-
-            // Case 2: User has nickname but different room - try to join
-            if (savedNickname) {
-                console.log('[RoomPage] Case 2: Has nickname, trying to join')
-                try {
-                    const result = await joinRoom(code.toUpperCase(), savedNickname)
-                    console.log('[RoomPage] Join result:', result)
-                    if (result.success) {
-                        setIsLoading(false)
-                        return
-                    }
-
-                    // If nickname in use, redirect to home
-                    if (result.error === 'Nickname já em uso') {
-                        console.log('[RoomPage] Nickname in use, redirecting to home')
-                        sessionStorage.removeItem('syntonize-nickname')
-                        router.push('/')
-                        return
-                    }
-
-                    setJoinError(result.error || 'Erro ao entrar na sala')
-                    setIsLoading(false)
-                } catch {
-                    setJoinError('Erro de conexão')
-                    setIsLoading(false)
-                }
+        if (room) {
+            if (room.code !== code) {
+                setStage('redirecting')
+                router.replace(`/room/${room.code}`)
                 return
             }
-
-            // Case 3: Check if there's a session token - if so, session restoration is in progress
-            if (sessionToken) {
-                console.log('[RoomPage] Case 3: Has token, waiting for session restoration...')
-                // Token exists, session might be restoring - wait a bit then check again
-                await new Promise(resolve => setTimeout(resolve, 500))
-
-                // Use ref to get current room value (not the stale closure value)
-                const currentRoom = roomRef.current
-                console.log('[RoomPage] After wait, room:', currentRoom?.code)
-
-                // If room was set during wait, we're good
-                if (currentRoom) {
-                    console.log('[RoomPage] Room restored during wait!')
-                    setIsLoading(false)
-                    return
-                }
-
-                // Token exists but session didn't restore - token might be invalid
-                console.log('[RoomPage] Token invalid, clearing and redirecting')
-                localStorage.removeItem('syntonize-session-token')
-            }
-
-            // No nickname and no valid session - redirect to home
-            console.log('[RoomPage] No valid session, redirecting to home')
-            router.push('/')
+            setStage('ready')
+            return
         }
+        if (stage === 'ready') {
+            // Had a room, lost it (left/kicked/deleted) -> home
+            return
+        }
+        setStage('resolving')
+        if (attemptedJoin.current) return
 
-        attemptJoin()
-    }, [code, isConnected, room, hasAttemptedJoin, joinRoom, rejoinRoom, router])
+        // Give the server a moment to restore the session before falling back.
+        const id = window.setTimeout(async () => {
+            if (attemptedJoin.current) return
+            attemptedJoin.current = true
+            const nickname = session.getNickname()
+            if (!nickname) {
+                router.replace(`/join/${code}`)
+                return
+            }
+            const result = await joinRoom(code, nickname)
+            if (!result.success) {
+                pushToast({ kind: 'error', message: result.error ?? 'Não deu para entrar na sala' })
+                router.replace(`/join/${code}`)
+            }
+        }, 900)
+        return () => window.clearTimeout(id)
+    }, [isConnected, room, code, stage, wasKicked, joinRoom, router, pushToast])
 
     const handleLeave = () => {
+        if (room?.status === 'playing' && !window.confirm('Sair agora? Você perde seu lugar na partida.')) return
         leaveRoom()
         router.push('/')
     }
 
-    const copyRoomLink = () => {
-        // Use /join/ route for invite links so users can enter their nickname
-        const baseUrl = window.location.origin
-        const inviteUrl = `${baseUrl}/join/${room?.code || code}`
-        navigator.clipboard.writeText(inviteUrl)
+    const toggleMute = () => {
+        const next = !muted
+        setMuted(next)
+        setMutedState(next)
     }
 
-    if (isLoading || !isConnected) {
+    const copyCode = async () => {
+        if (!room) return
+        try {
+            await navigator.clipboard.writeText(`${window.location.origin}/join/${room.code}`)
+            setCopied(true)
+            pushToast({ kind: 'success', message: 'Link de convite copiado!' })
+            window.setTimeout(() => setCopied(false), 1800)
+        } catch {
+            pushToast({ kind: 'warning', message: `Código da sala: ${room.code}` })
+        }
+    }
+
+    const notify = (message: string, kind: 'info' | 'success' | 'warning' | 'error' = 'info') => pushToast({ kind, message })
+
+    if (wasKicked) {
         return (
             <main className="page">
-                <div className={styles.loading}>
-                    <div className={styles.spinner} />
-                    <p>Conectando à sala...</p>
+                <div className={`card ${styles.stateCard} anim-pop`}>
+                    <Logo size="sm" />
+                    <h1>Você foi removido da sala</h1>
+                    <p className="muted">O anfitrião tirou você da partida. Sem drama: dá para criar a sua própria.</p>
+                    <button className="btn btn-primary" onClick={() => router.push('/')}>Voltar ao início</button>
                 </div>
             </main>
         )
     }
 
-    if (joinError) {
+    if (!room || stage !== 'ready') {
         return (
             <main className="page">
-                <div className={`glass ${styles.errorCard}`}>
-                    <h2>😕 Ops!</h2>
-                    <p>{joinError}</p>
-                    <button className="btn btn-primary" onClick={() => router.push('/')}>
-                        Voltar ao Início
-                    </button>
-                </div>
-            </main>
-        )
-    }
-
-    if (!room) {
-        return (
-            <main className="page">
-                <div className={styles.loading}>
-                    <div className={styles.spinner} />
-                    <p>Carregando sala...</p>
+                <div className={`${styles.loading} anim-fade-in`}>
+                    <Logo size="md" />
+                    <span className="spinner" />
+                    <p className="muted">{!isConnected ? 'Conectando ao servidor…' : 'Entrando na sala…'}</p>
                 </div>
             </main>
         )
     }
 
     return (
-        <main className={styles.roomPage}>
-            {error && <div className="error-toast">{error}</div>}
+        <main className={styles.room}>
+            <Toasts toasts={toasts} />
 
             <header className={styles.header}>
                 <div className={styles.brand}>
-                    <span>Syntonize</span>
+                    <Logo size="sm" />
                 </div>
 
-                {timer > 0 && room.currentRound?.phase === 'guessing' && (
-                    <div className={`timer ${timer <= 10 ? 'warning' : ''} ${timer <= 5 ? 'danger' : ''}`}>
-                        {timer}
-                    </div>
-                )}
-
-                <button className={styles.leaveBtn} onClick={handleLeave}>
-                    Sair
+                <button className={styles.codeChip} onClick={copyCode} title="Copiar link de convite">
+                    <span className={styles.codeLabel}>sala</span>
+                    <span className={styles.codeValue}>{room.code}</span>
+                    {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
                 </button>
+
+                <div className={styles.headerActions}>
+                    {!isConnected && (
+                        <span className={styles.offline}><WifiOffIcon size={16} /> reconectando…</span>
+                    )}
+                    <button className="btn-icon" onClick={toggleMute} title={muted ? 'Ativar sons' : 'Silenciar'} aria-label={muted ? 'Ativar sons' : 'Silenciar'}>
+                        {muted ? <VolumeOffIcon size={18} /> : <VolumeIcon size={18} />}
+                    </button>
+                    <button className="btn btn-ghost btn-sm" onClick={handleLeave}>
+                        <LogOutIcon size={16} /> Sair
+                    </button>
+                </div>
             </header>
 
             <div className={styles.content}>
                 {room.status === 'waiting' && (
                     <Lobby
                         room={room}
-                        currentPlayer={currentPlayer}
+                        me={me}
+                        isHost={isHost}
                         onStartGame={startGame}
-                        onCopyLink={copyRoomLink}
-                        onKickPlayer={kickPlayer}
+                        onKickPlayer={(id) => kickPlayer(id).then(r => { if (!r.success && r.error) notify(r.error, 'error') })}
+                        onUpdateSettings={(s) => updateSettings(s).then(r => { if (!r.success && r.error) notify(r.error, 'error') })}
+                        onNotify={notify}
                     />
                 )}
 
                 {room.status === 'playing' && room.currentRound && (
                     <Game
                         room={room}
-                        currentPlayer={currentPlayer}
+                        me={me}
+                        isHost={isHost}
                         isSeer={isSeer}
-                        timer={timer}
-                        isReady={isReady}
-                        readyPlayers={readyPlayers}
+                        secondsLeft={secondsLeft}
+                        timerPhase={timer?.phase ?? null}
                         onGiveClue={giveClue}
                         onSubmitGuess={submitGuess}
                         onSetReady={setReady}
+                        onNextRound={nextRound}
+                        onSkipRound={skipRound}
                     />
                 )}
 
                 {room.status === 'finished' && (
                     <Results
                         room={room}
-                        currentPlayer={currentPlayer}
+                        me={me}
+                        isHost={isHost}
                         onPlayAgain={startGame}
+                        onBackToLobby={backToLobby}
                         onLeave={handleLeave}
                     />
                 )}

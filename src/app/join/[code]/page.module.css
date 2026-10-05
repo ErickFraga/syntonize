@@ -1,136 +1,49 @@
-.loading {
+.wrap {
+    width: 100%;
+    max-width: 480px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    min-height: 50vh;
-    gap: 1rem;
-}
-
-.spinnerIcon {
-    width: 48px;
-    height: 48px;
-    border: 3px solid rgba(var(--primary-rgb), 0.2);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-.container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2rem;
-    max-width: 400px;
-    margin: 0 auto;
-    padding: 2rem 1rem;
-}
-
-.header {
-    text-align: center;
-}
-
-.title {
-    font-size: 3rem;
-    font-weight: 800;
-    margin-bottom: 0.5rem;
-}
-
-.titleGradient {
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.subtitle {
-    font-size: 1.25rem;
-    color: var(--text-secondary);
+    gap: 22px;
 }
 
 .card {
     width: 100%;
-    padding: 2rem;
-}
-
-.errorCard {
-    width: 100%;
-    max-width: 400px;
-    padding: 2rem;
-    text-align: center;
-}
-
-.errorCard h2 {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-}
-
-.errorCard p {
-    color: var(--text-secondary);
-    margin-bottom: 1.5rem;
-}
-
-.roomBadge {
+    padding: 28px;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: rgba(var(--primary-rgb), 0.1);
-    border: 1px solid rgba(var(--primary-rgb), 0.2);
-    border-radius: 2rem;
-    font-weight: 600;
-    color: var(--primary);
-    margin-bottom: 1.5rem;
+    flex-direction: column;
+    gap: 22px;
 }
 
-.playerCount {
-    color: var(--text-secondary);
-    font-weight: 400;
+.inviteHead {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.title {
+    font-size: clamp(26px, 5vw, 34px);
+}
+
+.meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
 }
 
 .form {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 14px;
 }
 
-.inputGroup {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+.errorCard {
+    max-width: 460px;
+    align-items: flex-start;
+    gap: 14px;
 }
 
-.inputGroup label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-}
-
-.btnSpinner {
-    width: 18px;
-    height: 18px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-.backLink {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: color 0.2s;
-}
-
-.backLink:hover {
-    color: var(--primary);
+.errorCard h1 {
+    font-size: 26px;
 }

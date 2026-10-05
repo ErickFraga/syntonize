@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Syntonize
 
-## Getting Started
+Versão online, em tempo real, do jogo de tabuleiro **SINTONIA** (*Wavelength*).
+Um jogador é o **Vidente**: vê onde o alvo está escondido no dial e dá uma dica.
+Todo mundo gira o ponteiro para onde acha que o alvo está, trava o palpite e a
+cunha **2 | 3 | 4 | 3 | 2** é revelada.
 
-First, run the development server:
+- Next.js 14 (App Router) + Socket.io, tudo em um único processo Node.
+- Salas por código de 6 letras, link de convite, reconexão automática por token.
+- Dial semicircular em SVG, arrastável no celular e no desktop, com teclado.
+- Regras configuráveis pelo anfitrião (meta de pontos, limite de rodadas, tempos).
+- Lógica de jogo isolada e coberta por testes (sem precisar subir socket nem navegador).
+
+## Rodando
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Produção:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build
+npm start          # PORT=3000 por padrão
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Requer Node **22.18+** (os testes usam o suporte nativo a TypeScript do Node).
 
-## Learn More
+## Testes e checagens
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm test           # casos de uso do servidor (node:test, relógio falso, sem rede)
+npm run typecheck  # tsc --noEmit
+npm run lint       # next lint
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Como o jogo funciona
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. O anfitrião cria a sala, ajusta as regras e compartilha o código ou o link.
+2. A cada rodada, um jogador vira o Vidente e vê o alvo no dial. Os outros veem o dial coberto.
+3. O Vidente escreve uma dica (não pode usar as palavras da carta).
+4. Os outros arrastam o ponteiro e travam o palpite antes do tempo acabar.
+5. Revelação: a cunha aparece com todos os ponteiros. Centro vale 4, do lado 3, na borda 2.
+   Quem chegou mais perto ganha +1. O Vidente ganha a média dos pontos de quem palpitou.
+6. Ganha quem bater a meta de pontos (ou quem tiver mais ao fim do limite de rodadas).
 
-## Deploy on Vercel
+## Estrutura
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+shared/     tipos, baralho de cartas e regras puras (usados pelo cliente e pelo servidor)
+server/     roomManager.ts (orquestração testável) e index.ts (Next + Socket.io)
+src/        app Next: páginas, componentes (Dial, Lobby, Game, Results, ui) e hooks
+tests/      casos de uso do RoomManager com relógio e transporte falsos
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+A lista completa de melhorias feitas e do que ainda dá para fazer está em
+[MELHORIAS.md](./MELHORIAS.md).

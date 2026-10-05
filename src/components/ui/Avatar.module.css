@@ -1,0 +1,48 @@
+.avatar {
+    --avatar-color: var(--violet);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--on-accent);
+    background: var(--avatar-color);
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.35);
+    user-select: none;
+    transition: filter var(--t-med), opacity var(--t-med);
+}
+
+.sm {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
+}
+
+.md {
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
+}
+
+.lg {
+    width: 56px;
+    height: 56px;
+    font-size: 20px;
+}
+
+.xl {
+    width: 84px;
+    height: 84px;
+    font-size: 30px;
+}
+
+.ring {
+    box-shadow: 0 0 0 3px var(--bg-2), 0 0 0 5px var(--avatar-color), 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.offline {
+    filter: grayscale(1);
+    opacity: 0.45;
+}
