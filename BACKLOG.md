@@ -12,7 +12,6 @@ completo · **P3** polimento.
 |---|---|---|
 | `claude/feature-persistencia` | Persistência das salas (sobreviver a reinício/sono do Render) | P1 |
 | `claude/feature-historico-rodadas` | Histórico de rodadas na partida | P2 |
-| `claude/feature-cartas-personalizadas` | Cartas personalizadas do anfitrião | P3 |
 
 Já na `main` (PRs #2–#6, #8, #10, #11): modo em equipes, internacionalização,
 cartas em três idiomas e pacotes temáticos, imagem Open Graph (home e convite,

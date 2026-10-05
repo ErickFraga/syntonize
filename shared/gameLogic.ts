@@ -4,6 +4,7 @@
 import type { Room, Player, GameRound, SpectrumCard, RoomSettings, CardLocale, Zone, TeamId, Side, TeamRoundState, NumericSetting, Message, MessageCode, MessageParams, ChatInput, ChatReaction } from './types.ts'
 import { SCORING, LIMITS, CHAT_LIMITS, CHAT_REACTIONS, DEFAULT_SETTINGS, SETTINGS_OPTIONS, PLAYER_COLORS, TEAM_DEFAULT_TARGET, TEAM_RULES, CARD_LOCALES, CARD_PACKS, settingOptionsFor } from './types.ts'
 import { deckFor } from './cards/index.ts'
+import { sanitizeCustomCards } from './customCards.ts'
 
 // ============================================
 // RANDOM HELPERS
@@ -16,12 +17,29 @@ import { deckFor } from './cards/index.ts'
 export function pickCard(
     usedIds: number[],
     rng: () => number = Math.random,
-    deck: Pick<RoomSettings, 'cardLocale' | 'packs'> = DEFAULT_SETTINGS,
+    deck: DeckSettings = DEFAULT_SETTINGS,
 ): SpectrumCard {
-    const cards = deckFor(deck.cardLocale, deck.packs.length > 0 ? deck.packs : DEFAULT_SETTINGS.packs)
+    const cards = roomDeck(deck)
     const unused = cards.filter(c => !usedIds.includes(c.id))
     const pool = unused.length > 0 ? unused : cards
     return pool[Math.floor(rng() * pool.length)]
+}
+
+/** What decides a room's deck (`customCards` is optional for callers that only use packs). */
+export type DeckSettings = Pick<RoomSettings, 'cardLocale' | 'packs'> & Partial<Pick<RoomSettings, 'customCards'>>
+
+/**
+ * Every card a room can draw: the active packs plus the custom cards. Falls
+ * back to the default packs if that is somehow empty, so a round always has a card.
+ */
+export function roomDeck(deck: DeckSettings): SpectrumCard[] {
+    const cards = deckFor(deck.cardLocale, deck.packs, deck.customCards ?? [])
+    return cards.length > 0 ? cards : deckFor(deck.cardLocale, DEFAULT_SETTINGS.packs)
+}
+
+/** At least one pack on, or enough custom cards to play with only them. */
+export function isDeckPlayable(deck: Pick<RoomSettings, 'packs' | 'customCards'>): boolean {
+    return deck.packs.length > 0 || deck.customCards.length >= LIMITS.CUSTOM_CARDS_MIN_DECK
 }
 
 export function getRandomTarget(rng: () => number = Math.random): number {
@@ -140,8 +158,9 @@ export function sanitizeSettings(partial: Partial<RoomSettings>, current: RoomSe
     }
     if (typeof input.catchUp === 'boolean') next.catchUp = input.catchUp
     if ((CARD_LOCALES as readonly unknown[]).includes(input.cardLocale)) next.cardLocale = input.cardLocale!
-    const packs = sanitizePacks(input.packs)
-    if (packs && packs.length > 0) next.packs = packs
+    // Packs and custom cards are applied together and only if the deck stays playable.
+    const deck = deckSettingsFrom(input, next)
+    if (isDeckPlayable(deck)) Object.assign(next, deck)
 
     for (const key of Object.keys(SETTINGS_OPTIONS) as NumericSetting[]) {
         const value = input[key]
@@ -149,6 +168,14 @@ export function sanitizeSettings(partial: Partial<RoomSettings>, current: RoomSe
         if (settingOptionsFor(next.mode, key).includes(value)) next[key] = value
     }
     return next
+}
+
+/** Packs and custom cards after applying an update (invalid fields keep the current value). */
+export function deckSettingsFrom(partial: Partial<RoomSettings>, current: RoomSettings): Pick<RoomSettings, 'packs' | 'customCards'> {
+    return {
+        packs: sanitizePacks(partial?.packs) ?? current.packs,
+        customCards: sanitizeCustomCards(partial?.customCards) ?? current.customCards,
+    }
 }
 
 /**
@@ -219,7 +246,7 @@ export function createRoom(code: string, host: Player, now: number = Date.now())
         code,
         players: [host],
         status: 'waiting',
-        settings: { ...DEFAULT_SETTINGS },
+        settings: { ...DEFAULT_SETTINGS, customCards: [] },
         currentRound: null,
         roundHistory: [],
         seerOrder: [host.id],
@@ -530,8 +557,8 @@ export function startNewRound(room: Room, now: number = Date.now(), rng: () => n
 
     const card = pickCard(room.usedCardIds, rng, room.settings)
     if (!room.usedCardIds.includes(card.id)) room.usedCardIds.push(card.id)
-    // Deck of the active packs exhausted: shuffle everything back in.
-    const deck = deckFor(room.settings.cardLocale, room.settings.packs)
+    // Deck of the active packs (and custom cards) exhausted: shuffle everything back in.
+    const deck = roomDeck(room.settings)
     if (deck.every(c => room.usedCardIds.includes(c.id))) room.usedCardIds = []
 
     room.players.forEach(p => {
@@ -686,8 +713,17 @@ export function resetGameState(room: Room): void {
  */
 export function roomViewFor(room: Room, viewerId: string | null): Room {
     const round = room.currentRound
-    // The chat history goes in its own event (`chat:history`), not on every state.
-    if (!round) return { ...room, chat: [] }
+    // Custom cards are the host's surprise: everyone else only gets the count
+    // (the drawn card itself travels in the round, as any other card).
+    const viewerIsHost = room.players.some(p => p.id === viewerId && p.isHost)
+    const base: Room = {
+        ...room,
+        // The chat history goes in its own event (`chat:history`), not on every state.
+        chat: [],
+        settings: viewerIsHost ? room.settings : { ...room.settings, customCards: [] },
+        customCardCount: room.settings.customCards.length,
+    }
+    if (!round) return base
 
     const revealed = round.phase === 'revealed'
     const isSeer = viewerId === round.seerId
@@ -710,7 +746,7 @@ export function roomViewFor(room: Room, viewerId: string | null): Room {
         visibleRound.teamPlay = { ...round.teamPlay, needle: needleVisible ? round.teamPlay.needle : null }
     }
 
-    return { ...room, chat: [], currentRound: visibleRound }
+    return { ...base, currentRound: visibleRound }
 }
 
 // ============================================

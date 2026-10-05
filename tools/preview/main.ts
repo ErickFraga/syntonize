@@ -50,6 +50,11 @@ function room(status: Room['status'], currentRound: GameRound | null, extra: Par
 }
 
 const noop = () => {}
+const customCards = [
+    ['Quente', 'Frio'], ['Cachorro', 'Gato'], ['Praia', 'Montanha'], ['Segunda-feira', 'Sexta-feira'], ['Café', 'Chá'],
+    ['Piada do tio', 'Stand-up'], ['Grupo da família', 'Grupo do trabalho'], ['Rolê barato', 'Rolê caro'],
+    ['Pagode', 'Sertanejo'], ['Churrasco de domingo', 'Jantar romântico'], ['Ana atrasada', 'Ana adiantada'], ['Opinião da Bia', 'Fato científico'],
+].map(([left, right]) => ({ left, right }))
 const ok = async () => ({ success: true })
 
 const header = jsx('header', {
@@ -136,6 +141,13 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
             jsx(QrFullscreen, { value: 'https://syntonize.onrender.com/join/K7PX2Q', code: 'K7PX2Q', onClose: noop }),
         ] }),
     },
+    'lobby-custom': {
+        node: page(jsx(Lobby, { room: room('waiting', null, { settings: { ...DEFAULT_SETTINGS, packs: ['pop'], customCards }, customCardCount: customCards.length }), me: players[0], isHost: true, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
+    },
+    'lobby-custom-guest': {
+        // What a guest receives from roomViewFor: the count, not the cards.
+        node: page(jsx(Lobby, { room: room('waiting', null, { settings: { ...DEFAULT_SETTINGS, packs: ['pop'] }, customCardCount: customCards.length }), me: players[1], isHost: false, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
+    },
     'lobby-guest': {
         node: page(jsx(Lobby, { room: room('waiting', null, { settings: { ...DEFAULT_SETTINGS, cardLocale: 'en', packs: ['pop', 'people'] } }), me: players[1], isHost: false, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
     },
@@ -210,11 +222,11 @@ g.__params = { code: 'K7PX2Q' }
 mkdirSync(`${import.meta.dir}/out`, { recursive: true })
 
 // Same screens in other interface languages (the shim's useContext reads the context default).
-for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-revealed', 'lobby-qr', 'game-chat-open']], ['es', ['lobby-guest', 'team-side-guess', 'results']]] as const) {
+for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-revealed', 'lobby-qr', 'game-chat-open']], ['es', ['lobby-guest', 'team-side-guess', 'results', 'lobby-custom']]] as const) {
     for (const name of names) screens[`${name}-${locale}`] = { ...screens[name], locale }
 }
 
-const LIGHT = new Set(['home', 'lobby', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid', 'lobby-qr', 'game-chat', 'game-chat-open'])
+const LIGHT = new Set(['home', 'lobby', 'lobby-custom', 'lobby-custom-guest', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid', 'lobby-qr', 'game-chat', 'game-chat-open'])
 for (const [name, screen] of Object.entries(screens) as Array<[string, { node: any; locale?: 'en' | 'es' }]>) {
     ;(I18nContext as any)._value = makeTranslator(screen.locale ?? 'pt-BR')
     const body = renderToString(screen.node)

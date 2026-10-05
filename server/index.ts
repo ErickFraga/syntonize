@@ -6,7 +6,7 @@ import { Server, type Socket } from 'socket.io'
 import type { ServerToClientEvents, ClientToServerEvents, SimpleResult } from '../shared/types.ts'
 import { RoomManager, type Transport } from './roomManager.ts'
 import { handleApiRequest } from './httpApi.ts'
-import { msg } from '../shared/gameLogic.ts'
+import { msg, roomViewFor } from '../shared/gameLogic.ts'
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = process.env.HOSTNAME || '0.0.0.0'
@@ -76,7 +76,7 @@ app.prepare().then(() => {
         const restored = manager.restoreSession(token)
         if (restored) {
             bind(socket, restored.playerId, restored.room.code)
-            socket.emit('room:restored', { room: restored.room, playerId: restored.playerId })
+            socket.emit('room:restored', { room: roomViewFor(restored.room, restored.playerId), playerId: restored.playerId })
             manager.sendState(restored.playerId)
         }
 
