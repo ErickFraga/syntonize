@@ -1,8 +1,9 @@
-import type { CardLocale, CardPack, CardTextDeck, SpectrumCard } from '../types.ts'
+import type { CardLocale, CardPack, CardTextDeck, CustomCard, SpectrumCard } from '../types.ts'
 import { CARD_LOCALES, CARD_PACKS } from '../types.ts'
 import { ptBRCards } from './pt-BR.ts'
 import { enCards } from './en.ts'
 import { esCards } from './es.ts'
+import { customDeck } from '../customCards.ts'
 
 /**
  * Spectrum cards, in the spirit of the physical SINTONIA / Wavelength deck.
@@ -30,12 +31,14 @@ export const PACK_SIZES: Record<CardPack, number> = Object.fromEntries(
     CARD_PACKS.map(pack => [pack, ptBRCards[pack].length]),
 ) as Record<CardPack, number>
 
-/** Cards of the active packs, in the room's card language. */
-export function deckFor(locale: CardLocale, packs: readonly CardPack[]): SpectrumCard[] {
+/** Cards of the active packs, in the room's card language, plus the host's custom cards. */
+export function deckFor(locale: CardLocale, packs: readonly CardPack[], customCards: readonly CustomCard[] = []): SpectrumCard[] {
     const cards = CARDS_BY_LOCALE[locale] ?? CARDS_BY_LOCALE['pt-BR']
-    return cards.filter(c => packs.includes(c.pack))
+    return [...cards.filter(c => (packs as readonly string[]).includes(c.pack)), ...customDeck(customCards)]
 }
 
-export function getCardById(id: number, locale: CardLocale = 'pt-BR'): SpectrumCard | undefined {
+/** A printed card (positive id) or one of the room's custom cards (negative id). */
+export function getCardById(id: number, locale: CardLocale = 'pt-BR', customCards: readonly CustomCard[] = []): SpectrumCard | undefined {
+    if (id < 0) return customDeck(customCards).find(c => c.id === id)
     return (CARDS_BY_LOCALE[locale] ?? CARDS_BY_LOCALE['pt-BR']).find(c => c.id === id)
 }

@@ -1,0 +1,117 @@
+.header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.header > :first-child {
+    min-width: 0;
+}
+
+.guestCount {
+    align-self: flex-start;
+}
+
+/* Caixa de texto + botão: lado a lado no desktop, empilhados no celular. */
+.editor {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 8px;
+}
+
+.textarea {
+    min-height: 84px;
+    padding: 10px 14px;
+    font-size: 15px;
+    line-height: 1.4;
+    resize: vertical;
+}
+
+.errors {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 8px 12px;
+    list-style: none;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--on-accent);
+    background: var(--red);
+    border: var(--outline);
+    border-radius: 12px;
+}
+
+.list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+/* Mesma forma do .chip, sem caixa alta: é o texto da carta. */
+.card {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 32px;
+    padding: 3px 4px 3px 11px;
+    line-height: 1.2;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text);
+    background: var(--control-bg);
+    border: var(--outline);
+    border-radius: var(--radius-full);
+}
+
+.side {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.arrow {
+    color: var(--text-3);
+}
+
+.remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    color: var(--text-2);
+    border-radius: var(--radius-full);
+    transition: background var(--t-fast), color var(--t-fast);
+}
+
+.remove:hover:not(:disabled) {
+    color: var(--on-accent);
+    background: var(--red);
+}
+
+.remove:disabled {
+    cursor: default;
+    opacity: 0.4;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+@media (max-width: 480px) {
+    .editor {
+        grid-template-columns: 1fr;
+    }
+}

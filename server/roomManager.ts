@@ -29,7 +29,8 @@ import {
     normalizeRoomCode,
     validateClue,
     sanitizeSettings,
-    sanitizePacks,
+    deckSettingsFrom,
+    isDeckPlayable,
     canJoinRoom,
     canStartGame,
     startNewRound,
@@ -330,8 +331,11 @@ export class RoomManager {
         if (!host?.isHost) return { success: false, error: msg('host_only_settings') }
         if (room.status !== 'waiting') return { success: false, error: msg('settings_lobby_only') }
 
-        // Turning every pack off would leave an empty deck.
-        if (Array.isArray(partial?.packs) && sanitizePacks(partial.packs)?.length === 0) return { success: false, error: msg('packs_empty') }
+        // Every pack off needs enough custom cards, or the deck would be (almost) empty.
+        const touchesDeck = Array.isArray(partial?.packs) || Array.isArray(partial?.customCards)
+        if (touchesDeck && !isDeckPlayable(deckSettingsFrom(partial, room.settings))) {
+            return { success: false, error: msg('packs_empty', { min: LIMITS.CUSTOM_CARDS_MIN_DECK }) }
+        }
         room.settings = sanitizeSettings(partial ?? {}, room.settings)
         this.broadcastState(room)
         return { success: true }

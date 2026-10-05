@@ -7,7 +7,8 @@ o jogo mais completo, **P3** polimento).
 
 Capturas (renderização estática dos componentes, 1280 px e 390 px) em `docs/screenshots/`:
 Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `game-revealed.png`,
-`game-revealed-mobile.png`, `results.png`; tema claro em `*-light.png`.
+`game-revealed-mobile.png`, `results.png`, `lobby-custom.png` (anfitrião com cartas personalizadas) e
+`lobby-custom-guest.png` (convidado vê só a contagem); tema claro em `*-light.png`.
 
 ---
 
@@ -28,7 +29,7 @@ Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `
 | ✅ | **Modo em equipes** | Regra do Wavelength original como alternativa no lobby: dois times balanceados ao entrar (troca de time e anfitrião movendo gente), Vidente rodando dentro do time, ponteiro compartilhado em tempo real só para o time da vez (`game:needleMove` com throttle no cliente e no servidor), palpite único do time, fase "esquerda ou direita" do adversário (`game:sideGuess`, 1 ponto), placar por time a 10 pontos, regra de revanche no 4 (opcional), resultados e estatísticas por time. Testes em `tests/teams.test.ts`. |
 | ⬜ P2 | **Modo cooperativo** | Como no app oficial: todos no mesmo time, 7 rodadas, meta de pontos conjunta. Fácil de derivar do modo atual. |
 | ✅ | **Cartas em outros idiomas / pacotes temáticos** | Baralho em `shared/cards/{pt-BR,en,es}.ts` com os mesmos ids nos três idiomas (expressões adaptadas, não traduzidas ao pé da letra). Pacotes: Clássico (142), Comida e bebida, Cultura pop, Pessoas e Picante 18+ (44 cada). No lobby o anfitrião escolhe o idioma das cartas (independente do idioma da interface de cada jogador) e liga/desliga pacotes; convidados veem em modo leitura. `pickCard` sorteia só do baralho filtrado e reembaralha quando ele acaba; a regra da dica usa stop words do idioma das cartas. Testes em `tests/cards.test.ts`. |
-| ⬜ P3 | **Cartas personalizadas** | O anfitrião digita pares próprios para a partida. |
+| ✅ | **Cartas personalizadas** | No lobby o anfitrião digita pares próprios (um por linha, `Quente \| Frio`), que entram no sorteio junto com os pacotes ligados: até 50 pares, cada lado com 2 a 24 caracteres, sem duplicados (ignora caixa, espaços e a ordem dos lados) e sem `\|` dentro do texto. Linhas recusadas ficam na caixa com o motivo. A sala precisa de pelo menos um pacote ligado **ou** 5 cartas personalizadas. `RoomSettings.customCards`, validado em `sanitizeSettings` (`shared/customCards.ts`); as cartas viram `SpectrumCard` com ids negativos e `pack: 'custom'` (`deckFor`/`getCardById`/`pickCard` recebem a lista da sala, reembaralha quando acaba) e a regra da dica vale para as palavras delas. Convidados recebem só a contagem (`roomViewFor` esvazia a lista e manda `customCardCount`), inclusive no `room:restored`, que antes mandava a sala crua. A lista fica no `localStorage` do anfitrião (`syntonize:customCards`) com o botão "usar as da última vez" numa sala nova, e "copiar lista" gera o texto para colar em outro lugar. Testes em `tests/customCards.test.ts`; capturas `docs/screenshots/lobby-custom*.png`. |
 
 ## 2. Bugs e robustez (servidor)
 
