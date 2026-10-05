@@ -33,6 +33,11 @@ declare module 'react' {
   export function useCallback<T extends (...args: any[]) => any>(fn: T, deps: ReadonlyArray<unknown>): T
   export function useRef<T>(initial: T): MutableRefObject<T>
   export function useRef<T>(initial: T | null): RefObject<T>
+  export interface Context<T> { Provider: (props: { value: T; children?: ReactNode }) => ReactElement | null }
+  export function createContext<T>(value: T): Context<T>
+  export function useContext<T>(context: Context<T>): T
+  export const Fragment: unique symbol
+  export function createElement(type: any, props?: any, ...children: ReactNode[]): ReactElement
 }
 declare namespace React {
   type ReactNode = import('react').ReactNode

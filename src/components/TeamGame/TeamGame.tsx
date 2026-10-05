@@ -9,7 +9,8 @@ import Avatar from '@/components/ui/Avatar'
 import CountdownRing from '@/components/ui/CountdownRing'
 import { EyeIcon, LockIcon, CheckIcon, SkipIcon, LightbulbIcon, ChevronRightIcon, ChevronLeftIcon, SparklesIcon, UsersIcon } from '@/components/ui/Icons'
 import TeamScoreboard from './TeamScoreboard'
-import { teamColor, teamName } from '@/lib/teams'
+import { teamColor, teamKey } from '@/lib/teams'
+import { useT } from '@/i18n/I18nProvider'
 import { sounds } from '@/lib/sounds'
 import gameStyles from '@/components/Game/Game.module.css'
 import styles from './TeamGame.module.css'
@@ -31,14 +32,8 @@ interface TeamGameProps {
     onSkipRound: () => void
 }
 
-const ZONE_LABEL: Record<number, string> = {
-    4: 'Na mosca!',
-    3: 'Quase lá',
-    2: 'Pegou a vibe',
-    0: 'Passou longe',
-}
-
-const SIDE_LABEL: Record<Side, string> = { left: 'esquerda', right: 'direita' }
+const ZONE_LABEL = { 4: 'zone.4', 3: 'zone.3', 2: 'zone.2', 0: 'zone.0' } as const
+const SIDE_LABEL = { left: 'side.left', right: 'side.right' } as const
 
 /** Game screen for team mode: one shared needle per team, then the left/right call. */
 export default function TeamGame({
@@ -57,6 +52,7 @@ export default function TeamGame({
     onNextRound,
     onSkipRound,
 }: TeamGameProps) {
+    const { t, rich, msg } = useT()
     const round = room.currentRound!
     const play = round.teamPlay!
     const phase = round.phase
@@ -111,7 +107,7 @@ export default function TeamGame({
         setClueError(null)
         const result = await onGiveClue(clue.trim())
         setSending(false)
-        if (!result.success) setClueError(result.error ?? 'Não deu para enviar a dica')
+        if (!result.success) setClueError(msg(result.error, 'error.clue'))
     }
 
     const lockGuess = async () => {
@@ -131,7 +127,9 @@ export default function TeamGame({
         : timerPhase === 'clue' ? room.settings.timePerClue
             : timerPhase === 'side' ? TEAM_RULES.SIDE_GUESS_SECONDS
                 : room.settings.timeBetweenRounds
-    const timerLabel = timerPhase === 'guess' ? 'palpite' : timerPhase === 'side' ? 'lado' : 'dica'
+    const timerLabel = t(timerPhase === 'guess' ? 'timer.guess' : timerPhase === 'side' ? 'timer.side' : 'timer.clue')
+    const activeName = t(teamKey(activeTeam))
+    const otherName = t(teamKey(otherTeam))
 
     const lockedBy = room.players.find(p => p.id === play.lockedBy)
     const sideBy = room.players.find(p => p.id === play.sideBy)
@@ -144,16 +142,16 @@ export default function TeamGame({
             <div className={gameStyles.main}>
                 <div className={`${gameStyles.roundBar} anim-fade-in`}>
                     <div className={gameStyles.roundInfo}>
-                        <span className="chip chip-accent">Rodada {round.roundNumber}</span>
+                        <span className="chip chip-accent">{t('common.round', { n: round.roundNumber })}</span>
                         <span className={styles.turnChip} style={teamStyle(activeTeam)}>
                             <span className={styles.dot} />
-                            Vez do <strong>{teamName(activeTeam)}</strong>
+                            {rich('teamGame.turn', { team: <strong>{activeName}</strong> })}
                         </span>
                         <span className={gameStyles.seerChip}>
                             <EyeIcon size={16} />
-                            <span>Vidente</span>
+                            <span>{t('common.seer')}</span>
                             {seer && <Avatar name={seer.nickname} colorIndex={seer.colorIndex} size="sm" offline={!seer.isConnected} />}
-                            <strong>{seer?.nickname ?? '…'}{isSeer ? ' (você)' : ''}</strong>
+                            <strong>{seer?.nickname ?? '…'}{isSeer ? t('common.youSuffix') : ''}</strong>
                         </span>
                     </div>
                     {secondsLeft !== null && timerPhase && timerPhase !== 'next' && (
@@ -180,13 +178,13 @@ export default function TeamGame({
                     <div className={gameStyles.clueArea}>
                         {round.clue ? (
                             <div className={`${gameStyles.clue} anim-pop`}>
-                                <span className="eyebrow">Dica de {seer?.nickname}</span>
+                                <span className="eyebrow">{t('game.clueBy', { name: seer?.nickname ?? '' })}</span>
                                 <strong>&ldquo;{round.clue}&rdquo;</strong>
                             </div>
                         ) : (
                             <div className={gameStyles.cluePending}>
-                                <span className="eyebrow">Dica</span>
-                                <span className={gameStyles.cluePlaceholder}>{isSeer ? 'sua vez de pensar numa dica' : `${seer?.nickname ?? 'o Vidente'} está pensando…`}</span>
+                                <span className="eyebrow">{t('game.clue')}</span>
+                                <span className={gameStyles.cluePlaceholder}>{isSeer ? t('game.yourTurnToThink') : t('game.seerThinking', { name: seer?.nickname ?? t('game.theSeer') })}</span>
                             </div>
                         )}
                     </div>
@@ -198,8 +196,8 @@ export default function TeamGame({
                             <div className={gameStyles.panelHead}>
                                 <LightbulbIcon size={22} />
                                 <div>
-                                    <h3>Você é o Vidente do seu time</h3>
-                                    <p className="muted">Só o seu time palpita nesta rodada. Dê uma dica que leve vocês até o alvo, sem usar as palavras da carta.</p>
+                                    <h3>{t('teamGame.seerTitle')}</h3>
+                                    <p className="muted">{t('teamGame.seerHelp')}</p>
                                 </div>
                             </div>
                             <form
@@ -211,7 +209,7 @@ export default function TeamGame({
                             >
                                 <input
                                     className={`input ${gameStyles.clueInput}`}
-                                    placeholder="Ex: pizza fria de ontem"
+                                    placeholder={t('game.cluePlaceholder')}
                                     value={clue}
                                     maxLength={LIMITS.CLUE_MAX}
                                     onChange={(e) => {
@@ -223,11 +221,11 @@ export default function TeamGame({
                                 />
                                 <button type="submit" className="btn btn-primary" disabled={!clue.trim() || sending}>
                                     {sending ? <span className="spinner spinner-sm" /> : <SparklesIcon />}
-                                    Enviar dica
+                                    {t('game.sendClue')}
                                 </button>
                             </form>
                             <div className={gameStyles.clueMeta}>
-                                {clueError ? <span className={gameStyles.error}>{clueError}</span> : <span className="muted">Pode ser uma coisa, um lugar, uma situação… vale criatividade.</span>}
+                                {clueError ? <span className={gameStyles.error}>{clueError}</span> : <span className="muted">{t('game.clueTip')}</span>}
                                 <span className={gameStyles.counter}>{clue.length}/{LIMITS.CLUE_MAX}</span>
                             </div>
                         </div>
@@ -236,10 +234,10 @@ export default function TeamGame({
                     {phase === 'waiting_clue' && !isSeer && (
                         <div className={gameStyles.waitingPanel}>
                             <span className="dots"><span /><span /><span /></span>
-                            <p>Esperando <strong>{seer?.nickname}</strong> dar a dica para o {teamName(activeTeam)}…</p>
+                            <p>{rich('teamGame.waitingClue', { name: <strong>{seer?.nickname}</strong>, team: activeName })}</p>
                             {isHost && (
-                                <button className="btn btn-ghost btn-sm" onClick={onSkipRound} title="Pula para o próximo Vidente">
-                                    <SkipIcon size={16} /> Pular rodada
+                                <button className="btn btn-ghost btn-sm" onClick={onSkipRound} title={t('game.skipTitle')}>
+                                    <SkipIcon size={16} /> {t('game.skip')}
                                 </button>
                             )}
                         </div>
@@ -248,11 +246,11 @@ export default function TeamGame({
                     {phase === 'guessing' && canDrag && (
                         <div className={gameStyles.guessPanel}>
                             <div className={gameStyles.guessHint}>
-                                <p>Gire o ponteiro junto com seu time. Todos veem o mesmo ponteiro; qualquer um trava o palpite do time.</p>
+                                <p>{t('teamGame.dragHint')}</p>
                                 <span className={gameStyles.needleValue}>{needle}</span>
                             </div>
                             <div className={gameStyles.fineTune}>
-                                <button className="btn btn-secondary btn-sm" onClick={() => changeNeedle(Math.max(0, needle - 1))} aria-label="Um para a esquerda">−1</button>
+                                <button className="btn btn-secondary btn-sm" onClick={() => changeNeedle(Math.max(0, needle - 1))} aria-label={t('game.oneLeft')}>−1</button>
                                 <input
                                     type="range"
                                     min={0}
@@ -260,12 +258,12 @@ export default function TeamGame({
                                     value={needle}
                                     onChange={(e) => changeNeedle(Number(e.target.value))}
                                     className={gameStyles.range}
-                                    aria-label="Posição do ponteiro"
+                                    aria-label={t('game.needleAria')}
                                 />
-                                <button className="btn btn-secondary btn-sm" onClick={() => changeNeedle(Math.min(100, needle + 1))} aria-label="Um para a direita">+1</button>
+                                <button className="btn btn-secondary btn-sm" onClick={() => changeNeedle(Math.min(100, needle + 1))} aria-label={t('game.oneRight')}>+1</button>
                             </div>
                             <button className="btn btn-primary btn-lg btn-block" onClick={lockGuess}>
-                                <LockIcon /> Travar palpite do time
+                                <LockIcon /> {t('teamGame.lock')}
                             </button>
                         </div>
                     )}
@@ -274,9 +272,9 @@ export default function TeamGame({
                         <div className={gameStyles.waitingPanel}>
                             <span className="dots"><span /><span /><span /></span>
                             {onActiveTeam ? (
-                                <p>Seu time está girando o ponteiro. Você vê tudo, mas não pode ajudar!</p>
+                                <p>{t('teamGame.ownTeamWatching')}</p>
                             ) : (
-                                <p>O <strong>{teamName(activeTeam)}</strong> está decidindo onde fica o alvo. Prepare-se: depois vocês chutam se o alvo está à esquerda ou à direita do ponteiro deles.</p>
+                                <p>{rich('teamGame.otherDeciding', { team: <strong>{activeName}</strong> })}</p>
                             )}
                         </div>
                     )}
@@ -284,26 +282,26 @@ export default function TeamGame({
                     {phase === 'side_guess' && (
                         <div className={styles.sidePanel}>
                             <p className={styles.lockLine}>
-                                <CheckIcon size={16} /> Palpite do {teamName(activeTeam)} travado em <strong>{play.guess}</strong>
-                                {lockedBy ? <> por {lockedBy.nickname}</> : null}
+                                <CheckIcon size={16} /> {rich('teamGame.lockedLine', { team: activeName, n: <strong>{play.guess}</strong> })}
+                                {lockedBy ? t('teamGame.lockedBy', { name: lockedBy.nickname }) : null}
                             </p>
                             {!onActiveTeam && me ? (
                                 <>
-                                    <h3>O alvo está à esquerda ou à direita do ponteiro?</h3>
-                                    <p className="muted">Acertar vale {TEAM_RULES.SIDE_POINTS} ponto para o {teamName(otherTeam)}. Qualquer um do time pode escolher.</p>
+                                    <h3>{t('teamGame.sideQuestion')}</h3>
+                                    <p className="muted">{t('teamGame.sideWorth', { count: TEAM_RULES.SIDE_POINTS, team: otherName })}</p>
                                     <div className={styles.sideButtons}>
                                         <button className="btn btn-secondary btn-lg" onClick={() => callSide('left')}>
-                                            <ChevronLeftIcon /> Esquerda
+                                            <ChevronLeftIcon /> {t('teamGame.left')}
                                         </button>
                                         <button className="btn btn-secondary btn-lg" onClick={() => callSide('right')}>
-                                            Direita <ChevronRightIcon />
+                                            {t('teamGame.right')} <ChevronRightIcon />
                                         </button>
                                     </div>
                                 </>
                             ) : (
                                 <div className={gameStyles.waitingPanel}>
                                     <span className="dots"><span /><span /><span /></span>
-                                    <p>O <strong>{teamName(otherTeam)}</strong> está chutando se o alvo está à esquerda ou à direita…</p>
+                                    <p>{rich('teamGame.otherCalling', { team: <strong>{otherName}</strong> })}</p>
                                 </div>
                             )}
                         </div>
@@ -312,17 +310,17 @@ export default function TeamGame({
                     {phase === 'revealed' && (
                         <div className={gameStyles.revealPanel}>
                             <header className={gameStyles.revealHead}>
-                                <h3>Resultado da rodada</h3>
-                                <span className="chip">alvo em {round.targetPosition}</span>
+                                <h3>{t('game.roundResult')}</h3>
+                                <span className="chip">{t('game.targetAt', { n: round.targetPosition ?? '' })}</span>
                             </header>
                             <ul className={styles.outcome}>
                                 <li className={styles.outcomeRow} style={teamStyle(activeTeam)}>
                                     <span className={styles.dot} />
                                     <span className={styles.outcomeText}>
-                                        <strong>{teamName(activeTeam)}</strong>
+                                        <strong>{activeName}</strong>
                                         <span className="muted">
                                             <span className={`${gameStyles.zoneTag} ${gameStyles[`zoneTag${play.zone ?? 0}`]}`}>{play.zone ?? 0}</span>
-                                            {' '}{ZONE_LABEL[play.zone ?? 0]} · ponteiro em {play.guess}
+                                            {' '}{t('teamGame.needleAt', { zone: t(ZONE_LABEL[play.zone ?? 0]), n: play.guess ?? '' })}
                                         </span>
                                     </span>
                                     <span className={`${gameStyles.resultPoints} ${play.points[activeTeam] === 0 ? gameStyles.resultZero : ''}`}>+{play.points[activeTeam]}</span>
@@ -330,11 +328,11 @@ export default function TeamGame({
                                 <li className={styles.outcomeRow} style={teamStyle(otherTeam)}>
                                     <span className={styles.dot} />
                                     <span className={styles.outcomeText}>
-                                        <strong>{teamName(otherTeam)}</strong>
+                                        <strong>{otherName}</strong>
                                         <span className="muted">
                                             {play.side
-                                                ? <>chutou <strong>{SIDE_LABEL[play.side]}</strong>{sideBy ? ` (${sideBy.nickname})` : ''}: {play.sideCorrect ? 'acertou!' : 'errou'}</>
-                                                : 'não chutou o lado'}
+                                                ? rich(play.sideCorrect ? 'teamGame.calledRight' : 'teamGame.calledWrong', { side: <strong>{t(SIDE_LABEL[play.side])}</strong>, by: sideBy ? ` (${sideBy.nickname})` : '' })
+                                                : t('teamGame.noCall')}
                                         </span>
                                     </span>
                                     <span className={`${gameStyles.resultPoints} ${play.points[otherTeam] === 0 ? gameStyles.resultZero : ''}`}>+{play.points[otherTeam]}</span>
@@ -342,26 +340,26 @@ export default function TeamGame({
                             </ul>
                             {play.catchUp && room.status === 'playing' && (
                                 <p className={styles.catchUp} style={teamStyle(activeTeam)}>
-                                    <UsersIcon size={16} /> Na mosca e ainda atrás no placar: o {teamName(activeTeam)} joga de novo!
+                                    <UsersIcon size={16} /> {t('teamGame.catchUp', { team: activeName })}
                                 </p>
                             )}
 
                             <footer className={gameStyles.readyBar}>
                                 <div className={gameStyles.readyInfo}>
-                                    <strong>{readyCount}/{connectedCount}</strong> prontos
-                                    {secondsLeft !== null && timerPhase === 'next' && <span className="muted"> · próxima em {secondsLeft}s</span>}
+                                    {rich('game.readyCount', { count: <strong>{readyCount}/{connectedCount}</strong> })}
+                                    {secondsLeft !== null && timerPhase === 'next' && <span className="muted">{t('game.nextIn', { n: secondsLeft })}</span>}
                                 </div>
                                 <div className={gameStyles.readyActions}>
                                     {me?.isReady ? (
-                                        <span className={gameStyles.lockedBadge}><CheckIcon size={16} /> Você está pronto</span>
+                                        <span className={gameStyles.lockedBadge}><CheckIcon size={16} /> {t('game.youReady')}</span>
                                     ) : (
                                         <button className="btn btn-primary" onClick={onSetReady}>
-                                            <CheckIcon /> Pronto!
+                                            <CheckIcon /> {t('game.ready')}
                                         </button>
                                     )}
                                     {isHost && (
                                         <button className="btn btn-ghost btn-sm" onClick={onNextRound}>
-                                            Próxima rodada <ChevronRightIcon size={16} />
+                                            {t('game.nextRound')} <ChevronRightIcon size={16} />
                                         </button>
                                     )}
                                 </div>

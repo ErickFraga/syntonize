@@ -3,6 +3,7 @@
 import type { Room } from '@/types/game'
 import Avatar from '@/components/ui/Avatar'
 import { TrophyIcon, EyeIcon, CheckIcon, CrownIcon } from '@/components/ui/Icons'
+import { useT } from '@/i18n/I18nProvider'
 import styles from './Scoreboard.module.css'
 
 interface ScoreboardProps {
@@ -11,6 +12,7 @@ interface ScoreboardProps {
 }
 
 export default function Scoreboard({ room, meId }: ScoreboardProps) {
+    const { t } = useT()
     const round = room.currentRound
     const sorted = [...room.players].sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname))
     const target = room.settings.targetScore
@@ -19,8 +21,8 @@ export default function Scoreboard({ room, meId }: ScoreboardProps) {
     return (
         <div className={`card ${styles.board}`}>
             <header className={styles.header}>
-                <h3><TrophyIcon size={18} /> Placar</h3>
-                <span className="chip">meta {target}</span>
+                <h3><TrophyIcon size={18} /> {t('score.title')}</h3>
+                <span className="chip">{t('common.goal', { n: target })}</span>
             </header>
 
             <ol className={styles.list}>
@@ -59,8 +61,8 @@ export default function Scoreboard({ room, meId }: ScoreboardProps) {
             {room.roundHistory.length > 0 && (
                 <footer className={styles.footer}>
                     {room.settings.maxRounds > 0
-                        ? `Rodada ${room.roundHistory.length}${round?.phase !== 'revealed' ? ' + 1' : ''} de ${room.settings.maxRounds}`
-                        : `${room.roundHistory.length} rodada${room.roundHistory.length === 1 ? '' : 's'} jogada${room.roundHistory.length === 1 ? '' : 's'}`}
+                        ? t('score.roundOf', { n: `${room.roundHistory.length}${round?.phase !== 'revealed' ? ' + 1' : ''}`, max: room.settings.maxRounds })
+                        : t('score.played', { count: room.roundHistory.length })}
                 </footer>
             )}
         </div>

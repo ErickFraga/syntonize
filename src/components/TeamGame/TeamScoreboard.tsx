@@ -3,7 +3,8 @@
 import type { Room } from '@/types/game'
 import Avatar from '@/components/ui/Avatar'
 import { TrophyIcon, EyeIcon, CheckIcon, CrownIcon } from '@/components/ui/Icons'
-import { TEAM_IDS, teamColor, teamName } from '@/lib/teams'
+import { TEAM_IDS, teamColor, teamKey } from '@/lib/teams'
+import { useT } from '@/i18n/I18nProvider'
 import styles from './TeamScoreboard.module.css'
 
 interface TeamScoreboardProps {
@@ -12,6 +13,7 @@ interface TeamScoreboardProps {
 }
 
 export default function TeamScoreboard({ room, meId }: TeamScoreboardProps) {
+    const { t } = useT()
     const round = room.currentRound
     const target = room.settings.targetScore
     const active = round?.teamPlay?.team ?? null
@@ -19,8 +21,8 @@ export default function TeamScoreboard({ room, meId }: TeamScoreboardProps) {
     return (
         <div className={`card ${styles.board}`}>
             <header className={styles.header}>
-                <h3><TrophyIcon size={18} /> Placar</h3>
-                <span className="chip">meta {target}</span>
+                <h3><TrophyIcon size={18} /> {t('score.title')}</h3>
+                <span className="chip">{t('common.goal', { n: target })}</span>
             </header>
 
             {TEAM_IDS.map(team => {
@@ -35,7 +37,7 @@ export default function TeamScoreboard({ room, meId }: TeamScoreboardProps) {
                     >
                         <div className={styles.teamHead}>
                             <span className={styles.dot} />
-                            <span className={styles.teamName}>{teamName(team)}</span>
+                            <span className={styles.teamName}>{t(teamKey(team))}</span>
                             <span className={styles.score}>{score}</span>
                         </div>
                         <span className={styles.bar}><span className={styles.fill} style={{ width: `${pct}%` }} /></span>
@@ -57,8 +59,8 @@ export default function TeamScoreboard({ room, meId }: TeamScoreboardProps) {
             {room.roundHistory.length > 0 && (
                 <footer className={styles.footer}>
                     {room.settings.maxRounds > 0
-                        ? `Rodada ${room.roundHistory.length}${round?.phase !== 'revealed' ? ' + 1' : ''} de ${room.settings.maxRounds}`
-                        : `${room.roundHistory.length} rodada${room.roundHistory.length === 1 ? '' : 's'} jogada${room.roundHistory.length === 1 ? '' : 's'}`}
+                        ? t('score.roundOf', { n: `${room.roundHistory.length}${round?.phase !== 'revealed' ? ' + 1' : ''}`, max: room.settings.maxRounds })
+                        : t('score.played', { count: room.roundHistory.length })}
                 </footer>
             )}
         </div>
