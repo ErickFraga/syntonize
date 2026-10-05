@@ -53,10 +53,10 @@
     justify-content: center;
     gap: 24px;
     padding: 24px;
-    /* Follows the theme: page background, nearly opaque. */
-    background: color-mix(in srgb, var(--bg) 94%, transparent);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    /* Follows the theme: page background, translucent enough for the blur to show the page behind. */
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     cursor: zoom-out;
     animation: qrFade var(--t-med) var(--ease-out);
 }
