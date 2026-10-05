@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { SCORING } from '@/types/game'
 import { playerColor, initials } from '@/components/ui/Avatar'
+import { useT } from '@/i18n/I18nProvider'
 import styles from './Dial.module.css'
 
 export interface DialMarker {
@@ -101,6 +102,7 @@ export default function Dial({
     markers = [],
     className = '',
 }: DialProps) {
+    const { t } = useT()
     const svgRef = useRef<SVGSVGElement>(null)
     const [dragging, setDragging] = useState(false)
     const needleRef = useRef(needle)
@@ -174,7 +176,7 @@ export default function Dial({
             viewBox={`${VB.x} ${VB.y} ${VB.w} ${VB.h}`}
             xmlns="http://www.w3.org/2000/svg"
             role={interactive ? 'slider' : 'img'}
-            aria-label={interactive ? 'Ponteiro do espectro' : 'Dial do espectro'}
+            aria-label={interactive ? t('dial.slider') : t('dial.image')}
             aria-valuemin={interactive ? 0 : undefined}
             aria-valuemax={interactive ? 100 : undefined}
             aria-valuenow={interactive && needle !== null ? needle : undefined}

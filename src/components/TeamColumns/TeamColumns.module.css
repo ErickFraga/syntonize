@@ -1,0 +1,139 @@
+.columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.team {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px;
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--team-color);
+}
+
+.teamHead {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.teamHead h3 {
+    flex: 1;
+    min-width: 0;
+    font-size: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.teamDot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--team-color);
+    flex-shrink: 0;
+}
+
+.count {
+    font-weight: 800;
+    color: var(--text-2);
+}
+
+.list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.member {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.offline {
+    opacity: 0.6;
+}
+
+.name {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+    font-weight: 800;
+    font-size: 14.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.crown {
+    color: var(--orange);
+    flex-shrink: 0;
+}
+
+.you {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--teal);
+}
+
+.iconBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    color: var(--text-3);
+    transition: background var(--t-fast), color var(--t-fast);
+}
+
+.iconBtn:hover {
+    color: var(--text);
+    background: var(--surface-2);
+}
+
+.kick:hover {
+    color: var(--red);
+}
+
+.flip {
+    transform: scaleX(-1);
+}
+
+.placeholder {
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    border: 1.5px dashed var(--line);
+    color: var(--text-3);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+@media (max-width: 420px) {
+    .columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+.joinBtn {
+    height: auto;
+    min-height: 36px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+}

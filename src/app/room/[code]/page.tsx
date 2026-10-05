@@ -6,11 +6,16 @@ import { useGameState, useCountdown } from '@/hooks/useGameState'
 import { session } from '@/lib/socket'
 import { isMuted, setMuted } from '@/lib/sounds'
 import { normalizeRoomCode } from '@shared/gameLogic'
+import type { Message } from '@/types/game'
 import Lobby from '@/components/Lobby/Lobby'
 import Game from '@/components/Game/Game'
 import Results from '@/components/Results/Results'
+import TeamGame from '@/components/TeamGame/TeamGame'
+import TeamResults from '@/components/TeamResults/TeamResults'
 import Logo from '@/components/ui/Logo'
 import Toasts from '@/components/ui/Toasts'
+import LanguageSelect from '@/components/LanguageSelect/LanguageSelect'
+import { useT } from '@/i18n/I18nProvider'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import { LogOutIcon, VolumeIcon, VolumeOffIcon, WifiOffIcon, CopyIcon, CheckIcon } from '@/components/ui/Icons'
 import styles from './page.module.css'
@@ -20,11 +25,12 @@ type Stage = 'connecting' | 'resolving' | 'ready' | 'redirecting'
 export default function RoomPage() {
     const params = useParams()
     const router = useRouter()
+    const { t, msg } = useT()
     const code = normalizeRoomCode(String(params.code ?? ''))
 
     const {
-        room, me, isHost, isSeer, isConnected, wasKicked, toasts, timer, serverOffset,
-        pushToast, joinRoom, leaveRoom, kickPlayer, updateSettings, startGame, giveClue,
+        room, me, isHost, isSeer, isConnected, wasKicked, toasts, timer, serverOffset, remoteNeedle,
+        pushToast, joinRoom, leaveRoom, kickPlayer, updateSettings, setTeam, moveNeedle, sideGuess, startGame, giveClue,
         submitGuess, setReady, nextRound, skipRound, backToLobby,
     } = useGameState()
 
@@ -75,7 +81,7 @@ export default function RoomPage() {
             }
             const result = await joinRoom(code, nickname)
             if (!result.success) {
-                pushToast({ kind: 'error', message: result.error ?? 'Não deu para entrar na sala' })
+                pushToast({ kind: 'error', message: msg(result.error, 'error.joinRoom') })
                 router.replace(`/join/${code}`)
             }
         }, 900)
@@ -83,7 +89,7 @@ export default function RoomPage() {
     }, [isConnected, room, code, stage, wasKicked, joinRoom, router, pushToast])
 
     const handleLeave = () => {
-        if (room?.status === 'playing' && !window.confirm('Sair agora? Você perde seu lugar na partida.')) return
+        if (room?.status === 'playing' && !window.confirm(t('room.leaveConfirm'))) return
         leaveRoom()
         router.push('/')
     }
@@ -99,23 +105,24 @@ export default function RoomPage() {
         try {
             await navigator.clipboard.writeText(`${window.location.origin}/join/${room.code}`)
             setCopied(true)
-            pushToast({ kind: 'success', message: 'Link de convite copiado!' })
+            pushToast({ kind: 'success', message: t('room.linkCopied') })
             window.setTimeout(() => setCopied(false), 1800)
         } catch {
-            pushToast({ kind: 'warning', message: `Código da sala: ${room.code}` })
+            pushToast({ kind: 'warning', message: t('room.codeIs', { code: room.code }) })
         }
     }
 
     const notify = (message: string, kind: 'info' | 'success' | 'warning' | 'error' = 'info') => pushToast({ kind, message })
+    const notifyError = (r: { success: boolean; error?: Message }) => { if (!r.success && r.error) notify(msg(r.error), 'error') }
 
     if (wasKicked) {
         return (
             <main className="page">
                 <div className={`card ${styles.stateCard} anim-pop`}>
                     <Logo size="sm" />
-                    <h1>Você foi removido da sala</h1>
-                    <p className="muted">O anfitrião tirou você da partida. Sem drama: dá para criar a sua própria.</p>
-                    <button className="btn btn-primary" onClick={() => router.push('/')}>Voltar ao início</button>
+                    <h1>{t('room.kickedTitle')}</h1>
+                    <p className="muted">{t('room.kickedText')}</p>
+                    <button className="btn btn-primary" onClick={() => router.push('/')}>{t('room.backHome')}</button>
                 </div>
             </main>
         )
@@ -127,7 +134,7 @@ export default function RoomPage() {
                 <div className={`${styles.loading} anim-fade-in`}>
                     <Logo size="md" />
                     <span className="spinner" />
-                    <p className="muted">{!isConnected ? 'Conectando ao servidor…' : 'Entrando na sala…'}</p>
+                    <p className="muted">{!isConnected ? t('common.connecting') : t('room.joining')}</p>
                 </div>
             </main>
         )
@@ -142,22 +149,23 @@ export default function RoomPage() {
                     <Logo size="sm" />
                 </div>
 
-                <button className={styles.codeChip} onClick={copyCode} title="Copiar link de convite">
-                    <span className={styles.codeLabel}>sala</span>
+                <button className={styles.codeChip} onClick={copyCode} title={t('room.copyInvite')}>
+                    <span className={styles.codeLabel}>{t('room.codeLabel')}</span>
                     <span className={styles.codeValue}>{room.code}</span>
                     {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
                 </button>
 
                 <div className={styles.headerActions}>
                     {!isConnected && (
-                        <span className={styles.offline}><WifiOffIcon size={16} /> reconectando…</span>
+                        <span className={styles.offline}><WifiOffIcon size={16} /> {t('common.reconnecting')}</span>
                     )}
+                    <LanguageSelect />
                     <ThemeToggle />
-                    <button className="btn-icon" onClick={toggleMute} title={muted ? 'Ativar sons' : 'Silenciar'} aria-label={muted ? 'Ativar sons' : 'Silenciar'}>
+                    <button className="btn-icon" onClick={toggleMute} title={muted ? t('room.unmute') : t('room.mute')} aria-label={muted ? t('room.unmute') : t('room.mute')}>
                         {muted ? <VolumeOffIcon size={18} /> : <VolumeIcon size={18} />}
                     </button>
                     <button className="btn btn-ghost btn-sm" onClick={handleLeave}>
-                        <LogOutIcon size={16} /> Sair
+                        <LogOutIcon size={16} /> {t('room.leave')}
                     </button>
                 </div>
             </header>
@@ -169,20 +177,40 @@ export default function RoomPage() {
                         me={me}
                         isHost={isHost}
                         onStartGame={startGame}
-                        onKickPlayer={(id) => kickPlayer(id).then(r => { if (!r.success && r.error) notify(r.error, 'error') })}
-                        onUpdateSettings={(s) => updateSettings(s).then(r => { if (!r.success && r.error) notify(r.error, 'error') })}
+                        onKickPlayer={(id) => kickPlayer(id).then(notifyError)}
+                        onUpdateSettings={(s) => updateSettings(s).then(notifyError)}
+                        onSetTeam={(id, team) => setTeam(id, team).then(notifyError)}
                         onNotify={notify}
                     />
                 )}
 
-                {room.status === 'playing' && room.currentRound && (
-                    <Game
+                {room.status === 'playing' && room.currentRound?.teamPlay && (
+                    <TeamGame
                         room={room}
                         me={me}
                         isHost={isHost}
                         isSeer={isSeer}
                         secondsLeft={secondsLeft}
                         timerPhase={timer?.phase ?? null}
+                        remoteNeedle={remoteNeedle}
+                        onGiveClue={giveClue}
+                        onSubmitGuess={submitGuess}
+                        onNeedleMove={moveNeedle}
+                        onSideGuess={sideGuess}
+                        onSetReady={setReady}
+                        onNextRound={nextRound}
+                        onSkipRound={skipRound}
+                    />
+                )}
+
+                {room.status === 'playing' && room.currentRound && !room.currentRound.teamPlay && (
+                    <Game
+                        room={room}
+                        me={me}
+                        isHost={isHost}
+                        isSeer={isSeer}
+                        secondsLeft={secondsLeft}
+                        timerPhase={timer?.phase === 'side' ? null : timer?.phase ?? null}
                         onGiveClue={giveClue}
                         onSubmitGuess={submitGuess}
                         onSetReady={setReady}
@@ -191,7 +219,18 @@ export default function RoomPage() {
                     />
                 )}
 
-                {room.status === 'finished' && (
+                {room.status === 'finished' && room.settings.mode === 'teams' && (
+                    <TeamResults
+                        room={room}
+                        me={me}
+                        isHost={isHost}
+                        onPlayAgain={startGame}
+                        onBackToLobby={backToLobby}
+                        onLeave={handleLeave}
+                    />
+                )}
+
+                {room.status === 'finished' && room.settings.mode !== 'teams' && (
                     <Results
                         room={room}
                         me={me}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { getTheme, toggleTheme, type Theme } from '@/lib/theme'
+import { useT } from '@/i18n/I18nProvider'
 
 function SunIcon() {
     return (
@@ -21,13 +22,14 @@ function MoonIcon() {
 }
 
 export default function ThemeToggle({ className = '' }: { className?: string }) {
+    const { t } = useT()
     const [theme, setThemeState] = useState<Theme>('dark')
 
     useEffect(() => {
         setThemeState(getTheme())
     }, [])
 
-    const label = theme === 'light' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'
+    const label = theme === 'light' ? t('theme.toDark') : t('theme.toLight')
 
     return (
         <button

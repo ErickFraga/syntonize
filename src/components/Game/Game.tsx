@@ -9,6 +9,7 @@ import CountdownRing from '@/components/ui/CountdownRing'
 import { EyeIcon, LockIcon, CheckIcon, SkipIcon, LightbulbIcon, ChevronLeftIcon, ChevronRightIcon, SparklesIcon } from '@/components/ui/Icons'
 import Scoreboard from './Scoreboard'
 import { sounds } from '@/lib/sounds'
+import { useT } from '@/i18n/I18nProvider'
 import styles from './Game.module.css'
 
 interface GameProps {
@@ -25,12 +26,7 @@ interface GameProps {
     onSkipRound: () => void
 }
 
-const ZONE_LABEL: Record<number, string> = {
-    4: 'Na mosca!',
-    3: 'Quase lá',
-    2: 'Pegou a vibe',
-    0: 'Passou longe',
-}
+const ZONE_LABEL = { 4: 'zone.4', 3: 'zone.3', 2: 'zone.2', 0: 'zone.0' } as const
 
 export default function Game({
     room,
@@ -45,6 +41,7 @@ export default function Game({
     onNextRound,
     onSkipRound,
 }: GameProps) {
+    const { t, rich, msg } = useT()
     const round = room.currentRound!
     const seer = room.players.find(p => p.id === round.seerId)
     const phase = round.phase
@@ -91,7 +88,7 @@ export default function Game({
         setClueError(null)
         const result = await onGiveClue(clue.trim())
         setSending(false)
-        if (!result.success) setClueError(result.error ?? 'Não deu para enviar a dica')
+        if (!result.success) setClueError(msg(result.error, 'error.clue'))
     }
 
     const lockGuess = async () => {
@@ -124,16 +121,16 @@ export default function Game({
                 {/* Round bar */}
                 <div className={`${styles.roundBar} anim-fade-in`}>
                     <div className={styles.roundInfo}>
-                        <span className="chip chip-accent">Rodada {round.roundNumber}</span>
+                        <span className="chip chip-accent">{t('common.round', { n: round.roundNumber })}</span>
                         <span className={styles.seerChip}>
                             <EyeIcon size={16} />
-                            <span>Vidente</span>
+                            <span>{t('common.seer')}</span>
                             {seer && <Avatar name={seer.nickname} colorIndex={seer.colorIndex} size="sm" offline={!seer.isConnected} />}
-                            <strong>{seer?.nickname ?? '…'}{isSeer ? ' (você)' : ''}</strong>
+                            <strong>{seer?.nickname ?? '…'}{isSeer ? t('common.youSuffix') : ''}</strong>
                         </span>
                     </div>
                     {secondsLeft !== null && timerPhase && timerPhase !== 'next' && (
-                        <CountdownRing seconds={secondsLeft} total={totalForTimer} label={timerPhase === 'guess' ? 'palpite' : 'dica'} />
+                        <CountdownRing seconds={secondsLeft} total={totalForTimer} label={t(timerPhase === 'guess' ? 'timer.guess' : 'timer.clue')} />
                     )}
                 </div>
 
@@ -158,13 +155,13 @@ export default function Game({
                     <div className={styles.clueArea}>
                         {round.clue ? (
                             <div className={`${styles.clue} anim-pop`}>
-                                <span className="eyebrow">Dica de {seer?.nickname}</span>
+                                <span className="eyebrow">{t('game.clueBy', { name: seer?.nickname ?? '' })}</span>
                                 <strong>&ldquo;{round.clue}&rdquo;</strong>
                             </div>
                         ) : (
                             <div className={styles.cluePending}>
-                                <span className="eyebrow">Dica</span>
-                                <span className={styles.cluePlaceholder}>{isSeer ? 'sua vez de pensar numa dica' : `${seer?.nickname ?? 'o Vidente'} está pensando…`}</span>
+                                <span className="eyebrow">{t('game.clue')}</span>
+                                <span className={styles.cluePlaceholder}>{isSeer ? t('game.yourTurnToThink') : t('game.seerThinking', { name: seer?.nickname ?? t('game.theSeer') })}</span>
                             </div>
                         )}
                     </div>
@@ -177,8 +174,8 @@ export default function Game({
                             <div className={styles.panelHead}>
                                 <LightbulbIcon size={22} />
                                 <div>
-                                    <h3>Você é o Vidente</h3>
-                                    <p className="muted">O alvo está marcado no dial. Dê uma dica que leve todo mundo até lá, sem usar as palavras da carta.</p>
+                                    <h3>{t('game.youAreSeer')}</h3>
+                                    <p className="muted">{t('game.seerHelp')}</p>
                                 </div>
                             </div>
                             <form
@@ -190,7 +187,7 @@ export default function Game({
                             >
                                 <input
                                     className={`input ${styles.clueInput}`}
-                                    placeholder="Ex: pizza fria de ontem"
+                                    placeholder={t('game.cluePlaceholder')}
                                     value={clue}
                                     maxLength={LIMITS.CLUE_MAX}
                                     onChange={(e) => {
@@ -202,11 +199,11 @@ export default function Game({
                                 />
                                 <button type="submit" className="btn btn-primary" disabled={!clue.trim() || sending}>
                                     {sending ? <span className="spinner spinner-sm" /> : <SparklesIcon />}
-                                    Enviar dica
+                                    {t('game.sendClue')}
                                 </button>
                             </form>
                             <div className={styles.clueMeta}>
-                                {clueError ? <span className={styles.error}>{clueError}</span> : <span className="muted">Pode ser uma coisa, um lugar, uma situação… vale criatividade.</span>}
+                                {clueError ? <span className={styles.error}>{clueError}</span> : <span className="muted">{t('game.clueTip')}</span>}
                                 <span className={styles.counter}>{clue.length}/{LIMITS.CLUE_MAX}</span>
                             </div>
                         </div>
@@ -215,10 +212,10 @@ export default function Game({
                     {phase === 'waiting_clue' && !isSeer && (
                         <div className={styles.waitingPanel}>
                             <span className="dots"><span /><span /><span /></span>
-                            <p>Esperando <strong>{seer?.nickname}</strong> dar a dica…</p>
+                            <p>{rich('game.waitingClue', { name: <strong>{seer?.nickname}</strong> })}</p>
                             {isHost && (
-                                <button className="btn btn-ghost btn-sm" onClick={onSkipRound} title="Pula para o próximo Vidente">
-                                    <SkipIcon size={16} /> Pular rodada
+                                <button className="btn btn-ghost btn-sm" onClick={onSkipRound} title={t('game.skipTitle')}>
+                                    <SkipIcon size={16} /> {t('game.skip')}
                                 </button>
                             )}
                         </div>
@@ -226,7 +223,7 @@ export default function Game({
 
                     {phase === 'guessing' && isSeer && (
                         <div className={styles.waitingPanel}>
-                            <p>Agora é com eles. <strong>{lockedCount}/{guessers.length}</strong> já travaram o palpite.</p>
+                            <p>{rich('game.seerWaiting', { count: <strong>{lockedCount}/{guessers.length}</strong> })}</p>
                             <LockedList players={guessers} />
                         </div>
                     )}
@@ -234,26 +231,26 @@ export default function Game({
                     {phase === 'guessing' && !isSeer && !hasLocked && (
                         <div className={styles.guessPanel}>
                             <div className={styles.guessHint}>
-                                <p>Toque ou arraste no mostrador: o ponteiro vai para onde você apontar.</p>
+                                <p>{t('game.dragHint')}</p>
                                 <span className={styles.needleValue}>{needle}</span>
                             </div>
                             <div className={styles.fineTune}>
-                                <span className="eyebrow">Ajuste fino</span>
+                                <span className="eyebrow">{t('game.fineTune')}</span>
                                 <span className={styles.fineTuneButtons}>
-                                    <button className="btn btn-secondary btn-sm" onClick={() => setNeedle(v => Math.max(0, v - 1))} aria-label="Um para a esquerda">−1</button>
-                                    <button className="btn btn-secondary btn-sm" onClick={() => setNeedle(v => Math.min(100, v + 1))} aria-label="Um para a direita">+1</button>
+                                    <button className="btn btn-secondary btn-sm" onClick={() => setNeedle(v => Math.max(0, v - 1))} aria-label={t('game.oneLeft')}>−1</button>
+                                    <button className="btn btn-secondary btn-sm" onClick={() => setNeedle(v => Math.min(100, v + 1))} aria-label={t('game.oneRight')}>+1</button>
                                 </span>
                             </div>
                             <button className="btn btn-primary btn-lg btn-block" onClick={lockGuess}>
-                                <LockIcon /> Travar palpite
+                                <LockIcon /> {t('game.lock')}
                             </button>
                         </div>
                     )}
 
                     {phase === 'guessing' && !isSeer && hasLocked && (
                         <div className={styles.waitingPanel}>
-                            <span className={styles.lockedBadge}><CheckIcon size={16} /> Palpite travado em {myGuess}</span>
-                            <p>Esperando os outros… <strong>{lockedCount}/{guessers.length}</strong></p>
+                            <span className={styles.lockedBadge}><CheckIcon size={16} /> {t('game.lockedAt', { n: myGuess ?? '' })}</span>
+                            <p>{rich('game.waitingOthers', { count: <strong>{lockedCount}/{guessers.length}</strong> })}</p>
                             <LockedList players={guessers} />
                         </div>
                     )}
@@ -261,8 +258,8 @@ export default function Game({
                     {phase === 'revealed' && (
                         <div className={styles.revealPanel}>
                             <header className={styles.revealHead}>
-                                <h3>Resultado da rodada</h3>
-                                <span className="chip">alvo em {round.targetPosition}</span>
+                                <h3>{t('game.roundResult')}</h3>
+                                <span className="chip">{t('game.targetAt', { n: round.targetPosition ?? '' })}</span>
                             </header>
                             <ul className={styles.resultList}>
                                 {resultRows.map(({ player, points, zone, closest, isSeer: rowIsSeer }, i) => (
@@ -271,12 +268,12 @@ export default function Game({
                                         <span className={styles.resultName}>{player.nickname}</span>
                                         <span className={styles.resultLabel}>
                                             {rowIsSeer ? (
-                                                <span className={styles.seerTag}><EyeIcon size={13} /> Vidente</span>
+                                                <span className={styles.seerTag}><EyeIcon size={13} /> {t('common.seer')}</span>
                                             ) : (
                                                 <>
                                                     <span className={`${styles.zoneTag} ${styles[`zoneTag${zone ?? 0}`]}`}>{zone ?? 0}</span>
-                                                    {ZONE_LABEL[zone ?? 0]}
-                                                    {closest && <span className={styles.closestTag}>mais perto +1</span>}
+                                                    {t(ZONE_LABEL[zone ?? 0])}
+                                                    {closest && <span className={styles.closestTag}>{t('game.closest', { n: 1 })}</span>}
                                                 </>
                                             )}
                                         </span>
@@ -287,7 +284,7 @@ export default function Game({
                                     <li key={p.id} className={`${styles.resultRow} ${styles.resultSkipped}`}>
                                         <Avatar name={p.nickname} colorIndex={p.colorIndex} size="sm" offline />
                                         <span className={styles.resultName}>{p.nickname}</span>
-                                        <span className={styles.resultLabel}>não palpitou</span>
+                                        <span className={styles.resultLabel}>{t('game.noGuess')}</span>
                                         <span className={`${styles.resultPoints} ${styles.resultZero}`}>+0</span>
                                     </li>
                                 ))}
@@ -295,20 +292,20 @@ export default function Game({
 
                             <footer className={styles.readyBar}>
                                 <div className={styles.readyInfo}>
-                                    <strong>{readyCount}/{connectedCount}</strong> prontos
-                                    {secondsLeft !== null && timerPhase === 'next' && <span className="muted"> · próxima em {secondsLeft}s</span>}
+                                    {rich('game.readyCount', { count: <strong>{readyCount}/{connectedCount}</strong> })}
+                                    {secondsLeft !== null && timerPhase === 'next' && <span className="muted">{t('game.nextIn', { n: secondsLeft })}</span>}
                                 </div>
                                 <div className={styles.readyActions}>
                                     {me?.isReady ? (
-                                        <span className={styles.lockedBadge}><CheckIcon size={16} /> Você está pronto</span>
+                                        <span className={styles.lockedBadge}><CheckIcon size={16} /> {t('game.youReady')}</span>
                                     ) : (
                                         <button className="btn btn-primary" onClick={onSetReady}>
-                                            <CheckIcon /> Pronto!
+                                            <CheckIcon /> {t('game.ready')}
                                         </button>
                                     )}
                                     {isHost && (
                                         <button className="btn btn-ghost btn-sm" onClick={onNextRound}>
-                                            Próxima rodada <ChevronRightIcon size={16} />
+                                            {t('game.nextRound')} <ChevronRightIcon size={16} />
                                         </button>
                                     )}
                                 </div>

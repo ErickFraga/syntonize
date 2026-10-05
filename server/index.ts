@@ -5,6 +5,7 @@ import { Server, type Socket } from 'socket.io'
 
 import type { ServerToClientEvents, ClientToServerEvents } from '../shared/types.ts'
 import { RoomManager, type Transport } from './roomManager.ts'
+import { msg } from '../shared/gameLogic.ts'
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = process.env.HOSTNAME || '0.0.0.0'
@@ -127,7 +128,7 @@ app.prepare().then(() => {
 
         socket.on('room:kick', (targetId, callback) => {
             const playerId = currentPlayerId(socket)
-            if (!playerId) return callback({ success: false, error: 'Você não está em uma sala' })
+            if (!playerId) return callback({ success: false, error: msg('not_in_room') })
             const result = manager.kickPlayer(playerId, String(targetId))
             if (result.success) {
                 const target = socketsByPlayer.get(String(targetId))
@@ -138,15 +139,22 @@ app.prepare().then(() => {
 
         socket.on('room:updateSettings', (settings, callback) => {
             const playerId = currentPlayerId(socket)
-            if (!playerId) return callback({ success: false, error: 'Você não está em uma sala' })
+            if (!playerId) return callback({ success: false, error: msg('not_in_room') })
             const result = manager.updateSettings(playerId, settings ?? {})
+            callback({ success: result.success, error: result.error })
+        })
+
+        socket.on('room:setTeam', (targetId, team, callback) => {
+            const playerId = currentPlayerId(socket)
+            if (!playerId) return callback({ success: false, error: msg('not_in_room') })
+            const result = manager.setTeam(playerId, String(targetId), Number(team) as 0 | 1)
             callback({ success: result.success, error: result.error })
         })
 
         const withPlayer = (fn: (playerId: string) => { success: boolean; error?: string }) =>
             (callback?: (result: { success: boolean; error?: string }) => void) => {
                 const playerId = currentPlayerId(socket)
-                const result = playerId ? fn(playerId) : { success: false, error: 'Você não está em uma sala' }
+                const result = playerId ? fn(playerId) : { success: false, error: msg('not_in_room') }
                 if (!result.success && result.error) socket.emit('room:error', result.error)
                 callback?.({ success: result.success, error: result.error })
             }
@@ -154,6 +162,12 @@ app.prepare().then(() => {
         socket.on('game:start', (callback) => withPlayer(id => manager.startGame(id))(callback))
         socket.on('game:giveClue', (clue, callback) => withPlayer(id => manager.giveClue(id, clue))(callback))
         socket.on('game:submitGuess', (position, callback) => withPlayer(id => manager.submitGuess(id, Number(position)))(callback))
+        socket.on('game:sideGuess', (side, callback) => withPlayer(id => manager.sideGuess(id, side))(callback))
+        socket.on('game:needleMove', (position) => {
+            // Fire-and-forget and throttled: no error toast for dropped updates.
+            const playerId = currentPlayerId(socket)
+            if (playerId) manager.moveNeedle(playerId, Number(position))
+        })
         socket.on('game:ready', () => withPlayer(id => manager.setReady(id))())
         socket.on('game:nextRound', () => withPlayer(id => manager.forceNextRound(id))())
         socket.on('game:skipRound', () => withPlayer(id => manager.skipRound(id))())

@@ -1,0 +1,72 @@
+.teams {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+}
+
+.team {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px;
+    border-top: 4px solid var(--team-color);
+}
+
+.winner {
+    box-shadow: 0 0 0 1px var(--team-color), var(--shadow-md);
+}
+
+.teamHead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.teamHead h2 {
+    flex: 1;
+    font-size: 20px;
+}
+
+.dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--team-color);
+}
+
+.trophy {
+    color: var(--orange);
+}
+
+.score {
+    font-family: var(--font-display);
+    font-size: 44px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.score small {
+    font-size: 16px;
+    color: var(--text-3);
+}
+
+.members {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.member {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+}
+
+@media (max-width: 560px) {
+    .teams {
+        grid-template-columns: 1fr;
+    }
+}

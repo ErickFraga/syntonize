@@ -11,6 +11,8 @@ import type {
     ServerToClientEvents,
     TimerPhase,
     Notice,
+    TeamId,
+    Message,
 } from '../shared/types.ts'
 import {
     generateRoomCode,
@@ -25,6 +27,7 @@ import {
     normalizeRoomCode,
     validateClue,
     sanitizeSettings,
+    sanitizePacks,
     canJoinRoom,
     canStartGame,
     startNewRound,
@@ -35,8 +38,20 @@ import {
     finishGame,
     resetGameState,
     roomViewFor,
+    setPlayerTeam,
+    moveTeamNeedle,
+    lockTeamGuess,
+    submitSideGuess,
+    activeTeamHasGuessers,
+    opposingTeamPresent,
+    teamMembers,
     LIMITS,
+    TEAM_RULES,
+    msg,
 } from '../shared/index.ts'
+
+/** Why a player left the game flow (also picks the notice the room gets). */
+type GoneReason = 'left' | 'kicked' | 'disconnected'
 
 // ============================================
 // DEPENDENCIES (injectable for tests)
@@ -82,7 +97,7 @@ export interface RoomManagerOptions {
 
 export interface Result<T = void> {
     success: boolean
-    error?: string
+    error?: Message
     data?: T
 }
 
@@ -109,6 +124,8 @@ export class RoomManager {
     private sessions = new Map<string, { playerId: string; roomCode: string }>()
     private timers = new Map<string, RoomTimers>()
     private goneTimers = new Map<string, TimerHandle>()
+    /** Last accepted live-needle update per player (throttle). */
+    private lastNeedleAt = new Map<string, number>()
 
     private clock: Clock
     private rng: () => number
@@ -152,7 +169,7 @@ export class RoomManager {
 
     getRoomInfo(rawCode: string): Result<RoomInfo> {
         const room = this.getRoom(rawCode)
-        if (!room) return { success: false, error: 'Sala não encontrada' }
+        if (!room) return { success: false, error: msg('room_not_found') }
         const host = room.players.find(p => p.isHost)
         return {
             success: true,
@@ -188,7 +205,7 @@ export class RoomManager {
     joinRoom(rawCode: unknown, rawNickname: unknown): Result<SessionData> {
         const code = normalizeRoomCode(rawCode)
         const room = this.rooms.get(code)
-        if (!room) return { success: false, error: 'Sala não encontrada. Confere o código?' }
+        if (!room) return { success: false, error: msg('room_not_found') }
 
         const nickname = normalizeNickname(rawNickname)
         const valid = validateNickname(nickname)
@@ -203,7 +220,7 @@ export class RoomManager {
         const sessionToken = this.newSession(player.id, code)
 
         this.log(`${nickname} joined ${code}`)
-        this.notify(room, 'info', `${nickname} entrou na sala`)
+        this.notify(room, 'info', msg('player_joined', { name: nickname }))
         this.broadcastState(room)
         this.resyncTimer(player.id)
         return { success: true, data: { room, playerId: player.id, sessionToken } }
@@ -262,7 +279,7 @@ export class RoomManager {
 
         player.isConnected = false
         this.log(`${player.nickname} is offline in ${room.code}`)
-        this.afterPlayerGone(room, player, 'desconectou')
+        this.afterPlayerGone(room, player, 'disconnected')
         if (this.rooms.has(room.code)) this.broadcastState(room)
     }
 
@@ -279,20 +296,20 @@ export class RoomManager {
         const player = room?.players.find(p => p.id === playerId)
         if (!room || !player) return
 
-        this.removePlayer(room, player, 'saiu da sala')
+        this.removePlayer(room, player, 'left')
     }
 
     kickPlayer(hostId: string, targetId: string): Result {
         const room = this.getRoomOfPlayer(hostId)
-        if (!room) return { success: false, error: 'Sala não encontrada' }
+        if (!room) return { success: false, error: msg('room_not_found') }
         const host = room.players.find(p => p.id === hostId)
-        if (!host?.isHost) return { success: false, error: 'Só o anfitrião pode remover jogadores' }
+        if (!host?.isHost) return { success: false, error: msg('host_only_kick') }
         const target = room.players.find(p => p.id === targetId)
-        if (!target) return { success: false, error: 'Jogador não encontrado' }
-        if (target.id === hostId) return { success: false, error: 'Você não pode se remover' }
+        if (!target) return { success: false, error: msg('player_not_found') }
+        if (target.id === hostId) return { success: false, error: msg('cannot_kick_self') }
 
         this.transport.toPlayer(target.id, 'room:kicked')
-        this.removePlayer(room, target, 'foi removido da sala')
+        this.removePlayer(room, target, 'kicked')
         return { success: true }
     }
 
@@ -300,22 +317,37 @@ export class RoomManager {
 
     updateSettings(hostId: string, partial: Partial<RoomSettings>): Result {
         const room = this.getRoomOfPlayer(hostId)
-        if (!room) return { success: false, error: 'Sala não encontrada' }
+        if (!room) return { success: false, error: msg('room_not_found') }
         const host = room.players.find(p => p.id === hostId)
-        if (!host?.isHost) return { success: false, error: 'Só o anfitrião pode mudar as regras' }
-        if (room.status !== 'waiting') return { success: false, error: 'As regras só mudam no lobby' }
+        if (!host?.isHost) return { success: false, error: msg('host_only_settings') }
+        if (room.status !== 'waiting') return { success: false, error: msg('settings_lobby_only') }
 
+        // Turning every pack off would leave an empty deck.
+        if (Array.isArray(partial?.packs) && sanitizePacks(partial.packs)?.length === 0) return { success: false, error: msg('packs_empty') }
         room.settings = sanitizeSettings(partial ?? {}, room.settings)
+        this.broadcastState(room)
+        return { success: true }
+    }
+
+    /** Lobby only: anyone can switch their own team, the host can move anyone. */
+    setTeam(actorId: string, targetId: string, team: TeamId): Result {
+        const room = this.getRoomOfPlayer(actorId)
+        if (!room) return { success: false, error: msg('room_not_found') }
+        const actor = room.players.find(p => p.id === actorId)
+        if (actorId !== targetId && !actor?.isHost) return { success: false, error: msg('host_only_move') }
+        if (room.status !== 'waiting') return { success: false, error: msg('teams_lobby_only') }
+        if (team !== 0 && team !== 1) return { success: false, error: msg('invalid_team') }
+        if (!setPlayerTeam(room, targetId, team)) return { success: false, error: msg('player_not_found') }
         this.broadcastState(room)
         return { success: true }
     }
 
     startGame(hostId: string): Result {
         const room = this.getRoomOfPlayer(hostId)
-        if (!room) return { success: false, error: 'Sala não encontrada' }
+        if (!room) return { success: false, error: msg('room_not_found') }
         const host = room.players.find(p => p.id === hostId)
-        if (!host?.isHost) return { success: false, error: 'Só o anfitrião pode iniciar' }
-        if (room.status === 'playing') return { success: false, error: 'A partida já começou' }
+        if (!host?.isHost) return { success: false, error: msg('host_only_start') }
+        if (room.status === 'playing') return { success: false, error: msg('game_already_started') }
 
         const can = canStartGame(room)
         if (!can.ok) return { success: false, error: can.error }
@@ -328,13 +360,13 @@ export class RoomManager {
 
     backToLobby(hostId: string): Result {
         const room = this.getRoomOfPlayer(hostId)
-        if (!room) return { success: false, error: 'Sala não encontrada' }
+        if (!room) return { success: false, error: msg('room_not_found') }
         const host = room.players.find(p => p.id === hostId)
-        if (!host?.isHost) return { success: false, error: 'Só o anfitrião pode voltar ao lobby' }
+        if (!host?.isHost) return { success: false, error: msg('host_only_lobby') }
 
         this.clearTimers(room.code)
         resetGameState(room)
-        this.notify(room, 'info', 'De volta ao lobby')
+        this.notify(room, 'info', msg('back_to_lobby'))
         this.broadcastState(room)
         return { success: true }
     }
@@ -344,11 +376,11 @@ export class RoomManager {
     giveClue(playerId: string, rawClue: unknown): Result {
         const room = this.getRoomOfPlayer(playerId)
         const round = room?.currentRound
-        if (!room || !round) return { success: false, error: 'Nenhuma rodada em andamento' }
-        if (round.seerId !== playerId) return { success: false, error: 'Você não é o Vidente desta rodada' }
-        if (round.phase !== 'waiting_clue') return { success: false, error: 'A dica já foi dada' }
+        if (!room || !round) return { success: false, error: msg('no_round') }
+        if (round.seerId !== playerId) return { success: false, error: msg('not_the_seer') }
+        if (round.phase !== 'waiting_clue') return { success: false, error: msg('clue_already_given') }
 
-        const valid = validateClue(rawClue, round.spectrumCard)
+        const valid = validateClue(rawClue, round.spectrumCard, room.settings.cardLocale)
         if (!valid.ok) return { success: false, error: valid.error }
 
         round.clue = valid.clue
@@ -361,28 +393,69 @@ export class RoomManager {
         this.log(`clue in ${room.code}: ${valid.clue}`)
 
         // Nobody to guess (everyone else offline): resolve right away.
-        if (allGuessersDone(room)) this.endRound(room)
+        if (round.teamPlay) {
+            if (!activeTeamHasGuessers(room)) this.lockTeam(room)
+        } else if (allGuessersDone(room)) {
+            this.endRound(room)
+        }
         return { success: true }
     }
 
     submitGuess(playerId: string, position: number): Result {
         const room = this.getRoomOfPlayer(playerId)
-        if (!room) return { success: false, error: 'Sala não encontrada' }
+        if (!room) return { success: false, error: msg('room_not_found') }
 
         const result = applyGuess(room, playerId, position)
         if (!result.ok) return { success: false, error: result.error }
 
+        if (room.currentRound?.teamPlay) {
+            this.afterTeamLock(room)
+            return { success: true }
+        }
         this.broadcastState(room)
         if (allGuessersDone(room)) this.endRound(room)
+        return { success: true }
+    }
+
+    /**
+     * Team mode: a guesser drags the shared needle. Relayed only to the
+     * active team (the other team must not see it before the lock), and
+     * throttled per player so a fast drag cannot flood the room.
+     */
+    moveNeedle(playerId: string, position: number): Result {
+        const room = this.getRoomOfPlayer(playerId)
+        if (!room) return { success: false, error: msg('room_not_found') }
+        const now = this.clock.now()
+        const last = this.lastNeedleAt.get(playerId)
+        if (last !== undefined && now - last < TEAM_RULES.NEEDLE_THROTTLE_MS) return { success: false, error: msg('needle_throttled') }
+
+        const result = moveTeamNeedle(room, playerId, position)
+        if (!result.ok) return { success: false, error: result.error }
+        this.lastNeedleAt.set(playerId, now)
+
+        const team = room.currentRound!.teamPlay!.team
+        for (const member of teamMembers(room, team)) {
+            this.transport.toPlayer(member.id, 'game:needle', { position: result.position!, by: playerId })
+        }
+        return { success: true }
+    }
+
+    /** Team mode: the opposing team calls left or right of the locked needle. */
+    sideGuess(playerId: string, side: unknown): Result {
+        const room = this.getRoomOfPlayer(playerId)
+        if (!room) return { success: false, error: msg('room_not_found') }
+        const result = submitSideGuess(room, playerId, side)
+        if (!result.ok) return { success: false, error: result.error }
+        this.endRound(room)
         return { success: true }
     }
 
     setReady(playerId: string): Result {
         const room = this.getRoomOfPlayer(playerId)
         const player = room?.players.find(p => p.id === playerId)
-        if (!room || !player) return { success: false, error: 'Sala não encontrada' }
+        if (!room || !player) return { success: false, error: msg('room_not_found') }
         if (room.status !== 'playing' || room.currentRound?.phase !== 'revealed') {
-            return { success: false, error: 'Ainda não é hora da próxima rodada' }
+            return { success: false, error: msg('not_next_round_time') }
         }
 
         player.isReady = true
@@ -398,9 +471,9 @@ export class RoomManager {
     forceNextRound(hostId: string): Result {
         const room = this.getRoomOfPlayer(hostId)
         const host = room?.players.find(p => p.id === hostId)
-        if (!room || !host?.isHost) return { success: false, error: 'Só o anfitrião pode avançar' }
+        if (!room || !host?.isHost) return { success: false, error: msg('host_only_next') }
         if (room.status !== 'playing' || room.currentRound?.phase !== 'revealed') {
-            return { success: false, error: 'Ainda não é hora da próxima rodada' }
+            return { success: false, error: msg('not_next_round_time') }
         }
         this.beginRound(room)
         return { success: true }
@@ -410,11 +483,11 @@ export class RoomManager {
     skipRound(hostId: string): Result {
         const room = this.getRoomOfPlayer(hostId)
         const host = room?.players.find(p => p.id === hostId)
-        if (!room || !host?.isHost) return { success: false, error: 'Só o anfitrião pode pular a rodada' }
+        if (!room || !host?.isHost) return { success: false, error: msg('host_only_skip') }
         if (room.status !== 'playing' || room.currentRound?.phase !== 'waiting_clue') {
-            return { success: false, error: 'Só dá para pular enquanto o Vidente pensa na dica' }
+            return { success: false, error: msg('skip_only_waiting_clue') }
         }
-        this.notify(room, 'warning', 'Rodada pulada pelo anfitrião')
+        this.notify(room, 'warning', msg('round_skipped_by_host'))
         this.beginRound(room)
         return { success: true }
     }
@@ -440,7 +513,7 @@ export class RoomManager {
             if (room.status === 'waiting') {
                 for (const player of [...room.players]) {
                     if (!player.isConnected && player.disconnectedAt !== null && now - player.disconnectedAt >= this.lobbyGraceMs) {
-                        this.removePlayer(room, player, 'saiu da sala', false)
+                        this.removePlayer(room, player, 'left', false)
                         changed = true
                     }
                 }
@@ -451,7 +524,7 @@ export class RoomManager {
             if (host && !host.isConnected && host.disconnectedAt !== null && now - host.disconnectedAt >= this.hostGraceMs) {
                 const newHost = ensureHost(room)
                 if (newHost && newHost.id !== host.id) {
-                    this.notify(room, 'info', `${newHost.nickname} agora é o anfitrião`)
+                    this.notify(room, 'info', msg('new_host', { name: newHost.nickname }))
                     changed = true
                 }
             }
@@ -494,8 +567,8 @@ export class RoomManager {
         }
     }
 
-    private notify(room: Room, kind: Notice['kind'], message: string): void {
-        this.transport.toRoom(room.code, 'room:notice', { kind, message })
+    private notify(room: Room, kind: Notice['kind'], message: Message): void {
+        this.transport.toRoom(room.code, 'room:notice', { kind, ...message })
     }
 
     private broadcastState(room: Room): void {
@@ -504,9 +577,10 @@ export class RoomManager {
         }
     }
 
-    private removePlayer(room: Room, player: Player, reason: string, broadcast = true): void {
+    private removePlayer(room: Room, player: Player, reason: GoneReason, broadcast = true): void {
         const wasHost = player.isHost
         this.cancelGone(player.id)
+        this.lastNeedleAt.delete(player.id)
         removePlayerFromRoom(room, player.id)
         this.playerRooms.delete(player.id)
         this.forgetSessions(player.id)
@@ -517,10 +591,10 @@ export class RoomManager {
             return
         }
 
-        this.notify(room, 'info', `${player.nickname} ${reason}`)
+        this.notify(room, 'info', msg(`player_${reason}`, { name: player.nickname }))
         if (wasHost) {
             const newHost = room.players.find(p => p.isHost)
-            if (newHost) this.notify(room, 'info', `${newHost.nickname} agora é o anfitrião`)
+            if (newHost) this.notify(room, 'info', msg('new_host', { name: newHost.nickname }))
         }
 
         this.afterPlayerGone(room, player, reason)
@@ -528,12 +602,13 @@ export class RoomManager {
     }
 
     /** Shared follow-up for disconnects, leaves and kicks during a game. */
-    private afterPlayerGone(room: Room, player: Player, reason: string): void {
+    private afterPlayerGone(room: Room, player: Player, reason: GoneReason): void {
         if (room.status !== 'playing' || !room.currentRound) return
 
         const connected = room.players.filter(p => p.isConnected)
-        if (room.players.length < LIMITS.MIN_PLAYERS) {
-            this.notify(room, 'warning', 'Jogadores insuficientes, a partida terminou')
+        const teamEmptied = room.settings.mode === 'teams' && ([0, 1] as TeamId[]).some(t => !room.players.some(p => p.team === t))
+        if (room.players.length < LIMITS.MIN_PLAYERS || teamEmptied) {
+            this.notify(room, 'warning', msg('not_enough_players_end'))
             this.clearTimers(room.code)
             finishGame(room)
             this.transport.toRoom(room.code, 'game:finished', room.winnerId)
@@ -543,8 +618,12 @@ export class RoomManager {
 
         const round = room.currentRound
         if (round.phase === 'waiting_clue' && round.seerId === player.id) {
-            this.notify(room, 'warning', `O Vidente ${player.nickname} ${reason}. Pulando a rodada.`)
+            this.notify(room, 'warning', msg(`seer_${reason}`, { name: player.nickname }))
             this.beginRound(room)
+        } else if (round.teamPlay) {
+            if (round.phase === 'guessing' && !activeTeamHasGuessers(room)) this.lockTeam(room)
+            else if (round.phase === 'side_guess' && !opposingTeamPresent(room)) this.endRound(room)
+            else if (round.phase === 'revealed' && allReady(room)) this.beginRound(room)
         } else if (round.phase === 'guessing' && allGuessersDone(room)) {
             this.endRound(room)
         } else if (round.phase === 'revealed' && allReady(room)) {
@@ -556,7 +635,14 @@ export class RoomManager {
         this.clearTimers(room.code)
         const round = startNewRound(room, this.clock.now(), this.rng)
         if (!round) {
-            // Nobody connected to be the seer; the sweep will clean up later.
+            if (room.settings.mode === 'teams' && room.status === 'playing') {
+                // Neither team can field a seer and a guesser anymore.
+                this.notify(room, 'warning', msg('not_enough_players_end'))
+                finishGame(room)
+                this.transport.toRoom(room.code, 'game:finished', room.winnerId)
+                this.broadcastState(room)
+            }
+            // FFA: nobody connected to be the seer; the sweep will clean up later.
             return
         }
         this.transport.toRoom(room.code, 'game:roundStart', round.roundNumber)
@@ -582,15 +668,34 @@ export class RoomManager {
         this.startPhaseTimer(room, 'next', room.settings.timeBetweenRounds)
     }
 
+    /** Team mode: locks the needle where the team left it (timer or nobody left to guess). */
+    private lockTeam(room: Room): void {
+        lockTeamGuess(room)
+        this.afterTeamLock(room)
+    }
+
+    private afterTeamLock(room: Room): void {
+        if (room.currentRound?.phase !== 'side_guess') return
+        this.broadcastState(room)
+        if (opposingTeamPresent(room)) {
+            this.startPhaseTimer(room, 'side', TEAM_RULES.SIDE_GUESS_SECONDS)
+        } else {
+            this.endRound(room)
+        }
+    }
+
     private onPhaseTimeout(code: string, phase: TimerPhase): void {
         const room = this.rooms.get(code)
         const round = room?.currentRound
         if (!room || !round || room.status !== 'playing') return
 
         if (phase === 'clue' && round.phase === 'waiting_clue') {
-            this.notify(room, 'warning', 'Tempo esgotado para a dica. Pulando a rodada.')
+            this.notify(room, 'warning', msg('clue_timeout_skip'))
             this.beginRound(room)
         } else if (phase === 'guess' && round.phase === 'guessing') {
+            if (round.teamPlay) this.lockTeam(room)
+            else this.endRound(room)
+        } else if (phase === 'side' && round.phase === 'side_guess') {
             this.endRound(room)
         } else if (phase === 'next' && round.phase === 'revealed') {
             this.beginRound(room)
