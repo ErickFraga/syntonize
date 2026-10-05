@@ -39,5 +39,8 @@ GitHub Actions) e conferir o visual das telas novas contra os mocks do canvas.
 ## P3 — polimento
 
 - [ ] **PWA.** Manifesto + ícone para "instalar" no celular.
-- [ ] **Logs estruturados e métricas.** Hoje é `console.log`.
-- [ ] **Dockerfile.** Para Cloud Run, VM da Oracle ou qualquer host com container.
+- [ ] **Métricas.** Os logs já são estruturados (JSON em produção; `LOG_LEVEL` e
+      `LOG_FORMAT`); faltam contadores (salas ativas, jogadores, erros) e um endpoint
+      de saúde/métricas.
+- [ ] **Validar a imagem Docker.** O `Dockerfile` existe, mas ainda não foi
+      construído num ambiente com Docker (o build e o start foram simulados sem ele).
