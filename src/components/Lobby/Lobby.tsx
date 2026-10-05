@@ -6,6 +6,7 @@ import { SETTINGS_OPTIONS, LIMITS, TEAM_RULES, settingOptionsFor } from '@/types
 import Avatar from '@/components/ui/Avatar'
 import TeamColumns from '@/components/TeamColumns/TeamColumns'
 import CardPackPicker from '@/components/CardPackPicker/CardPackPicker'
+import CustomCards from '@/components/CustomCards/CustomCards'
 import QrCode from '@/components/QrCode/QrCode'
 import { useT, type Translator } from '@/i18n/I18nProvider'
 import type { TranslationKey } from '@/i18n'
@@ -42,6 +43,8 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
     const connected = room.players.filter(p => p.isConnected).length
     const teams = room.settings.mode === 'teams'
     const teamsReady = !teams || ([0, 1] as TeamId[]).every(t => room.players.filter(p => p.team === t && p.isConnected).length >= TEAM_RULES.MIN_PER_TEAM)
+    // Guests get only the count (`roomViewFor`), the host gets the cards.
+    const customCount = room.customCardCount ?? room.settings.customCards.length
     const canStart = connected >= LIMITS.MIN_PLAYERS && teamsReady
 
     const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}/join/${room.code}` : `/join/${room.code}`
@@ -189,7 +192,15 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
                                 </div>
                             </div>
                         )}
-                        <CardPackPicker settings={room.settings} isHost={isHost} onUpdateSettings={onUpdateSettings} />
+                        <CardPackPicker settings={room.settings} isHost={isHost} customCount={customCount} onUpdateSettings={onUpdateSettings} />
+                        <CustomCards
+                            cards={room.settings.customCards}
+                            count={customCount}
+                            isHost={isHost}
+                            packCount={room.settings.packs.length}
+                            onUpdateSettings={onUpdateSettings}
+                            onNotify={onNotify}
+                        />
                         {(Object.keys(SETTINGS_OPTIONS) as NumericSetting[]).map(key => {
                             const meta = SETTING_LABELS[key]
                             const options = settingOptionsFor(room.settings.mode, key)

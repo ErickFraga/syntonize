@@ -10,7 +10,7 @@ declare module 'react' {
   export interface SyntheticEvent<T = Element> { currentTarget: T; target: EventTarget & T; preventDefault(): void; stopPropagation(): void }
   export interface FormEvent<T = Element> extends SyntheticEvent<T> {}
   export interface ChangeEvent<T = Element> extends SyntheticEvent<T> {}
-  export interface KeyboardEvent<T = Element> extends SyntheticEvent<T> { key: string; shiftKey: boolean }
+  export interface KeyboardEvent<T = Element> extends SyntheticEvent<T> { key: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }
   export interface PointerEvent<T = Element> extends SyntheticEvent<T> { pointerId: number; clientX: number; clientY: number }
   export interface MouseEvent<T = Element> extends SyntheticEvent<T> { clientX: number; clientY: number }
   export type DOMAttributes<T> = {
