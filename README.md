@@ -92,7 +92,17 @@ outro loop que comece e termine no mesmo ponto do compasso, sem fade.
 npm test           # casos de uso do servidor (node:test, relógio falso, sem rede)
 npm run typecheck  # tsc --noEmit
 npm run lint       # next lint
+npm run e2e        # teste de fluxo com prints (Playwright), veja abaixo
 ```
+
+### Teste de fluxo com prints
+
+`npm run e2e` sobe o servidor de verdade e joga uma partida com dois navegadores
+(criar sala, entrar pelo convite, dica, palpite arrastando o dial, revelação e
+rodada 2), no desktop e no celular, nos temas escuro e claro. Cada tela vira um
+print em `e2e/prints/` (galeria em `e2e/prints/index.html`). Na CI os prints
+ficam no artefato **prints-do-fluxo** de cada execução. Detalhes em
+[`e2e/README.md`](./e2e/README.md).
 
 ## Como o jogo funciona
 
