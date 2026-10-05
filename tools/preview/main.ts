@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { jsx } from './shims/jsx-runtime.ts'
 import { renderToString } from './render.ts'
 import type { Room, Player, GameRound, ChatMessage } from '../../shared/types.ts'
@@ -207,6 +207,7 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
 }
 
 g.__params = { code: 'K7PX2Q' }
+mkdirSync(`${import.meta.dir}/out`, { recursive: true })
 
 // Same screens in other interface languages (the shim's useContext reads the context default).
 for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-revealed', 'lobby-qr', 'game-chat-open']], ['es', ['lobby-guest', 'team-side-guess', 'results']]] as const) {
