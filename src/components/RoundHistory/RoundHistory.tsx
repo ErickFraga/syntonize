@@ -190,7 +190,7 @@ function RoundEntry({ round, room, meId }: { round: GameRound; room: Room; meId:
         <article className={styles.entry} aria-label={t('common.round', { n: round.roundNumber })}>
             <header className={styles.entryHead}>
                 <span className="chip chip-accent">{t('common.round', { n: round.roundNumber })}</span>
-                {play && <TeamChip team={play.team} />}
+                {play && room.settings.mode !== 'coop' && <TeamChip team={play.team} />}
                 <SeerLine seer={seer} gone={gone(round.seerId)} isMe={round.seerId === meId} />
             </header>
 
@@ -207,7 +207,7 @@ function RoundEntry({ round, room, meId }: { round: GameRound; room: Room; meId:
                 {round.clue && <p className={styles.clue}>&ldquo;{round.clue}&rdquo;</p>}
             </div>
 
-            {play ? <TeamOutcome round={round} who={who} /> : (
+            {play ? <TeamOutcome round={round} who={who} coop={room.settings.mode === 'coop'} /> : (
                 <ul className={styles.rows}>
                     {Object.entries(round.scores)
                         .map(([id, points]) => ({ id, points, isSeer: id === round.seerId }))
@@ -242,7 +242,7 @@ function RoundEntry({ round, room, meId }: { round: GameRound; room: Room; meId:
     )
 }
 
-function TeamOutcome({ round, who }: { round: GameRound; who: (id: string | null) => RoundPlayer | undefined }) {
+function TeamOutcome({ round, who, coop }: { round: GameRound; who: (id: string | null) => RoundPlayer | undefined; coop: boolean }) {
     const { t, rich } = useT()
     const play = round.teamPlay!
     const active = play.team
@@ -256,7 +256,7 @@ function TeamOutcome({ round, who }: { round: GameRound; who: (id: string | null
             <li className={`${styles.row} ${styles.teamRow}`} style={teamStyle(active)}>
                 <span className={styles.dot} />
                 <span className={styles.teamText}>
-                    <strong>{t(teamKey(active))}</strong>
+                    <strong>{coop ? t('coop.team') : t(teamKey(active))}</strong>
                     <span className={styles.teamLine}>
                         <span className={`${gameStyles.zoneTag} ${gameStyles[`zoneTag${zone}`]} ${styles.zone}`}>{zone}</span>
                         {t(ZONE_LABEL[zone])} · {t('history.teamGuess', { n: play.guess ?? '' })}{lockedBy ? t('teamGame.lockedBy', { name: lockedBy.nickname }) : ''}
@@ -264,7 +264,7 @@ function TeamOutcome({ round, who }: { round: GameRound; who: (id: string | null
                 </span>
                 <span className={`${styles.points} ${play.points[active] === 0 ? styles.pointsZero : ''}`}>+{play.points[active]}</span>
             </li>
-            <li className={`${styles.row} ${styles.teamRow}`} style={teamStyle(other)}>
+            {!coop && <li className={`${styles.row} ${styles.teamRow}`} style={teamStyle(other)}>
                 <span className={styles.dot} />
                 <span className={styles.teamText}>
                     <strong>{t(teamKey(other))}</strong>
@@ -275,7 +275,7 @@ function TeamOutcome({ round, who }: { round: GameRound; who: (id: string | null
                     </span>
                 </span>
                 <span className={`${styles.points} ${play.points[other] === 0 ? styles.pointsZero : ''}`}>+{play.points[other]}</span>
-            </li>
+            </li>}
         </ul>
     )
 }

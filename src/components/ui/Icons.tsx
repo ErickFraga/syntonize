@@ -33,6 +33,10 @@ export const ArrowRightIcon = (p: IconProps) => (
     <Icon {...p}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></Icon>
 )
 
+export const ShuffleIcon = (p: IconProps) => (
+    <Icon {...p}><path d="M16 3h5v5" /><path d="M4 20 21 3" /><path d="M21 16v5h-5" /><path d="m15 15 6 6" /><path d="M4 4l5 5" /></Icon>
+)
+
 export const PlayIcon = (p: IconProps) => (
     <Icon {...p}><polygon points="6 3 20 12 6 21 6 3" fill="currentColor" stroke="none" /></Icon>
 )

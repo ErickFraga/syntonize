@@ -63,7 +63,10 @@ tempo acabou enquanto o servidor estava fora avança na hora.
 
 | Variável | Efeito |
 |---|---|
+| `TRUSTED_PROXY_HOPS` (opcional) | Quantos proxies à frente do servidor acrescentam o IP ao `X-Forwarded-For` (padrão `1`, o balanceador do Render). Usado no rate limiting por IP. |
 | `REDIS_URL` (opcional) | `redis://[usuário:senha@]host[:porta][/db]` ou `rediss://` (TLS). Salas gravadas no Redis com TTL de 24 h renovado a cada alteração. |
+| `LOG_LEVEL` (opcional) | `debug`, `info` (padrão), `warn` ou `error`. |
+| `LOG_FORMAT` (opcional) | `json` (padrão em produção, uma linha por evento) ou `text` (padrão em dev). |
 | *(sem `REDIS_URL`)* | Memória do processo, como antes: reiniciar derruba as partidas. |
 
 O `render.yaml` cria um **Key Value** grátis (`syntonize-kv`, 25 MB, mesma região) e passa a URL
@@ -92,7 +95,17 @@ outro loop que comece e termine no mesmo ponto do compasso, sem fade.
 npm test           # casos de uso do servidor (node:test, relógio falso, sem rede)
 npm run typecheck  # tsc --noEmit
 npm run lint       # next lint
+npm run e2e        # teste de fluxo com prints (Playwright), veja abaixo
 ```
+
+### Teste de fluxo com prints
+
+`npm run e2e` sobe o servidor de verdade e joga uma partida com dois navegadores
+(criar sala, entrar pelo convite, dica, palpite arrastando o dial, revelação e
+rodada 2), no desktop e no celular, nos temas escuro e claro. Cada tela vira um
+print em `e2e/prints/` (galeria em `e2e/prints/index.html`). Na CI os prints
+ficam no artefato **prints-do-fluxo** de cada execução. Detalhes em
+[`e2e/README.md`](./e2e/README.md).
 
 ## Como o jogo funciona
 
