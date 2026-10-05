@@ -1,0 +1,65 @@
+.packs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.pack {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 0 12px 0 8px;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-full);
+    transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+
+.pack:hover:not(:disabled) {
+    color: var(--text);
+    background: var(--surface-2);
+    border-color: var(--line-2);
+}
+
+.pack:disabled {
+    cursor: default;
+}
+
+.check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid var(--line-2);
+    flex-shrink: 0;
+}
+
+.packOn,
+.packOn:disabled {
+    color: var(--text);
+    border-color: rgba(143, 123, 255, 0.55);
+    background: rgba(143, 123, 255, 0.14);
+}
+
+.packOn .check {
+    color: var(--on-accent);
+    border-color: transparent;
+    background: var(--brand-gradient);
+}
+
+.packName {
+    white-space: nowrap;
+}
+
+.packCount {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-3);
+    white-space: nowrap;
+}

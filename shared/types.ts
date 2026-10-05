@@ -35,11 +35,24 @@ export type Side = 'left' | 'right'
 // CARDS & ROUNDS
 // ============================================
 
+/** Themed card packs the host can mix. */
+export const CARD_PACKS = ['classic', 'food', 'pop', 'people', 'spicy'] as const
+export type CardPack = (typeof CARD_PACKS)[number]
+
+/** Languages the deck is printed in (chosen by the host, independent of each player's UI). */
+export const CARD_LOCALES = ['pt-BR', 'en', 'es'] as const
+export type CardLocale = (typeof CARD_LOCALES)[number]
+
 export interface SpectrumCard {
+    /** Same id for the same card in every language. */
     id: number
+    pack: CardPack
     leftConcept: string
     rightConcept: string
 }
+
+/** Raw deck of one language: [id, left, right] per card, grouped by pack. */
+export type CardTextDeck = Record<CardPack, Array<[id: number, left: string, right: string]>>
 
 /**
  * `side_guess` only exists in team mode: after the active team locks its
@@ -119,6 +132,10 @@ export interface RoomSettings {
     mode: GameMode
     /** Team mode: a team that hits the bullseye while behind plays again. */
     catchUp: boolean
+    /** Language of the cards, picked by the host for the whole room. */
+    cardLocale: CardLocale
+    /** Active card packs (at least one). */
+    packs: CardPack[]
 }
 
 export type RoomStatus = 'waiting' | 'playing' | 'finished'
@@ -177,7 +194,7 @@ export const MESSAGE_CODES = [
     'host_only_kick', 'player_not_found', 'cannot_kick_self', 'host_only_settings', 'settings_lobby_only',
     'host_only_move', 'teams_lobby_only', 'invalid_team', 'host_only_start', 'host_only_lobby',
     'needle_throttled', 'not_next_round_time', 'host_only_next', 'host_only_skip', 'skip_only_waiting_clue',
-    'not_in_room',
+    'not_in_room', 'packs_empty',
     // room notices
     'player_joined', 'player_left', 'player_kicked', 'player_disconnected', 'new_host', 'back_to_lobby',
     'round_skipped_by_host', 'seer_left', 'seer_kicked', 'seer_disconnected', 'clue_timeout_skip',
@@ -294,6 +311,8 @@ export const DEFAULT_SETTINGS: RoomSettings = {
     timeBetweenRounds: 15,
     mode: 'ffa',
     catchUp: true,
+    cardLocale: 'pt-BR',
+    packs: ['classic'],
 }
 
 /** Default and allowed target scores in team mode (team points add up slower). */
