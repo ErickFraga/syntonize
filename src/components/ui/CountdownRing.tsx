@@ -1,5 +1,6 @@
 'use client'
 
+import { useT } from '@/i18n/I18nProvider'
 import styles from './CountdownRing.module.css'
 
 interface CountdownRingProps {
@@ -11,13 +12,14 @@ interface CountdownRingProps {
 
 /** Circular countdown; turns orange under 10s and red under 5s. */
 export default function CountdownRing({ seconds, total, label, size = 56 }: CountdownRingProps) {
+    const { t } = useT()
     const radius = 22
     const circumference = 2 * Math.PI * radius
     const ratio = total > 0 ? Math.max(0, Math.min(1, seconds / total)) : 0
     const tone = seconds <= 5 ? styles.danger : seconds <= 10 ? styles.warning : ''
 
     return (
-        <div className={`${styles.ring} ${tone}`} style={{ width: size, height: size }} role="timer" aria-label={`${seconds} segundos`}>
+        <div className={`${styles.ring} ${tone}`} style={{ width: size, height: size }} role="timer" aria-label={t('timer.seconds', { count: seconds })}>
             <svg viewBox="0 0 56 56" aria-hidden="true">
                 <circle className={styles.track} cx="28" cy="28" r={radius} />
                 <circle

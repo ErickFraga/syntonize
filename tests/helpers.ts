@@ -3,7 +3,7 @@
 
 import type { Clock, Transport, TimerHandle } from '../server/roomManager.ts'
 import { RoomManager, type RoomManagerOptions } from '../server/roomManager.ts'
-import type { Room, ServerToClientEvents } from '../shared/types.ts'
+import type { Room, ServerToClientEvents, Notice } from '../shared/types.ts'
 
 interface ScheduledTimer {
     id: number
@@ -88,8 +88,13 @@ export class RecordingTransport implements Transport {
         return this.events.filter(e => e.event === event && e.target.kind === 'player' && e.target.id === playerId)
     }
 
-    notices(): string[] {
-        return this.roomEvents('room:notice').map(e => (e.args[0] as { message: string }).message)
+    notices(): Notice[] {
+        return this.roomEvents('room:notice').map(e => e.args[0] as Notice)
+    }
+
+    /** Whether the room got a notice with this code (and these params, if given). */
+    hasNotice(code: Notice['code'], params?: Notice['params']): boolean {
+        return this.notices().some(n => n.code === code && (!params || Object.entries(params).every(([k, v]) => n.params?.[k] === v)))
     }
 
     clear(): void {
@@ -125,12 +130,12 @@ export interface Seat {
 /** Creates a room with `names[0]` as host and the rest joined, in order. */
 export function makeRoom(h: Harness, names: string[]): { code: string; seats: Seat[] } {
     const created = h.manager.createRoom(names[0])
-    if (!created.success || !created.data) throw new Error(created.error)
+    if (!created.success || !created.data) throw new Error(created.error?.code)
     const code = created.data.room.code
     const seats: Seat[] = [{ id: created.data.playerId, token: created.data.sessionToken }]
     for (const name of names.slice(1)) {
         const joined = h.manager.joinRoom(code, name)
-        if (!joined.success || !joined.data) throw new Error(joined.error)
+        if (!joined.success || !joined.data) throw new Error(joined.error?.code)
         seats.push({ id: joined.data.playerId, token: joined.data.sessionToken })
     }
     return { code, seats }
@@ -139,6 +144,6 @@ export function makeRoom(h: Harness, names: string[]): { code: string; seats: Se
 /** Starts the game and returns the room; seer of round 1 is the host. */
 export function startGame(h: Harness, hostId: string): Room {
     const result = h.manager.startGame(hostId)
-    if (!result.success) throw new Error(result.error)
+    if (!result.success) throw new Error(result.error?.code)
     return h.manager.getRoomOfPlayer(hostId)!
 }

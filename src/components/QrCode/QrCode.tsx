@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { encodeQr, qrToSvgPath } from '@/lib/qrcode'
 import { XIcon } from '@/components/ui/Icons'
+import { useT } from '@/i18n/I18nProvider'
 import styles from './QrCode.module.css'
 
 /** Light margin around the code, in modules (the standard asks for 4 so scanners lock on). */
@@ -41,6 +42,7 @@ interface QrFullscreenProps {
 
 /** Full-screen view so a whole table can point their phones at it. Closes on Esc or any click. */
 export function QrFullscreen({ value, code, onClose }: QrFullscreenProps) {
+    const { t } = useT()
     const closeRef = useRef<HTMLButtonElement>(null)
 
     useEffect(() => {
@@ -57,15 +59,15 @@ export function QrFullscreen({ value, code, onClose }: QrFullscreenProps) {
     }, [onClose])
 
     return (
-        <div className={styles.overlay} role="dialog" aria-modal="true" aria-label="QR code da sala" onClick={onClose}>
-            <button ref={closeRef} className={`btn btn-ghost ${styles.close}`} onClick={onClose} aria-label="Fechar">
+        <div className={styles.overlay} role="dialog" aria-modal="true" aria-label={t('qr.dialog')} onClick={onClose}>
+            <button ref={closeRef} className={`btn btn-ghost ${styles.close}`} onClick={onClose} aria-label={t('qr.close')}>
                 <XIcon size={20} />
             </button>
             <div className={styles.big}>
-                <QrSvg value={value} label={`QR code do convite para a sala ${code}`} />
+                <QrSvg value={value} label={t('qr.label', { code })} />
             </div>
             <div className={styles.bigCaption}>
-                <span className={styles.bigLabel}>Aponte a câmera para entrar</span>
+                <span className={styles.bigLabel}>{t('qr.scanHint')}</span>
                 <span className={styles.bigCode}>{code}</span>
             </div>
         </div>
@@ -81,10 +83,11 @@ interface QrCodeProps {
 }
 
 export default function QrCode({ value, code, className }: QrCodeProps) {
+    const { t } = useT()
     const [open, setOpen] = useState(false)
     return (
         <>
-            <button className={`${styles.thumb} ${className ?? ''}`} onClick={() => setOpen(true)} title="Ampliar QR code" aria-label={`Ampliar QR code do convite para a sala ${code}`}>
+            <button className={`${styles.thumb} ${className ?? ''}`} onClick={() => setOpen(true)} title={t('qr.expand')} aria-label={t('qr.expandLabel', { code })}>
                 <QrSvg value={value} />
                 <span className={styles.thumbHint}><ExpandIcon /></span>
             </button>

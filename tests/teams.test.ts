@@ -82,7 +82,7 @@ describe('teams: lobby', () => {
         const { h, code, ids } = setup(['Ana', 'Bia', 'Caio'])
         const fail = h.manager.startGame(ids[0])
         assert.equal(fail.success, false)
-        assert.match(fail.error!, /Cada time/)
+        assert.deepEqual(fail.error, { code: 'team_needs_players', params: { min: TEAM_RULES.MIN_PER_TEAM } })
         h.manager.joinRoom(code, 'Duda')
         assert.equal(h.manager.startGame(ids[0]).success, true)
     })
@@ -348,7 +348,7 @@ describe('teams: resilience', () => {
         h.manager.forceNextRound(ana)
         assert.equal(room.status, 'finished')
         assert.equal(room.winnerTeam, 0)
-        assert.ok(h.transport.notices().some(m => /insuficientes/.test(m)))
+        assert.ok(h.transport.hasNotice('not_enough_players_end'))
     })
 
     test('a team left with nobody ends the game', () => {
