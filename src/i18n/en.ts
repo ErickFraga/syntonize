@@ -187,6 +187,7 @@ export const en: Dictionary = {
     'team.0': 'Team Blue',
     'team.1': 'Team Orange',
     'teams.move': 'Move {name} to {team}',
+    'teams.shuffle': 'Shuffle teams',
     'teams.needs': 'Needs {min} players',
     'teams.join': 'Join {team}',
 
@@ -247,6 +248,8 @@ export const en: Dictionary = {
     'teamGame.lockedBy': ' by {name}',
     'teamGame.sideQuestion': 'Is the target left or right of the needle?',
     'teamGame.sideWorth': { one: 'Getting it right is worth {count} point for {team}. Anyone on the team can call it.', other: 'Getting it right is worth {count} points for {team}. Anyone on the team can call it.' },
+    'teamGame.confirm': 'Confirm',
+    'teamGame.confirmSide': 'Confirm {side}',
     'teamGame.left': 'Left',
     'teamGame.right': 'Right',
     'teamGame.otherCalling': '{team} is calling whether the target is left or right…',

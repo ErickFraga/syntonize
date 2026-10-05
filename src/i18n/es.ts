@@ -187,6 +187,7 @@ export const es: Dictionary = {
     'team.0': 'Equipo Azul',
     'team.1': 'Equipo Naranja',
     'teams.move': 'Pasar a {name} al {team}',
+    'teams.shuffle': 'Mezclar equipos',
     'teams.needs': 'Necesita {min} jugadores',
     'teams.join': 'Unirme al {team}',
 
@@ -247,6 +248,8 @@ export const es: Dictionary = {
     'teamGame.lockedBy': ' ({name})',
     'teamGame.sideQuestion': '¿El objetivo está a la izquierda o a la derecha de la aguja?',
     'teamGame.sideWorth': { one: 'Acertar vale {count} punto para el {team}. Cualquiera del equipo puede elegir.', other: 'Acertar vale {count} puntos para el {team}. Cualquiera del equipo puede elegir.' },
+    'teamGame.confirm': 'Confirmar',
+    'teamGame.confirmSide': 'Confirmar {side}',
     'teamGame.left': 'Izquierda',
     'teamGame.right': 'Derecha',
     'teamGame.otherCalling': 'El {team} está apostando si el objetivo está a la izquierda o a la derecha…',

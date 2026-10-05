@@ -45,6 +45,7 @@ import {
     resetGameState,
     roomViewFor,
     setPlayerTeam,
+    shuffleTeams,
     moveTeamNeedle,
     lockTeamGuess,
     submitSideGuess,
@@ -396,6 +397,18 @@ export class RoomManager {
         if (room.status !== 'waiting') return { success: false, error: msg('teams_lobby_only') }
         if (team !== 0 && team !== 1) return { success: false, error: msg('invalid_team') }
         if (!setPlayerTeam(room, targetId, team)) return { success: false, error: msg('player_not_found') }
+        this.broadcastState(room)
+        return { success: true }
+    }
+
+    /** Lobby, team mode: the host reshuffles everyone into balanced teams. */
+    shuffleTeams(hostId: string): Result {
+        const room = this.getRoomOfPlayer(hostId)
+        if (!room) return { success: false, error: msg('room_not_found') }
+        const host = room.players.find(p => p.id === hostId)
+        if (!host?.isHost) return { success: false, error: msg('host_only_move') }
+        if (room.status !== 'waiting') return { success: false, error: msg('teams_lobby_only') }
+        shuffleTeams(room, this.rng)
         this.broadcastState(room)
         return { success: true }
     }

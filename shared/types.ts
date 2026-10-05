@@ -384,6 +384,7 @@ export interface ClientToServerEvents {
     'room:kick': (playerId: string, callback: (result: SimpleResult) => void) => void
     'room:updateSettings': (settings: Partial<RoomSettings>, callback: (result: SimpleResult) => void) => void
     'room:setTeam': (playerId: string, team: TeamId, callback: (result: SimpleResult) => void) => void
+    'room:shuffleTeams': (callback?: (result: SimpleResult) => void) => void
     'game:start': (callback?: (result: SimpleResult) => void) => void
     'game:giveClue': (clue: string, callback?: (result: SimpleResult) => void) => void
     'game:submitGuess': (position: number, callback?: (result: SimpleResult) => void) => void

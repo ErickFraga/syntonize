@@ -60,6 +60,22 @@ describe('teams: lobby', () => {
         assert.equal(room.settings.catchUp, false)
     })
 
+    test('the host shuffles teams into balanced halves, only in the lobby', () => {
+        const { h, ids } = setup(['Ana', 'Bia', 'Caio', 'Duda', 'Eva'])
+        const [ana, bia] = ids
+        const room = h.manager.getRoomOfPlayer(ana)!
+        assert.equal(h.manager.shuffleTeams(bia).success, false, 'not host')
+        for (let i = 0; i < 5; i++) {
+            assert.equal(h.manager.shuffleTeams(ana).success, true)
+            const sizes = [0, 1].map(t => room.players.filter(p => p.team === t).length).sort()
+            assert.deepEqual(sizes, [2, 3])
+        }
+        h.manager.setTeam(ana, ana, 0)
+        h.manager.setTeam(ana, ids[2], 1)
+        startGame(h, ana)
+        assert.equal(h.manager.shuffleTeams(ana).success, false, 'locked during the game')
+    })
+
     test('players switch their own team, only the host moves others, only in the lobby', () => {
         const { h, ids } = setup()
         const [ana, bia, caio] = ids

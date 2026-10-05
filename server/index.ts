@@ -212,6 +212,13 @@ app.prepare().then(async () => {
             callback({ success: result.success, error: result.error })
         })
 
+        socket.on('room:shuffleTeams', (callback) => {
+            const playerId = currentPlayerId(socket)
+            if (!playerId) return callback?.({ success: false, error: msg('not_in_room') })
+            const result = manager.shuffleTeams(playerId)
+            callback?.({ success: result.success, error: result.error })
+        })
+
         const withPlayer = (fn: (playerId: string) => SimpleResult) =>
             (callback?: (result: SimpleResult) => void) => {
                 const playerId = currentPlayerId(socket)

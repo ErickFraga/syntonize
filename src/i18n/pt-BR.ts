@@ -201,6 +201,7 @@ export const ptBR = {
     'team.0': 'Time Azul',
     'team.1': 'Time Laranja',
     'teams.move': 'Mover {name} para o {team}',
+    'teams.shuffle': 'Embaralhar times',
     'teams.needs': 'Precisa de {min} jogadores',
     'teams.join': 'Entrar no {team}',
 
@@ -263,6 +264,8 @@ export const ptBR = {
     'teamGame.lockedBy': ' por {name}',
     'teamGame.sideQuestion': 'O alvo está à esquerda ou à direita do ponteiro?',
     'teamGame.sideWorth': { one: 'Acertar vale {count} ponto para o {team}. Qualquer um do time pode escolher.', other: 'Acertar vale {count} pontos para o {team}. Qualquer um do time pode escolher.' },
+    'teamGame.confirm': 'Confirmar',
+    'teamGame.confirmSide': 'Confirmar {side}',
     'teamGame.left': 'Esquerda',
     'teamGame.right': 'Direita',
     'teamGame.otherCalling': 'O {team} está chutando se o alvo está à esquerda ou à direita…',
