@@ -90,6 +90,7 @@ outro loop que comece e termine no mesmo ponto do compasso, sem fade.
 
 ```bash
 npm test           # casos de uso do servidor (node:test, relógio falso, sem rede)
+npm run test:components  # componentes React (Vitest + Testing Library, jsdom)
 npm run typecheck  # tsc --noEmit
 npm run lint       # next lint
 npm run e2e        # teste de fluxo com prints (Playwright), veja abaixo

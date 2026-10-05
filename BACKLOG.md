@@ -36,8 +36,6 @@ GitHub Actions) e conferir o visual das telas novas contra os mocks do canvas.
       Limitar por IP/socket.
 - [ ] **Expiração de token de sessão.** Hoje o token vive até a sala morrer; com
       persistência, dar TTL.
-- [ ] **Testes de componente.** Formalizar com Vitest + Testing Library o que o
-      `tools/preview` faz hoje (Dial: ângulo e teclado; Game: painéis por fase).
 
 ## P3 — polimento
 
