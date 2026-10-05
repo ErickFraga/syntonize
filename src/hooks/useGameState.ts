@@ -54,7 +54,7 @@ export function useGameState() {
     const playerIdRef = useRef<string | null>(null)
     playerIdRef.current = playerId
     const roomRef = useRef<Room | null>(null)
-    roomRef.current = room
+    roomRef.current = roomState
     /** The socket dropped while we were in a room (server restart, flaky network). */
     const droppedInRoom = useRef(false)
     const needleSend = useRef<{ last: number; pending: number | null; timer: number | null }>({ last: 0, pending: null, timer: null })
