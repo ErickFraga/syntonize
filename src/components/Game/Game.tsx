@@ -6,7 +6,7 @@ import { LIMITS } from '@/types/game'
 import Dial, { type DialMarker } from '@/components/Dial/Dial'
 import Avatar from '@/components/ui/Avatar'
 import CountdownRing from '@/components/ui/CountdownRing'
-import { EyeIcon, LockIcon, CheckIcon, SkipIcon, LightbulbIcon, ChevronRightIcon, SparklesIcon } from '@/components/ui/Icons'
+import { EyeIcon, LockIcon, CheckIcon, SkipIcon, LightbulbIcon, ChevronLeftIcon, ChevronRightIcon, SparklesIcon } from '@/components/ui/Icons'
 import Scoreboard from './Scoreboard'
 import { sounds } from '@/lib/sounds'
 import styles from './Game.module.css'
@@ -151,8 +151,8 @@ export default function Game({
                     />
 
                     <div className={styles.concepts}>
-                        <span className={styles.conceptLeft}>◀ {round.spectrumCard.leftConcept}</span>
-                        <span className={styles.conceptRight}>{round.spectrumCard.rightConcept} ▶</span>
+                        <span className={styles.conceptLeft}><ChevronLeftIcon size={22} strokeWidth={3.2} /> {round.spectrumCard.leftConcept}</span>
+                        <span className={styles.conceptRight}>{round.spectrumCard.rightConcept} <ChevronRightIcon size={22} strokeWidth={3.2} /></span>
                     </div>
 
                     <div className={styles.clueArea}>
@@ -234,21 +234,15 @@ export default function Game({
                     {phase === 'guessing' && !isSeer && !hasLocked && (
                         <div className={styles.guessPanel}>
                             <div className={styles.guessHint}>
-                                <p>Arraste o ponteiro para onde você acha que está o alvo.</p>
+                                <p>Toque ou arraste no mostrador: o ponteiro vai para onde você apontar.</p>
                                 <span className={styles.needleValue}>{needle}</span>
                             </div>
                             <div className={styles.fineTune}>
-                                <button className="btn btn-secondary btn-sm" onClick={() => setNeedle(v => Math.max(0, v - 1))} aria-label="Um para a esquerda">−1</button>
-                                <input
-                                    type="range"
-                                    min={0}
-                                    max={100}
-                                    value={needle}
-                                    onChange={(e) => setNeedle(Number(e.target.value))}
-                                    className={styles.range}
-                                    aria-label="Posição do ponteiro"
-                                />
-                                <button className="btn btn-secondary btn-sm" onClick={() => setNeedle(v => Math.min(100, v + 1))} aria-label="Um para a direita">+1</button>
+                                <span className="eyebrow">Ajuste fino</span>
+                                <span className={styles.fineTuneButtons}>
+                                    <button className="btn btn-secondary btn-sm" onClick={() => setNeedle(v => Math.max(0, v - 1))} aria-label="Um para a esquerda">−1</button>
+                                    <button className="btn btn-secondary btn-sm" onClick={() => setNeedle(v => Math.min(100, v + 1))} aria-label="Um para a direita">+1</button>
+                                </span>
                             </div>
                             <button className="btn btn-primary btn-lg btn-block" onClick={lockGuess}>
                                 <LockIcon /> Travar palpite

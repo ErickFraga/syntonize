@@ -8,7 +8,8 @@ import { LIMITS, SCORING } from '@/types/game'
 import Logo from '@/components/ui/Logo'
 import Dial from '@/components/Dial/Dial'
 import Toasts from '@/components/ui/Toasts'
-import { SparklesIcon, ArrowRightIcon, EyeIcon, LightbulbIcon, TargetIcon, TrophyIcon } from '@/components/ui/Icons'
+import { SparklesIcon, ArrowRightIcon, EyeIcon, LightbulbIcon, TargetIcon, TrophyIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/ui/Icons'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 import styles from './page.module.css'
 
 export default function Home() {
@@ -57,18 +58,22 @@ export default function Home() {
     <main className={styles.page}>
       <Toasts toasts={toasts} />
 
+      <div className={styles.topbar}>
+        <ThemeToggle />
+      </div>
+
       <section className={styles.hero}>
         <div className={`${styles.heroText} anim-fade-up`}>
           <Logo size="lg" />
           <h1 className={styles.tagline}>
-            Leia a mente dos <span className="text-gradient">seus amigos</span>
+            Leia a mente dos <span className="text-accent">seus amigos</span>
           </h1>
           <p className={styles.lead}>
             Um Vidente vê o alvo escondido no espectro e dá uma dica. Todo mundo tenta cravar onde ele está.
             Versão online do jogo de tabuleiro <strong>SINTONIA</strong> (Wavelength), de graça e sem instalar nada.
           </p>
           <div className={styles.heroFacts}>
-            <span className="chip chip-teal">{LIMITS.MIN_PLAYERS}–{LIMITS.MAX_PLAYERS} jogadores</span>
+            <span className="chip chip-sky">{LIMITS.MIN_PLAYERS}–{LIMITS.MAX_PLAYERS} jogadores</span>
             <span className="chip chip-pink">celular ou PC</span>
             <span className="chip chip-orange">partidas de 15 min</span>
           </div>
@@ -77,10 +82,10 @@ export default function Home() {
         <div className={`card-solid ${styles.demo} anim-fade-up`} style={{ animationDelay: '0.1s' }}>
           <Dial target={62} needle={demoNeedle} onNeedleChange={setDemoNeedle} interactive />
           <div className={styles.demoConcepts}>
-            <span>◀ Comida de criança</span>
-            <span>Comida de adulto ▶</span>
+            <span><ChevronLeftIcon size={18} strokeWidth={3.2} /> Comida de criança</span>
+            <span>Comida de adulto <ChevronRightIcon size={18} strokeWidth={3.2} /></span>
           </div>
-          <p className={styles.demoHint}>experimenta arrastar o ponteiro</p>
+          <p className={styles.demoHint}>experimenta tocar no mostrador</p>
         </div>
       </section>
 

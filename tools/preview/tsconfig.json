@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "paths": {
+      "react": ["./shims/react.ts"],
+      "react/jsx-runtime": ["./shims/jsx-runtime.ts"],
+      "react/jsx-dev-runtime": ["./shims/jsx-runtime.ts"],
+      "next/navigation": ["./shims/next-navigation.ts"],
+      "next/font/google": ["./shims/next-font-google.ts"],
+      "socket.io-client": ["./shims/socket-io-client.ts"],
+      "@/*": ["../../src/*"],
+      "@shared/*": ["../../shared/*"]
+    }
+  }
+}

@@ -9,7 +9,7 @@
     padding-bottom: 32px;
 }
 
-/* Confetti */
+/* Confete */
 .confetti {
     position: fixed;
     inset: 0;
@@ -24,7 +24,8 @@
     width: 10px;
     height: 16px;
     border-radius: 2px;
-    opacity: 0.9;
+    border: 1.5px solid var(--line);
+    opacity: 0.95;
     animation: confettiFall linear infinite;
 }
 
@@ -59,21 +60,20 @@
     height: 72px;
     margin-bottom: 8px;
     border-radius: 50%;
-    color: var(--on-accent);
-    background: linear-gradient(135deg, #ffd166, #ff9f1c);
-    box-shadow: 0 12px 40px rgba(255, 159, 28, 0.45);
+    border: var(--outline);
+    color: #1B0F2B;
+    background: var(--yellow);
+    box-shadow: var(--shadow-lg);
     animation: float 3s ease-in-out infinite;
 }
 
 .title {
-    font-size: clamp(34px, 6vw, 56px);
-    background: var(--brand-gradient);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: clamp(34px, 6vw, 54px);
+    letter-spacing: -0.025em;
+    color: var(--sky);
 }
 
-/* Podium */
+/* Pódio */
 .podium {
     position: relative;
     display: grid;
@@ -111,13 +111,13 @@
     font-size: 10px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--teal);
+    color: var(--text-2);
 }
 
 .podiumScore {
     font-family: var(--font-display);
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 800;
     color: var(--text-2);
 }
 
@@ -129,32 +129,33 @@
     padding-top: 12px;
     font-family: var(--font-display);
     font-size: 26px;
-    font-weight: 700;
-    color: var(--on-accent);
-    border-radius: 14px 14px 0 0;
-    box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.25), 0 20px 40px rgba(0, 0, 0, 0.35);
+    font-weight: 900;
+    color: #1B0F2B;
+    border: var(--outline);
+    border-bottom: none;
+    border-radius: 16px 16px 0 0;
 }
 
 .place1 .podiumBlock {
     height: 120px;
-    background: linear-gradient(180deg, #ffd166, #ff9f1c);
+    background: var(--yellow);
 }
 
 .place2 .podiumBlock {
     height: 86px;
-    background: linear-gradient(180deg, #d9d9e6, #a9a9bf);
+    background: var(--lilac);
 }
 
 .place3 .podiumBlock {
     height: 64px;
-    background: linear-gradient(180deg, #e5a06b, #b9733f);
+    background: var(--orange);
 }
 
 .place1 .podiumName {
     font-size: 19px;
 }
 
-/* 4th+ */
+/* 4º em diante */
 .restList {
     padding: 8px 12px;
 }
@@ -171,7 +172,7 @@
     align-items: center;
     gap: 10px;
     padding: 8px 6px;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 2px solid var(--line-soft);
 }
 
 .restRow:last-child {
@@ -180,12 +181,12 @@
 
 .restRank {
     font-family: var(--font-display);
-    font-weight: 700;
-    color: var(--text-3);
+    font-weight: 900;
+    color: var(--text-2);
 }
 
 .restName {
-    font-weight: 700;
+    font-weight: 800;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -193,11 +194,11 @@
 
 .restScore {
     font-family: var(--font-display);
-    font-weight: 600;
+    font-weight: 800;
     color: var(--text-2);
 }
 
-/* Highlights */
+/* Destaques */
 .highlights {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -216,7 +217,7 @@
 .highlight strong {
     font-family: var(--font-display);
     font-size: 20px;
-    font-weight: 600;
+    font-weight: 900;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -233,21 +234,22 @@
     justify-content: center;
     width: 40px;
     height: 40px;
-    border-radius: 50%;
-    background: var(--surface-2);
-    color: var(--teal);
+    border-radius: 12px;
+    border: var(--outline);
+    background: var(--sky);
+    color: #1B0F2B;
     margin-bottom: 4px;
 }
 
 .highlightLabel {
     font-size: 11px;
     font-weight: 800;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--text-3);
+    color: var(--text-2);
 }
 
-/* Actions */
+/* Ações */
 .actions {
     display: flex;
     flex-wrap: wrap;
@@ -263,7 +265,7 @@
     gap: 10px;
     width: 100%;
     color: var(--text-2);
-    font-weight: 600;
+    font-weight: 700;
     text-align: center;
 }
 
