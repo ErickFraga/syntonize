@@ -49,6 +49,7 @@ Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `
 | ✅ | **`maxRounds` nunca era usado** | Agora é uma regra real. |
 | ✅ | **Engine separada do Socket.io** | `server/roomManager.ts` não conhece sockets; `server/index.ts` só faz a ponte. Permite testar tudo sem rede e trocar o transporte no futuro. |
 | ✅ | **Um socket por jogador** | Abrir a mesma sessão em duas abas substitui a anterior em vez de duplicar o jogador. |
+| ✅ | **QR ampliado preso no card do topo** | Ao ampliar o QR no lobby, o blur e o QR ficavam recortados dentro do card do código, com os cards de baixo por cima. Causa: `.anim-fade-up` (e `.anim-pop`) usavam `animation-fill-mode: both`, que deixa `transform: translateY(0)` aplicado depois da animação; um `transform` no ancestral vira o bloco de contenção do `position: fixed` e cria um contexto de empilhamento. Correção: `backwards` (o estado inicial continua valendo durante o atraso, e ao terminar o elemento volta a não ter transform). O fundo do overlay ficou mais translúcido (72%, blur 10 px) para o desfoque da página aparecer. |
 | ⬜ P1 | **Persistência das salas** | Tudo é memória: reiniciar o servidor derruba todas as partidas. Redis (ou SQLite) com os `Room` serializados resolve e permite mais de uma instância. |
 | ⬜ P2 | **Rate limiting** | Nada impede alguém de criar 10 mil salas ou spammar `room:join`. Limitar por IP/socket. |
 | ⬜ P2 | **Expiração de token de sessão** | Tokens vivem até a sala morrer. Com persistência, dar TTL. |

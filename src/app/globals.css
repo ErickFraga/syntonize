@@ -571,7 +571,9 @@ h4 {
 }
 
 .anim-fade-up {
-  animation: fadeUp var(--t-med) var(--ease-out) both;
+  /* backwards, not both: a transform left on after the animation makes the element the
+     containing block of any position: fixed descendant (the QR overlay got trapped in its card). */
+  animation: fadeUp var(--t-med) var(--ease-out) backwards;
 }
 
 .anim-fade-in {
@@ -579,7 +581,7 @@ h4 {
 }
 
 .anim-pop {
-  animation: popIn var(--t-med) var(--ease-spring) both;
+  animation: popIn var(--t-med) var(--ease-spring) backwards;
 }
 
 .spinner {
