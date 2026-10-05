@@ -12,6 +12,7 @@ declare module 'next/font/google' {
   interface FontOpts { subsets?: string[]; weight?: string[]; variable?: string; display?: string }
   interface FontResult { className: string; variable: string }
   export function Fredoka(o: FontOpts): FontResult
+  export function Baloo_2(o: FontOpts): FontResult
   export function Nunito(o: FontOpts): FontResult
 }
 declare module 'socket.io-client' {

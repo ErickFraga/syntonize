@@ -70,7 +70,7 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
 
     return (
         <div className={styles.lobby}>
-            <section className={`card-solid ${styles.invite} anim-fade-up`}>
+            <section className={`card ${styles.invite} anim-fade-up`}>
                 <div className={styles.inviteText}>
                     <span className="eyebrow">{t('lobby.eyebrow')}</span>
                     <h1 className={styles.title}>{t('lobby.title')}</h1>

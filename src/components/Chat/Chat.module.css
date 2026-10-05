@@ -81,6 +81,8 @@
     font-size: 12px;
     font-weight: 800;
     margin-bottom: 1px;
+    /* Mixed with the text color so pastel names stay readable on both themes. */
+    color: color-mix(in srgb, var(--author-color) 55%, var(--text));
 }
 
 .text {
@@ -154,7 +156,8 @@
     flex: 1;
     min-width: 0;
     height: 40px;
-    font-size: 14px;
+    padding: 0 10px;
+    font-size: 13px;
 }
 
 .meta {

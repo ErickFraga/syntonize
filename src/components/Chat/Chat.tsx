@@ -164,7 +164,7 @@ export default function Chat({ messages, meId, playerCount, onSend, docked = fal
                         const mine = m.authorId === meId
                         return (
                             <p key={m.id} className={`${styles.message} ${mine ? styles.mine : ''} ${m.kind === 'reaction' ? styles.reaction : ''}`}>
-                                <span className={styles.author} style={{ color: playerColor(m.colorIndex) }}>{mine ? t('common.you') : m.author}</span>
+                                <span className={styles.author} style={{ '--author-color': playerColor(m.colorIndex) } as React.CSSProperties}>{mine ? t('common.you') : m.author}</span>
                                 {m.kind === 'text' ? <span className={styles.text}>{m.text}</span> : <span className={styles.emoji}>{m.emoji}</span>}
                             </p>
                         )
