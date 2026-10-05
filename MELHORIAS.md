@@ -1,9 +1,10 @@
 # Melhorias do Syntonize
 
 Lista completa do que foi analisado, o que foi feito neste rework e o que ainda
-vale fazer. Organizado por área. Itens com ✅ já estão no código; ⬜ é backlog,
-com prioridade sugerida (**P1** faz diferença na próxima partida, **P2** deixa
-o jogo mais completo, **P3** polimento).
+vale fazer. Organizado por área. Itens com ✅ já estão na `main`; 🔄 estão em
+andamento numa PR aberta; ⬜ é backlog, com prioridade sugerida (**P1** faz
+diferença na próxima partida, **P2** deixa o jogo mais completo, **P3**
+polimento). **Só o que falta fazer está em [BACKLOG.md](./BACKLOG.md).**
 
 Capturas (renderização estática dos componentes, 1280 px e 390 px) em `docs/screenshots/`:
 Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `game-revealed.png`,
@@ -25,9 +26,9 @@ Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `
 | ✅ | **Pontuação por cunha** | Centro ±3 → 4 pts, ±8 → 3 pts, ±13 → 2 pts (antes ±5/±10/±20, cunha ocupava 40% do dial). |
 | ✅ | **Bônus de "mais perto" só dentro da cunha** | Errar "por menos" não ganha ponto. |
 | ✅ | **Pontuação do Vidente reequilibrada** | Agora recebe a **média** dos pontos de quem palpitou (máx. 4). Antes somava bônus por cada jogador: com 8 pessoas o Vidente podia fazer 14 pontos numa rodada contra 5 de um palpiteiro. |
-| ⬜ P2 | **Modo em equipes** | O Wavelength original é 2 times: o time adversário chuta "esquerda ou direita" do ponteiro por 1 ponto. A engine já separa Vidente/palpiteiros; falta agrupar jogadores em times, o palpite único por time e a fase "esquerda/direita". |
+| 🔄 PR #3 | **Modo em equipes** | O Wavelength original é 2 times: o time adversário chuta "esquerda ou direita" do ponteiro por 1 ponto. A engine já separa Vidente/palpiteiros; falta agrupar jogadores em times, o palpite único por time e a fase "esquerda/direita". |
 | ⬜ P2 | **Modo cooperativo** | Como no app oficial: todos no mesmo time, 7 rodadas, meta de pontos conjunta. Fácil de derivar do modo atual. |
-| ⬜ P3 | **Cartas em outros idiomas / pacotes temáticos** | Baralho em `shared/cards.ts`; dá para adicionar "pack família", "pack +18", "pack nerd" e deixar o anfitrião escolher. |
+| 🔄 em andamento | **Cartas em outros idiomas / pacotes temáticos** | Baralho em `shared/cards.ts`; dá para adicionar "pack família", "pack +18", "pack nerd" e deixar o anfitrião escolher. |
 | ⬜ P3 | **Cartas personalizadas** | O anfitrião digita pares próprios para a partida. |
 
 ## 2. Bugs e robustez (servidor)
@@ -76,15 +77,15 @@ Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `
 | ✅ | **Mobile** | Layouts testados a 390 px: dial ocupa a largura, placar vai para baixo, painel de resultado reorganiza em duas linhas, botões em coluna. |
 | ✅ | **Acessibilidade básica** | Dial é `role="slider"` com `aria-valuenow`; foco visível; grupos de rádio nas regras; `aria-live` nos toasts. |
 | ✅ | **Metadados** | Título, descrição, Open Graph e `theme-color` em português. |
-| ⬜ P1 | **Imagem Open Graph** | Gerar uma `opengraph-image` com o dial para o link ficar bonito no WhatsApp. |
-| ⬜ P1 | **QR code no lobby** | Para quem está na mesma sala física apontar o celular. (`qrcode` npm ou SVG próprio.) |
+| 🔄 PR #4 | **Imagem Open Graph** | Gerar uma `opengraph-image` com o dial para o link ficar bonito no WhatsApp. |
+| 🔄 PR #5 | **QR code no lobby** | Para quem está na mesma sala física apontar o celular. (`qrcode` npm ou SVG próprio.) |
 | ⬜ P2 | **Histórico de rodadas na partida** | Guardamos `roundHistory`; dá para abrir um painel com todas as cartas/dicas/resultados da partida. |
-| ⬜ P2 | **Chat ou reações** | Emojis rápidos durante o palpite ("🔥", "😂") dão vida ao jogo remoto. |
+| 🔄 PR #6 | **Chat ou reações** | Emojis rápidos durante o palpite ("🔥", "😂") dão vida ao jogo remoto. |
 | ⬜ P2 | **Modo espectador** | Entrar numa sala só para assistir (sem participar da rotação). |
 | ✅ | **Tema claro** | Paleta clara (creme, branco, lilás) e toggle sol/lua. |
 | ⬜ P3 | **PWA** | Manifesto + ícone para "instalar" no celular. |
-| ⬜ P3 | **Internacionalização** | Textos estão todos em pt-BR hard-coded. |
-| ⬜ P3 | **Animação da tampa** | Hoje a cunha "cresce"; uma tampa deslizando como no jogo físico seria ainda mais fiel. |
+| 🔄 PR #3 | **Internacionalização** | Textos estão todos em pt-BR hard-coded. |
+| 🔄 PR #2 | **Animação da tampa** | Hoje a cunha "cresce"; uma tampa deslizando como no jogo físico seria ainda mais fiel. |
 
 ## 4. Código, testes e tooling
 
@@ -95,6 +96,9 @@ Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `
 | ✅ | **Código morto removido** | `src/app/api/room/[code]/route.ts` (stub nunca usado), `Spectrum.tsx`, ícones duplicados nas páginas. |
 | ✅ | **Tipos compartilhados** | `shared/types.ts` é a fonte única; o cliente importa via `@/types/game`. Eventos de socket tipados nos dois lados. |
 | ✅ | **Imports com extensão `.ts` no código compartilhado** | Permite o Node rodar `shared/` e `server/` sem transpilar (`allowImportingTsExtensions`). |
+| ✅ | **Deploy no Render** | `render.yaml` (Blueprint, plano free, auto-deploy) e seção no README. |
+| ✅ | **Build do Next no deploy** | O `tsconfig.json` incluía `server/**` e o `next build` quebrava checando tipos do servidor. Agora o Next cobre só `src/` e `shared/`; o servidor tem `npm run typecheck:server`. |
+| ✅ | **Preview sem `node_modules`** | `tools/preview`: Bun + React mínimo renderizam as telas para HTML, Chromium tira screenshots (dois temas), shims de tipos permitem rodar o `tsc` no cliente. |
 | ⬜ P1 | **Remover dependências não usadas** | `lucide-react`, `nanoid`, `uuid`, `@types/uuid` e `ts-node` não são importados em lugar nenhum. Não removi porque o `package-lock.json` precisa ser regenerado com acesso ao registro npm (bloqueado neste ambiente). |
 | ⬜ P1 | **CI** | GitHub Actions rodando `npm test`, `typecheck`, `lint` e `build`. |
 | ⬜ P2 | **Testes de componente** | O harness usado nesta sessão renderizou os componentes com um React mínimo; vale formalizar com Vitest + Testing Library (Dial: cálculo de ângulo, teclado; Game: painéis por fase). |
