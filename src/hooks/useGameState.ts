@@ -251,6 +251,10 @@ export function useGameState() {
         return new Promise<SimpleResult>((resolve) => getSocket().emit('room:updateSettings', settings, resolve))
     }, [])
 
+    const shuffleTeams = useCallback(() => {
+        return new Promise<SimpleResult>((resolve) => getSocket().emit('room:shuffleTeams', resolve))
+    }, [])
+
     const setTeam = useCallback((targetId: string, team: TeamId) => {
         return new Promise<SimpleResult>((resolve) => getSocket().emit('room:setTeam', targetId, team, resolve))
     }, [])
@@ -328,6 +332,7 @@ export function useGameState() {
         kickPlayer,
         updateSettings,
         setTeam,
+        shuffleTeams,
         moveNeedle,
         sideGuess,
         sendChat,

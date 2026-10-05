@@ -69,6 +69,7 @@ export default function TeamGame({
     const onActiveTeam = me?.team === activeTeam
     const canDrag = phase === 'guessing' && onActiveTeam && !isSeer
 
+    const [pickedSide, setPickedSide] = useState<Side | null>(null)
     const [clue, setClue] = useState('')
     const [clueError, setClueError] = useState<string | null>(null)
     const [sending, setSending] = useState(false)
@@ -122,8 +123,9 @@ export default function TeamGame({
         if (result.success) sounds.lock()
     }
 
-    const callSide = async (side: Side) => {
-        const result = await onSideGuess(side)
+    const confirmSide = async () => {
+        if (!pickedSide) return
+        const result = await onSideGuess(pickedSide)
         if (result.success) sounds.lock()
     }
 
@@ -294,13 +296,16 @@ export default function TeamGame({
                                     <h3>{t('teamGame.sideQuestion')}</h3>
                                     <p className="muted">{t('teamGame.sideWorth', { count: TEAM_RULES.SIDE_POINTS, team: otherName })}</p>
                                     <div className={styles.sideButtons}>
-                                        <button className="btn btn-secondary btn-lg" onClick={() => callSide('left')}>
+                                        <button className={`btn btn-lg ${pickedSide === 'left' ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={pickedSide === 'left'} onClick={() => setPickedSide('left')}>
                                             <ChevronLeftIcon /> {t('teamGame.left')}
                                         </button>
-                                        <button className="btn btn-secondary btn-lg" onClick={() => callSide('right')}>
+                                        <button className={`btn btn-lg ${pickedSide === 'right' ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={pickedSide === 'right'} onClick={() => setPickedSide('right')}>
                                             {t('teamGame.right')} <ChevronRightIcon />
                                         </button>
                                     </div>
+                                    <button className="btn btn-primary btn-lg btn-block" disabled={!pickedSide} onClick={confirmSide}>
+                                        <CheckIcon /> {pickedSide ? t('teamGame.confirmSide', { side: t(SIDE_LABEL[pickedSide]) }) : t('teamGame.confirm')}
+                                    </button>
                                 </>
                             ) : (
                                 <div className={gameStyles.waitingPanel}>
