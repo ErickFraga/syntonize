@@ -250,17 +250,11 @@ export default function TeamGame({
                                 <span className={gameStyles.needleValue}>{needle}</span>
                             </div>
                             <div className={gameStyles.fineTune}>
-                                <button className="btn btn-secondary btn-sm" onClick={() => changeNeedle(Math.max(0, needle - 1))} aria-label={t('game.oneLeft')}>−1</button>
-                                <input
-                                    type="range"
-                                    min={0}
-                                    max={100}
-                                    value={needle}
-                                    onChange={(e) => changeNeedle(Number(e.target.value))}
-                                    className={gameStyles.range}
-                                    aria-label={t('game.needleAria')}
-                                />
-                                <button className="btn btn-secondary btn-sm" onClick={() => changeNeedle(Math.min(100, needle + 1))} aria-label={t('game.oneRight')}>+1</button>
+                                <span className="eyebrow">{t('game.fineTune')}</span>
+                                <span className={gameStyles.fineTuneButtons}>
+                                    <button className="btn btn-secondary btn-sm" onClick={() => changeNeedle(Math.max(0, needle - 1))} aria-label={t('game.oneLeft')}>−1</button>
+                                    <button className="btn btn-secondary btn-sm" onClick={() => changeNeedle(Math.min(100, needle + 1))} aria-label={t('game.oneRight')}>+1</button>
+                                </span>
                             </div>
                             <button className="btn btn-primary btn-lg btn-block" onClick={lockGuess}>
                                 <LockIcon /> {t('teamGame.lock')}

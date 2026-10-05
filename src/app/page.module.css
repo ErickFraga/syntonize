@@ -2,10 +2,15 @@
   width: 100%;
   max-width: 1120px;
   margin: 0 auto;
-  padding: 32px 16px 40px;
+  padding: 20px 16px 40px;
   display: flex;
   flex-direction: column;
   gap: 32px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* Hero */
@@ -14,7 +19,6 @@
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   gap: 32px;
   align-items: center;
-  padding-top: 16px;
 }
 
 .heroText {
@@ -24,10 +28,10 @@
 }
 
 .tagline {
-  font-size: clamp(34px, 5.2vw, 58px);
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
+  font-size: clamp(36px, 5.2vw, 56px);
+  font-weight: 900;
+  line-height: 1.02;
+  letter-spacing: -0.025em;
   text-wrap: balance;
 }
 
@@ -35,7 +39,7 @@
   font-size: 17px;
   line-height: 1.6;
   color: var(--text-2);
-  max-width: 52ch;
+  max-width: 50ch;
 }
 
 .heroFacts {
@@ -49,23 +53,28 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  transform: rotate(-1.5deg);
 }
 
 .demoConcepts {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 8px 14px;
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  color: var(--ink);
   font-family: var(--font-display);
-  font-weight: 600;
-  font-size: clamp(15px, 2vw, 20px);
+  font-weight: 900;
+  font-size: clamp(14px, 2vw, 17px);
 }
 
-.demoConcepts span:first-child {
-  color: var(--teal);
-}
-
-.demoConcepts span:last-child {
-  color: var(--pink);
+.demoConcepts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .demoHint {
@@ -76,12 +85,13 @@
   margin-top: 8px;
 }
 
-/* Entry */
+/* Entrada */
 .entry {
-  padding: 28px;
+  padding: 26px 28px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 20px;
+  border-radius: var(--radius-xl);
 }
 
 .entryField {
@@ -114,28 +124,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-}
-
-.or::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1px;
-  background: var(--line);
 }
 
 .or span {
-  position: relative;
   padding: 6px 10px;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-3);
-  background: var(--surface-solid);
+  background: var(--surface-2);
+  border: var(--outline);
   border-radius: var(--radius-full);
 }
 
@@ -151,18 +150,18 @@
   gap: 10px;
   color: var(--text-3);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-/* How to */
+/* Como funciona */
 .howTo {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 .howTo h2 {
-  font-size: 28px;
+  font-size: 26px;
 }
 
 .steps {
@@ -178,45 +177,58 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 20px;
-  border-radius: var(--radius-lg);
+  padding: 18px;
+  border-radius: 18px;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: var(--outline);
   counter-increment: step;
 }
 
 .steps li::before {
   content: counter(step);
   position: absolute;
-  top: 14px;
+  top: 12px;
   right: 16px;
   font-family: var(--font-display);
   font-size: 40px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.06);
+  font-weight: 900;
+  color: var(--text-3);
+  opacity: 0.25;
   line-height: 1;
 }
 
 .steps h3 {
-  font-size: 18px;
+  font-size: 17px;
 }
 
 .steps p {
-  font-size: 14.5px;
+  font-size: 14px;
   color: var(--text-2);
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 .stepIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  color: var(--on-accent);
-  background: var(--brand-gradient);
-  box-shadow: 0 8px 20px rgba(143, 123, 255, 0.3);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: var(--outline);
+  color: #1B0F2B;
+  background: var(--sky);
+}
+
+.steps li:nth-child(2) .stepIcon {
+  background: var(--yellow);
+}
+
+.steps li:nth-child(3) .stepIcon {
+  background: var(--green);
+}
+
+.steps li:nth-child(4) .stepIcon {
+  background: var(--pink-2);
 }
 
 .footer {
@@ -232,7 +244,6 @@
   }
 
   .demo {
-    transform: none;
     max-width: 560px;
     width: 100%;
     margin: 0 auto;
@@ -245,7 +256,7 @@
 
 @media (max-width: 640px) {
   .page {
-    padding: 20px 16px 32px;
+    padding: 16px 16px 32px;
     gap: 24px;
   }
 
@@ -256,15 +267,6 @@
   .entryColumns {
     grid-template-columns: 1fr;
     gap: 16px;
-  }
-
-  .or::before {
-    top: 50%;
-    bottom: auto;
-    left: 0;
-    right: 0;
-    width: auto;
-    height: 1px;
   }
 
   .steps {

@@ -10,7 +10,8 @@ import Dial from '@/components/Dial/Dial'
 import Toasts from '@/components/ui/Toasts'
 import LanguageSelect from '@/components/LanguageSelect/LanguageSelect'
 import { useT } from '@/i18n/I18nProvider'
-import { SparklesIcon, ArrowRightIcon, EyeIcon, LightbulbIcon, TargetIcon, TrophyIcon } from '@/components/ui/Icons'
+import { SparklesIcon, ArrowRightIcon, EyeIcon, LightbulbIcon, TargetIcon, TrophyIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/ui/Icons'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 import styles from './page.module.css'
 
 export default function Home() {
@@ -59,19 +60,23 @@ export default function Home() {
   return (
     <main className={styles.page}>
       <Toasts toasts={toasts} />
-      <LanguageSelect floating />
+
+      <div className={styles.topbar}>
+        <LanguageSelect />
+        <ThemeToggle />
+      </div>
 
       <section className={styles.hero}>
         <div className={`${styles.heroText} anim-fade-up`}>
           <Logo size="lg" />
           <h1 className={styles.tagline}>
-            {t('home.taglineStart')}<span className="text-gradient">{t('home.taglineEnd')}</span>
+            {t('home.taglineStart')}<span className="text-accent">{t('home.taglineEnd')}</span>
           </h1>
           <p className={styles.lead}>
             {rich('home.lead', { game: <strong>{t('home.gameName')}</strong> })}
           </p>
           <div className={styles.heroFacts}>
-            <span className="chip chip-teal">{t('home.factPlayers', { min: LIMITS.MIN_PLAYERS, max: LIMITS.MAX_PLAYERS })}</span>
+            <span className="chip chip-sky">{t('home.factPlayers', { min: LIMITS.MIN_PLAYERS, max: LIMITS.MAX_PLAYERS })}</span>
             <span className="chip chip-pink">{t('home.factDevices')}</span>
             <span className="chip chip-orange">{t('home.factLength')}</span>
           </div>
@@ -80,8 +85,8 @@ export default function Home() {
         <div className={`card-solid ${styles.demo} anim-fade-up`} style={{ animationDelay: '0.1s' }}>
           <Dial target={62} needle={demoNeedle} onNeedleChange={setDemoNeedle} interactive />
           <div className={styles.demoConcepts}>
-            <span>◀ {t('home.demoLeft')}</span>
-            <span>{t('home.demoRight')} ▶</span>
+            <span><ChevronLeftIcon size={18} strokeWidth={3.2} /> {t('home.demoLeft')}</span>
+            <span>{t('home.demoRight')} <ChevronRightIcon size={18} strokeWidth={3.2} /></span>
           </div>
           <p className={styles.demoHint}>{t('home.demoHint')}</p>
         </div>

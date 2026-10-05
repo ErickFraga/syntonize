@@ -16,6 +16,7 @@ import Logo from '@/components/ui/Logo'
 import Toasts from '@/components/ui/Toasts'
 import LanguageSelect from '@/components/LanguageSelect/LanguageSelect'
 import { useT } from '@/i18n/I18nProvider'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 import { LogOutIcon, VolumeIcon, VolumeOffIcon, WifiOffIcon, CopyIcon, CheckIcon } from '@/components/ui/Icons'
 import styles from './page.module.css'
 
@@ -159,6 +160,7 @@ export default function RoomPage() {
                         <span className={styles.offline}><WifiOffIcon size={16} /> {t('common.reconnecting')}</span>
                     )}
                     <LanguageSelect />
+                    <ThemeToggle />
                     <button className="btn-icon" onClick={toggleMute} title={muted ? t('room.unmute') : t('room.mute')} aria-label={muted ? t('room.unmute') : t('room.mute')}>
                         {muted ? <VolumeOffIcon size={18} /> : <VolumeIcon size={18} />}
                     </button>

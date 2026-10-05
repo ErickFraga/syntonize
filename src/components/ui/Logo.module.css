@@ -2,27 +2,27 @@
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    font-family: var(--font-display);
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-family: var(--font-brand);
+    font-weight: 800;
+    letter-spacing: -0.01em;
     line-height: 1;
+    color: var(--text);
 }
 
 .mark {
     flex: 0 0 auto;
-    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
 }
 
 .sm .mark {
-    width: 34px;
+    width: 36px;
 }
 
 .sm .word {
-    font-size: 20px;
+    font-size: 22px;
 }
 
 .md .mark {
-    width: 46px;
+    width: 44px;
 }
 
 .md .word {
@@ -30,9 +30,9 @@
 }
 
 .lg .mark {
-    width: 96px;
+    width: 84px;
 }
 
 .lg .word {
-    font-size: clamp(44px, 9vw, 68px);
+    font-size: clamp(40px, 8vw, 56px);
 }
