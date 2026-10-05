@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { makeHarness, makeRoom, startGame } from './helpers.ts'
 import { routeApiRequest, handleApiRequest, type MinimalResponse } from '../server/httpApi.ts'
 import { parsePublicRoomInfo } from '../shared/publicRoom.ts'
-import { inviteCopy } from '../src/lib/og/inviteCopy.ts'
+import { inviteCopy, homeCopy } from '../src/lib/og/inviteCopy.ts'
 
 function recordingResponse() {
     const res = { status: 0, headers: {} as Record<string, string>, body: undefined as string | undefined }
@@ -116,13 +116,19 @@ describe('public room info parsing (OG image side)', () => {
         }
     })
 
-    test('invite copy: host and count, generic fallback', () => {
-        const copy = inviteCopy({ hostName: 'Ana', playerCount: 3, status: 'waiting' }, 'ABC123')
-        assert.equal(copy.title, 'Entre na sala de Ana')
-        assert.equal(copy.subtitle, '3 jogadores na sala')
-        assert.equal(copy.badge, 'Sala ABC123')
-        assert.equal(inviteCopy({ hostName: 'Ana', playerCount: 1, status: 'playing' }, 'ABC123').subtitle, '1 jogador na sala · partida rolando')
-        const generic = inviteCopy(null, 'ABC123')
-        assert.ok(!generic.title.includes('Entre na sala de'))
+    test('invite copy: host and count per locale, generic fallback', () => {
+        const info = { hostName: 'Ana', playerCount: 3, status: 'waiting' as const }
+        const pt = inviteCopy('pt-BR', info, 'ABC123')
+        assert.equal(pt.title, 'Entre na sala de Ana')
+        assert.equal(pt.subtitle, '3 jogadores esperando')
+        assert.match(pt.badge!, /ABC123/)
+        assert.equal(inviteCopy('en', info, 'ABC123').title, 'Join Ana’s room')
+        assert.equal(inviteCopy('pt-BR', { ...info, playerCount: 1 }, 'ABC123').subtitle, '1 jogador esperando')
+        assert.match(inviteCopy('pt-BR', { ...info, status: 'playing' }, 'ABC123').subtitle, /^3 jogadores esperando · /)
+
+        const generic = inviteCopy('pt-BR', null, 'ABC123')
+        assert.equal(generic.title, 'Syntonize')
+        assert.equal(generic.subtitle, homeCopy('pt-BR').subtitle)
+        assert.equal(homeCopy('pt-BR').subtitle, 'Leia a mente dos seus amigos')
     })
 })

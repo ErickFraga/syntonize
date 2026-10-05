@@ -8,11 +8,14 @@ import { LIMITS, SCORING } from '@/types/game'
 import Logo from '@/components/ui/Logo'
 import Dial from '@/components/Dial/Dial'
 import Toasts from '@/components/ui/Toasts'
+import LanguageSelect from '@/components/LanguageSelect/LanguageSelect'
+import { useT } from '@/i18n/I18nProvider'
 import { SparklesIcon, ArrowRightIcon, EyeIcon, LightbulbIcon, TargetIcon, TrophyIcon } from '@/components/ui/Icons'
 import styles from './page.module.css'
 
 export default function Home() {
   const router = useRouter()
+  const { t, rich, msg } = useT()
   const { createRoom, joinRoom, isConnected, restoredCode, room, toasts, pushToast } = useGameState()
 
   const [nickname, setNickname] = useState('')
@@ -33,65 +36,65 @@ export default function Home() {
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
-    if (!nickname.trim()) return pushToast({ kind: 'warning', message: 'Escolhe um apelido primeiro' })
+    if (!nickname.trim()) return pushToast({ kind: 'warning', message: t('form.nicknameFirst') })
     setBusy('create')
     const result = await createRoom(nickname.trim())
     setBusy(null)
     if (result.success && result.code) router.push(`/room/${result.code}`)
-    else pushToast({ kind: 'error', message: result.error ?? 'Não deu para criar a sala' })
+    else pushToast({ kind: 'error', message: msg(result.error, 'error.createRoom') })
   }
 
   const handleJoin = async (e: FormEvent) => {
     e.preventDefault()
-    if (!nickname.trim()) return pushToast({ kind: 'warning', message: 'Escolhe um apelido primeiro' })
+    if (!nickname.trim()) return pushToast({ kind: 'warning', message: t('form.nicknameFirst') })
     const code = roomCode.trim().toUpperCase()
-    if (code.length < 6) return pushToast({ kind: 'warning', message: 'O código da sala tem 6 caracteres' })
+    if (code.length < 6) return pushToast({ kind: 'warning', message: t('home.codeLength') })
     setBusy('join')
     const result = await joinRoom(code, nickname.trim())
     setBusy(null)
     if (result.success) router.push(`/room/${code}`)
-    else pushToast({ kind: 'error', message: result.error ?? 'Não deu para entrar na sala' })
+    else pushToast({ kind: 'error', message: msg(result.error, 'error.joinRoom') })
   }
 
   return (
     <main className={styles.page}>
       <Toasts toasts={toasts} />
+      <LanguageSelect floating />
 
       <section className={styles.hero}>
         <div className={`${styles.heroText} anim-fade-up`}>
           <Logo size="lg" />
           <h1 className={styles.tagline}>
-            Leia a mente dos <span className="text-gradient">seus amigos</span>
+            {t('home.taglineStart')}<span className="text-gradient">{t('home.taglineEnd')}</span>
           </h1>
           <p className={styles.lead}>
-            Um Vidente vê o alvo escondido no espectro e dá uma dica. Todo mundo tenta cravar onde ele está.
-            Versão online do jogo de tabuleiro <strong>SINTONIA</strong> (Wavelength), de graça e sem instalar nada.
+            {rich('home.lead', { game: <strong>{t('home.gameName')}</strong> })}
           </p>
           <div className={styles.heroFacts}>
-            <span className="chip chip-teal">{LIMITS.MIN_PLAYERS}–{LIMITS.MAX_PLAYERS} jogadores</span>
-            <span className="chip chip-pink">celular ou PC</span>
-            <span className="chip chip-orange">partidas de 15 min</span>
+            <span className="chip chip-teal">{t('home.factPlayers', { min: LIMITS.MIN_PLAYERS, max: LIMITS.MAX_PLAYERS })}</span>
+            <span className="chip chip-pink">{t('home.factDevices')}</span>
+            <span className="chip chip-orange">{t('home.factLength')}</span>
           </div>
         </div>
 
         <div className={`card-solid ${styles.demo} anim-fade-up`} style={{ animationDelay: '0.1s' }}>
           <Dial target={62} needle={demoNeedle} onNeedleChange={setDemoNeedle} interactive />
           <div className={styles.demoConcepts}>
-            <span>◀ Comida de criança</span>
-            <span>Comida de adulto ▶</span>
+            <span>◀ {t('home.demoLeft')}</span>
+            <span>{t('home.demoRight')} ▶</span>
           </div>
-          <p className={styles.demoHint}>experimenta arrastar o ponteiro</p>
+          <p className={styles.demoHint}>{t('home.demoHint')}</p>
         </div>
       </section>
 
       <section className={`card ${styles.entry} anim-fade-up`} style={{ animationDelay: '0.15s' }}>
         <div className={styles.entryField}>
           <div className="field">
-            <label htmlFor="nickname">Seu apelido</label>
+            <label htmlFor="nickname">{t('form.nickname')}</label>
             <input
               id="nickname"
               className="input"
-              placeholder="Como a galera te chama?"
+              placeholder={t('form.nicknamePlaceholder')}
               value={nickname}
               maxLength={LIMITS.NICKNAME_MAX}
               onChange={(e) => setNickname(e.target.value)}
@@ -102,19 +105,19 @@ export default function Home() {
 
         <div className={styles.entryColumns}>
           <form className={styles.entryCard} onSubmit={handleCreate}>
-            <h2>Criar uma sala</h2>
-            <p className="muted">Você vira o anfitrião, escolhe as regras e recebe um link para convidar.</p>
+            <h2>{t('home.createTitle')}</h2>
+            <p className="muted">{t('home.createText')}</p>
             <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={!isConnected || busy !== null}>
               {busy === 'create' ? <span className="spinner spinner-sm" /> : <SparklesIcon />}
-              {busy === 'create' ? 'Criando…' : 'Criar sala'}
+              {busy === 'create' ? t('home.creating') : t('home.create')}
             </button>
           </form>
 
-          <div className={styles.or}><span>ou</span></div>
+          <div className={styles.or}><span>{t('home.or')}</span></div>
 
           <form className={styles.entryCard} onSubmit={handleJoin}>
-            <h2>Entrar em uma sala</h2>
-            <p className="muted">Pede o código de 6 letras para quem criou.</p>
+            <h2>{t('home.joinTitle')}</h2>
+            <p className="muted">{t('home.joinText')}</p>
             <div className={styles.joinRow}>
               <input
                 className="input input-code"
@@ -122,13 +125,13 @@ export default function Home() {
                 value={roomCode}
                 maxLength={6}
                 onChange={(e) => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                aria-label="Código da sala"
+                aria-label={t('home.codeAria')}
                 autoComplete="off"
                 autoCapitalize="characters"
               />
               <button type="submit" className="btn btn-secondary btn-lg" disabled={!isConnected || busy !== null}>
                 {busy === 'join' ? <span className="spinner spinner-sm" /> : <ArrowRightIcon />}
-                Entrar
+                {t('home.join')}
               </button>
             </div>
           </form>
@@ -136,42 +139,46 @@ export default function Home() {
 
         {!isConnected && (
           <p className={styles.connecting}>
-            <span className="spinner spinner-sm" /> Conectando ao servidor…
+            <span className="spinner spinner-sm" /> {t('common.connecting')}
           </p>
         )}
       </section>
 
       <section className={`${styles.howTo} anim-fade-up`} style={{ animationDelay: '0.2s' }}>
-        <h2>Como funciona</h2>
+        <h2>{t('home.howTo')}</h2>
         <ol className={styles.steps}>
           <li>
             <span className={styles.stepIcon}><EyeIcon size={22} /></span>
-            <h3>O Vidente vê o alvo</h3>
-            <p>A cada rodada, um jogador vê onde o alvo está escondido entre dois extremos, tipo <em>Quente ↔ Frio</em>.</p>
+            <h3>{t('home.step1Title')}</h3>
+            <p>{rich('home.step1Text', { example: <em>{t('home.step1Example')}</em> })}</p>
           </li>
           <li>
             <span className={styles.stepIcon}><LightbulbIcon size={22} /></span>
-            <h3>Dá uma dica</h3>
-            <p>Uma palavra ou expressão que fique exatamente naquele ponto do espectro. Sem usar as palavras da carta!</p>
+            <h3>{t('home.step2Title')}</h3>
+            <p>{t('home.step2Text')}</p>
           </li>
           <li>
             <span className={styles.stepIcon}><TargetIcon size={22} /></span>
-            <h3>Todo mundo palpita</h3>
-            <p>Cada um arrasta o ponteiro para onde acha que está o alvo e trava o palpite antes do tempo acabar.</p>
+            <h3>{t('home.step3Title')}</h3>
+            <p>{t('home.step3Text')}</p>
           </li>
           <li>
             <span className={styles.stepIcon}><TrophyIcon size={22} /></span>
-            <h3>Pontua pela cunha</h3>
+            <h3>{t('home.step4Title')}</h3>
             <p>
-              Centro vale <strong>{SCORING.BULLSEYE_POINTS}</strong>, do lado <strong>{SCORING.CLOSE_POINTS}</strong>, na borda <strong>{SCORING.ACCEPTABLE_POINTS}</strong>.
-              Quem chegar mais perto ganha +{SCORING.CLOSEST_BONUS}, e o Vidente leva a média da galera.
+              {rich('home.step4Text', {
+                bull: <strong>{SCORING.BULLSEYE_POINTS}</strong>,
+                close: <strong>{SCORING.CLOSE_POINTS}</strong>,
+                edge: <strong>{SCORING.ACCEPTABLE_POINTS}</strong>,
+                bonus: SCORING.CLOSEST_BONUS,
+              })}
             </p>
           </li>
         </ol>
       </section>
 
       <footer className={styles.footer}>
-        Syntonize é um projeto independente, inspirado no jogo de tabuleiro Wavelength / SINTONIA.
+        {t('home.footer')}
       </footer>
     </main>
   )

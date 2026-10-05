@@ -5,7 +5,7 @@
 import type { RoomInfo } from '../shared/types.ts'
 import { toPublicRoomInfo } from '../shared/publicRoom.ts'
 
-type Result<T> = { success: boolean; data?: T; error?: string }
+type Result<T> = { success: boolean; data?: T; error?: unknown }
 
 export interface RoomInfoSource {
     getRoomInfo(code: string): Result<RoomInfo>

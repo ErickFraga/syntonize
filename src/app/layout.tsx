@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { Fredoka, Nunito } from 'next/font/google'
+import { cookies, headers } from 'next/headers'
+import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, matchLocale, translate, type Locale } from '@/i18n'
+import { I18nProvider } from '@/i18n/I18nProvider'
 import './globals.css'
 
 const fredoka = Fredoka({
@@ -16,6 +19,13 @@ const nunito = Nunito({
   display: 'swap',
 })
 
+/** Interface language for the server render: saved choice, else the browser's Accept-Language. */
+function requestLocale(): Locale {
+  const saved = cookies().get(LOCALE_COOKIE)?.value
+  if (isLocale(saved)) return saved
+  return matchLocale(headers().get('accept-language')) ?? DEFAULT_LOCALE
+}
+
 // Absolute base for og:image and friends. Without it Next falls back to
 // http://localhost:PORT in production and link previews break. Render sets
 // RENDER_EXTERNAL_URL on its own; elsewhere set SITE_URL.
@@ -29,22 +39,25 @@ function siteUrl(): URL | undefined {
   }
 }
 
-export const metadata: Metadata = {
-  metadataBase: siteUrl(),
-  title: {
-    default: 'Syntonize — leia a mente dos seus amigos',
-    template: '%s · Syntonize',
-  },
-  description:
-    'Versão online do jogo de tabuleiro SINTONIA (Wavelength): o Vidente dá uma dica e todo mundo tenta acertar onde está o alvo no espectro.',
-  keywords: ['jogo', 'multiplayer', 'sintonia', 'wavelength', 'party game', 'online', 'amigos'],
-  applicationName: 'Syntonize',
-  openGraph: {
-    title: 'Syntonize — leia a mente dos seus amigos',
-    description: 'Party game online inspirado no SINTONIA / Wavelength. Crie uma sala e chame a galera.',
-    type: 'website',
-    locale: 'pt_BR',
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = requestLocale()
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key)
+  return {
+    metadataBase: siteUrl(),
+    title: {
+      default: t('meta.title'),
+      template: '%s · Syntonize',
+    },
+    description: t('meta.description'),
+    keywords: ['jogo', 'game', 'juego', 'multiplayer', 'sintonia', 'wavelength', 'party game', 'online'],
+    applicationName: 'Syntonize',
+    openGraph: {
+      title: t('meta.title'),
+      description: t('meta.ogDescription'),
+      type: 'website',
+      locale: t('meta.ogLocale'),
+    },
+  }
 }
 
 export const viewport: Viewport = {
@@ -59,10 +72,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const locale = requestLocale()
   return (
-    <html lang="pt-BR">
+    <html lang={locale}>
       <body className={`${fredoka.variable} ${nunito.variable}`}>
-        {children}
+        <I18nProvider initialLocale={locale}>{children}</I18nProvider>
       </body>
     </html>
   )
