@@ -43,10 +43,20 @@ export type CardPack = (typeof CARD_PACKS)[number]
 export const CARD_LOCALES = ['pt-BR', 'en', 'es'] as const
 export type CardLocale = (typeof CARD_LOCALES)[number]
 
+/** Pack shown for the host's own cards (not a real pack: never in `settings.packs`). */
+export const CUSTOM_PACK = 'custom'
+export type SpectrumCardPack = CardPack | typeof CUSTOM_PACK
+
+/** A pair typed by the host in the lobby (custom cards). */
+export interface CustomCard {
+    left: string
+    right: string
+}
+
 export interface SpectrumCard {
-    /** Same id for the same card in every language. */
+    /** Same id for the same card in every language. Custom cards use negative ids (-1, -2...). */
     id: number
-    pack: CardPack
+    pack: SpectrumCardPack
     leftConcept: string
     rightConcept: string
 }
@@ -172,8 +182,14 @@ export interface RoomSettings {
     catchUp: boolean
     /** Language of the cards, picked by the host for the whole room. */
     cardLocale: CardLocale
-    /** Active card packs (at least one). */
+    /** Active card packs (may be empty when there are enough custom cards). */
     packs: CardPack[]
+    /**
+     * Pairs typed by the host, drawn together with the packs. Only the host
+     * sees them: `roomViewFor` sends an empty list to everyone else (see
+     * `Room.customCardCount`).
+     */
+    customCards: CustomCard[]
 }
 
 export type RoomStatus = 'waiting' | 'playing' | 'finished'
@@ -214,6 +230,11 @@ export interface Room {
      * sends it empty, the history goes in `chat:history`, see README).
      */
     chat: ChatMessage[]
+    /**
+     * Number of custom cards, filled by `roomViewFor` (guests get the count,
+     * not the cards, so the deck stays a surprise).
+     */
+    customCardCount?: number
 }
 
 // ============================================
@@ -405,6 +426,13 @@ export const LIMITS = {
     TARGET_MAX: 86,
     /** Skipped rounds kept for the history panel. */
     SKIPPED_KEPT: 30,
+    /** Custom cards: how many pairs, characters per side, and the line separator. */
+    CUSTOM_CARDS_MAX: 50,
+    CUSTOM_CARD_TEXT_MIN: 2,
+    CUSTOM_CARD_TEXT_MAX: 24,
+    CUSTOM_CARD_SEPARATOR: '|',
+    /** A room with every pack off needs at least this many custom cards. */
+    CUSTOM_CARDS_MIN_DECK: 5,
 } as const
 
 export const DEFAULT_SETTINGS: RoomSettings = {
@@ -417,6 +445,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
     catchUp: true,
     cardLocale: 'pt-BR',
     packs: ['classic'],
+    customCards: [],
 }
 
 /** Default and allowed target scores in team mode (team points add up slower). */

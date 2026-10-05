@@ -80,7 +80,7 @@ O anfitrião pode trocar o modo para **Em equipes** no lobby (mínimo de 2 jogad
 ### Cartas e pacotes
 
 O anfitrião escolhe no lobby o **idioma das cartas** (português, inglês ou espanhol, valendo para a sala toda,
-independente do idioma da interface de cada um) e quais **pacotes** entram no baralho (pelo menos um):
+independente do idioma da interface de cada um) e quais **pacotes** entram no baralho:
 
 | Pacote | Cartas | Tema |
 |---|---|---|
@@ -92,6 +92,13 @@ independente do idioma da interface de cada um) e quais **pacotes** entram no ba
 
 As cartas não se repetem até o baralho escolhido acabar. Os textos ficam em `shared/cards/<idioma>.ts`, com os
 mesmos ids e pacotes nos três idiomas (`tests/cards.test.ts` confere).
+
+O anfitrião também pode escrever **cartas personalizadas** no lobby: um par por linha, separado por `|`
+(`Quente | Frio`), até 50 pares com 2 a 24 caracteres por lado. Elas entram no sorteio junto com os pacotes
+ligados, valem a mesma regra da dica e permitem desligar todos os pacotes quando há pelo menos 5 delas
+(a sala precisa de um pacote ligado **ou** 5 personalizadas). Os convidados veem só quantas são, para não
+estragar a surpresa; cada carta só aparece quando é sorteada. A lista fica salva no navegador do anfitrião
+("usar as da última vez" numa sala nova) e "copiar lista" gera o texto para colar em outra sala.
 
 ### Chat
 
