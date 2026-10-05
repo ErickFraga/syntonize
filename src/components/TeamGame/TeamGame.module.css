@@ -1,0 +1,105 @@
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--team-color);
+    flex-shrink: 0;
+}
+
+.turnChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: var(--radius-full);
+    background: var(--surface);
+    border: 1px solid var(--team-color);
+    font-size: 14px;
+    color: var(--text-2);
+}
+
+.turnChip strong {
+    color: var(--text);
+}
+
+.sidePanel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+}
+
+.lockLine {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    color: var(--text-2);
+    font-weight: 600;
+}
+
+.lockLine svg {
+    color: var(--green);
+}
+
+.lockLine strong {
+    color: var(--text);
+}
+
+.sideButtons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+    max-width: 440px;
+}
+
+.outcome {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.outcomeRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    border-left: 3px solid var(--team-color);
+}
+
+.outcomeText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.catchUp {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    border: 1px dashed var(--team-color);
+    color: var(--text);
+    font-weight: 700;
+}
+
+.catchUp svg {
+    color: var(--team-color);
+    flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+    .sideButtons {
+        grid-template-columns: 1fr;
+    }
+}

@@ -19,7 +19,17 @@ export interface Player {
     isReady: boolean
     /** Unix ms of the last disconnect, null while connected. */
     disconnectedAt: number | null
+    /** Team (only used in team mode, but always assigned so switching modes is instant). */
+    team: TeamId
 }
+
+/** Team mode has exactly two teams: 0 and 1. */
+export type TeamId = 0 | 1
+
+export type GameMode = 'ffa' | 'teams'
+
+/** Left/right call made by the opposing team in team mode. */
+export type Side = 'left' | 'right'
 
 // ============================================
 // CARDS & ROUNDS
@@ -31,7 +41,11 @@ export interface SpectrumCard {
     rightConcept: string
 }
 
-export type RoundPhase = 'waiting_clue' | 'guessing' | 'revealed'
+/**
+ * `side_guess` only exists in team mode: after the active team locks its
+ * needle, the other team calls whether the target is left or right of it.
+ */
+export type RoundPhase = 'waiting_clue' | 'guessing' | 'side_guess' | 'revealed'
 
 /** Points awarded by each wedge zone of the dial. */
 export type Zone = 0 | 2 | 3 | 4
@@ -58,6 +72,32 @@ export interface GameRound {
     startedAt: number
     clueAt: number | null
     revealedAt: number | null
+    /** Team-mode state of the round; null in free-for-all. */
+    teamPlay: TeamRoundState | null
+}
+
+export interface TeamRoundState {
+    /** Team whose turn it is (the seer belongs to it). */
+    team: TeamId
+    /**
+     * Shared needle of the active team, moved live by any of its guessers.
+     * Hidden (null) from the other team until it is locked.
+     */
+    needle: number | null
+    /** Locked team guess (0-100), null until someone locks it. */
+    guess: number | null
+    lockedBy: string | null
+    /** Opposing team's call: is the target left or right of the guess? */
+    side: Side | null
+    sideBy: string | null
+    /** Filled on reveal. */
+    zone: Zone | null
+    /** Points earned this round by team 0 and team 1. */
+    points: [number, number]
+    /** Whether the side call was right (null when nobody called). */
+    sideCorrect: boolean | null
+    /** Bullseye while still behind: the same team plays again. */
+    catchUp: boolean
 }
 
 // ============================================
@@ -75,6 +115,10 @@ export interface RoomSettings {
     timePerGuess: number
     /** Seconds between the reveal and the next round (auto-advance). */
     timeBetweenRounds: number
+    /** Free-for-all (default) or two teams, as in the original Wavelength. */
+    mode: GameMode
+    /** Team mode: a team that hits the bullseye while behind plays again. */
+    catchUp: boolean
 }
 
 export type RoomStatus = 'waiting' | 'playing' | 'finished'
@@ -95,13 +139,21 @@ export interface Room {
     /** Server timestamp (ms) when the next round auto-starts, during reveal. */
     nextRoundAt: number | null
     createdAt: number
+    /** Team mode: score of team 0 and team 1. */
+    teamScores: [number, number]
+    /** Team mode: next index in each team's seer rotation. */
+    teamSeerIndex: [number, number]
+    /** Team mode: team that plays the next round. */
+    nextTeam: TeamId
+    /** Team mode: winning team (null on a draw or in free-for-all). */
+    winnerTeam: TeamId | null
 }
 
 // ============================================
 // REALTIME PAYLOADS
 // ============================================
 
-export type TimerPhase = 'clue' | 'guess' | 'next'
+export type TimerPhase = 'clue' | 'guess' | 'side' | 'next'
 
 export interface TimerUpdate {
     phase: TimerPhase
@@ -151,6 +203,8 @@ export interface ServerToClientEvents {
     'game:reveal': (roundNumber: number) => void
     'game:finished': (winnerId: string | null) => void
     'game:timer': (timer: TimerUpdate) => void
+    /** Team mode: live needle of the active team (sent only to that team). */
+    'game:needle': (data: { position: number; by: string }) => void
 }
 
 export interface ClientToServerEvents {
@@ -160,9 +214,12 @@ export interface ClientToServerEvents {
     'room:leave': () => void
     'room:kick': (playerId: string, callback: (result: SimpleResult) => void) => void
     'room:updateSettings': (settings: Partial<RoomSettings>, callback: (result: SimpleResult) => void) => void
+    'room:setTeam': (playerId: string, team: TeamId, callback: (result: SimpleResult) => void) => void
     'game:start': (callback?: (result: SimpleResult) => void) => void
     'game:giveClue': (clue: string, callback?: (result: SimpleResult) => void) => void
     'game:submitGuess': (position: number, callback?: (result: SimpleResult) => void) => void
+    'game:needleMove': (position: number) => void
+    'game:sideGuess': (side: Side, callback?: (result: SimpleResult) => void) => void
     'game:ready': () => void
     'game:nextRound': () => void
     'game:skipRound': () => void
@@ -207,8 +264,29 @@ export const DEFAULT_SETTINGS: RoomSettings = {
     timePerClue: 0,
     timePerGuess: 45,
     timeBetweenRounds: 15,
+    mode: 'ffa',
+    catchUp: true,
 }
 
+/** Default and allowed target scores in team mode (team points add up slower). */
+export const TEAM_DEFAULT_TARGET = 10
+export const TEAM_TARGET_OPTIONS = [7, 10, 13, 15] as const
+
+export const TEAM_RULES = {
+    /** Each team needs a seer and at least one guesser. */
+    MIN_PER_TEAM: 2,
+    /** Seconds the opposing team has to call left or right. */
+    SIDE_GUESS_SECONDS: 30,
+    /** Points for a correct left/right call. */
+    SIDE_POINTS: 1,
+    /** Minimum gap between two needle updates from the same player. */
+    NEEDLE_THROTTLE_MS: 50,
+} as const
+
+/** Team colors, taken from the player palette (teal and pink). */
+export const TEAM_COLORS = ['#2ee6d6', '#ff5d8f'] as const
+
+/** Numeric settings and their allowed values (free-for-all). */
 export const SETTINGS_OPTIONS = {
     targetScore: [10, 15, 20, 30],
     maxRounds: [0, 6, 10, 16],
@@ -216,6 +294,14 @@ export const SETTINGS_OPTIONS = {
     timePerGuess: [30, 45, 60, 90],
     timeBetweenRounds: [10, 15, 20, 30],
 } as const
+
+export type NumericSetting = keyof typeof SETTINGS_OPTIONS
+
+/** Allowed values of a numeric setting for a game mode. */
+export function settingOptionsFor(mode: GameMode, key: NumericSetting): readonly number[] {
+    if (key === 'targetScore' && mode === 'teams') return TEAM_TARGET_OPTIONS
+    return SETTINGS_OPTIONS[key]
+}
 
 /** Colors assigned to players (index = Player.colorIndex). */
 export const PLAYER_COLORS = [

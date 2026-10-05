@@ -25,7 +25,7 @@ Capturas (renderização estática dos componentes, 1280 px e 390 px) em `docs/s
 | ✅ | **Pontuação por cunha** | Centro ±3 → 4 pts, ±8 → 3 pts, ±13 → 2 pts (antes ±5/±10/±20, cunha ocupava 40% do dial). |
 | ✅ | **Bônus de "mais perto" só dentro da cunha** | Errar "por menos" não ganha ponto. |
 | ✅ | **Pontuação do Vidente reequilibrada** | Agora recebe a **média** dos pontos de quem palpitou (máx. 4). Antes somava bônus por cada jogador: com 8 pessoas o Vidente podia fazer 14 pontos numa rodada contra 5 de um palpiteiro. |
-| ⬜ P2 | **Modo em equipes** | O Wavelength original é 2 times: o time adversário chuta "esquerda ou direita" do ponteiro por 1 ponto. A engine já separa Vidente/palpiteiros; falta agrupar jogadores em times, o palpite único por time e a fase "esquerda/direita". |
+| ✅ | **Modo em equipes** | Regra do Wavelength original como alternativa no lobby: dois times balanceados ao entrar (troca de time e anfitrião movendo gente), Vidente rodando dentro do time, ponteiro compartilhado em tempo real só para o time da vez (`game:needleMove` com throttle no cliente e no servidor), palpite único do time, fase "esquerda ou direita" do adversário (`game:sideGuess`, 1 ponto), placar por time a 10 pontos, regra de revanche no 4 (opcional), resultados e estatísticas por time. Testes em `tests/teams.test.ts`. |
 | ⬜ P2 | **Modo cooperativo** | Como no app oficial: todos no mesmo time, 7 rodadas, meta de pontos conjunta. Fácil de derivar do modo atual. |
 | ⬜ P3 | **Cartas em outros idiomas / pacotes temáticos** | Baralho em `shared/cards.ts`; dá para adicionar "pack família", "pack +18", "pack nerd" e deixar o anfitrião escolher. |
 | ⬜ P3 | **Cartas personalizadas** | O anfitrião digita pares próprios para a partida. |

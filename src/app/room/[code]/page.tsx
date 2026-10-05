@@ -9,6 +9,8 @@ import { normalizeRoomCode } from '@shared/gameLogic'
 import Lobby from '@/components/Lobby/Lobby'
 import Game from '@/components/Game/Game'
 import Results from '@/components/Results/Results'
+import TeamGame from '@/components/TeamGame/TeamGame'
+import TeamResults from '@/components/TeamResults/TeamResults'
 import Logo from '@/components/ui/Logo'
 import Toasts from '@/components/ui/Toasts'
 import { LogOutIcon, VolumeIcon, VolumeOffIcon, WifiOffIcon, CopyIcon, CheckIcon } from '@/components/ui/Icons'
@@ -22,8 +24,8 @@ export default function RoomPage() {
     const code = normalizeRoomCode(String(params.code ?? ''))
 
     const {
-        room, me, isHost, isSeer, isConnected, wasKicked, toasts, timer, serverOffset,
-        pushToast, joinRoom, leaveRoom, kickPlayer, updateSettings, startGame, giveClue,
+        room, me, isHost, isSeer, isConnected, wasKicked, toasts, timer, serverOffset, remoteNeedle,
+        pushToast, joinRoom, leaveRoom, kickPlayer, updateSettings, setTeam, moveNeedle, sideGuess, startGame, giveClue,
         submitGuess, setReady, nextRound, skipRound, backToLobby,
     } = useGameState()
 
@@ -169,18 +171,38 @@ export default function RoomPage() {
                         onStartGame={startGame}
                         onKickPlayer={(id) => kickPlayer(id).then(r => { if (!r.success && r.error) notify(r.error, 'error') })}
                         onUpdateSettings={(s) => updateSettings(s).then(r => { if (!r.success && r.error) notify(r.error, 'error') })}
+                        onSetTeam={(id, team) => setTeam(id, team).then(r => { if (!r.success && r.error) notify(r.error, 'error') })}
                         onNotify={notify}
                     />
                 )}
 
-                {room.status === 'playing' && room.currentRound && (
-                    <Game
+                {room.status === 'playing' && room.currentRound?.teamPlay && (
+                    <TeamGame
                         room={room}
                         me={me}
                         isHost={isHost}
                         isSeer={isSeer}
                         secondsLeft={secondsLeft}
                         timerPhase={timer?.phase ?? null}
+                        remoteNeedle={remoteNeedle}
+                        onGiveClue={giveClue}
+                        onSubmitGuess={submitGuess}
+                        onNeedleMove={moveNeedle}
+                        onSideGuess={sideGuess}
+                        onSetReady={setReady}
+                        onNextRound={nextRound}
+                        onSkipRound={skipRound}
+                    />
+                )}
+
+                {room.status === 'playing' && room.currentRound && !room.currentRound.teamPlay && (
+                    <Game
+                        room={room}
+                        me={me}
+                        isHost={isHost}
+                        isSeer={isSeer}
+                        secondsLeft={secondsLeft}
+                        timerPhase={timer?.phase === 'side' ? null : timer?.phase ?? null}
                         onGiveClue={giveClue}
                         onSubmitGuess={submitGuess}
                         onSetReady={setReady}
@@ -189,7 +211,18 @@ export default function RoomPage() {
                     />
                 )}
 
-                {room.status === 'finished' && (
+                {room.status === 'finished' && room.settings.mode === 'teams' && (
+                    <TeamResults
+                        room={room}
+                        me={me}
+                        isHost={isHost}
+                        onPlayAgain={startGame}
+                        onBackToLobby={backToLobby}
+                        onLeave={handleLeave}
+                    />
+                )}
+
+                {room.status === 'finished' && room.settings.mode !== 'teams' && (
                     <Results
                         room={room}
                         me={me}

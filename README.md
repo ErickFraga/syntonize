@@ -62,6 +62,16 @@ npm run lint       # next lint
    Quem chegou mais perto ganha +1. O Vidente ganha a média dos pontos de quem palpitou.
 6. Ganha quem bater a meta de pontos (ou quem tiver mais ao fim do limite de rodadas).
 
+### Modo em equipes
+
+O anfitrião pode trocar o modo para **Em equipes** no lobby (mínimo de 2 jogadores por time).
+
+1. Os times se alternam; o Vidente é sempre do time da vez e roda entre os membros do time.
+2. O time inteiro gira **o mesmo ponteiro** em tempo real (o outro time não vê) e qualquer um trava o palpite do time.
+3. O time adversário chuta se o alvo está **à esquerda ou à direita** do ponteiro: acertar vale 1 ponto.
+4. O time da vez pontua pela cunha (4/3/2). Meta padrão: 10 pontos; empate na meta continua até alguém passar.
+5. **Revanche no 4** (opcional, ligada por padrão): o time que acerta na mosca e continua atrás no placar joga de novo.
+
 ## Estrutura
 
 ```

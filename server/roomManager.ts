@@ -11,6 +11,7 @@ import type {
     ServerToClientEvents,
     TimerPhase,
     Notice,
+    TeamId,
 } from '../shared/types.ts'
 import {
     generateRoomCode,
@@ -35,7 +36,15 @@ import {
     finishGame,
     resetGameState,
     roomViewFor,
+    setPlayerTeam,
+    moveTeamNeedle,
+    lockTeamGuess,
+    submitSideGuess,
+    activeTeamHasGuessers,
+    opposingTeamPresent,
+    teamMembers,
     LIMITS,
+    TEAM_RULES,
 } from '../shared/index.ts'
 
 // ============================================
@@ -109,6 +118,8 @@ export class RoomManager {
     private sessions = new Map<string, { playerId: string; roomCode: string }>()
     private timers = new Map<string, RoomTimers>()
     private goneTimers = new Map<string, TimerHandle>()
+    /** Last accepted live-needle update per player (throttle). */
+    private lastNeedleAt = new Map<string, number>()
 
     private clock: Clock
     private rng: () => number
@@ -310,6 +321,19 @@ export class RoomManager {
         return { success: true }
     }
 
+    /** Lobby only: anyone can switch their own team, the host can move anyone. */
+    setTeam(actorId: string, targetId: string, team: TeamId): Result {
+        const room = this.getRoomOfPlayer(actorId)
+        if (!room) return { success: false, error: 'Sala não encontrada' }
+        const actor = room.players.find(p => p.id === actorId)
+        if (actorId !== targetId && !actor?.isHost) return { success: false, error: 'Só o anfitrião pode mover outros jogadores' }
+        if (room.status !== 'waiting') return { success: false, error: 'Os times só mudam no lobby' }
+        if (team !== 0 && team !== 1) return { success: false, error: 'Time inválido' }
+        if (!setPlayerTeam(room, targetId, team)) return { success: false, error: 'Jogador não encontrado' }
+        this.broadcastState(room)
+        return { success: true }
+    }
+
     startGame(hostId: string): Result {
         const room = this.getRoomOfPlayer(hostId)
         if (!room) return { success: false, error: 'Sala não encontrada' }
@@ -361,7 +385,11 @@ export class RoomManager {
         this.log(`clue in ${room.code}: ${valid.clue}`)
 
         // Nobody to guess (everyone else offline): resolve right away.
-        if (allGuessersDone(room)) this.endRound(room)
+        if (round.teamPlay) {
+            if (!activeTeamHasGuessers(room)) this.lockTeam(room)
+        } else if (allGuessersDone(room)) {
+            this.endRound(room)
+        }
         return { success: true }
     }
 
@@ -372,8 +400,45 @@ export class RoomManager {
         const result = applyGuess(room, playerId, position)
         if (!result.ok) return { success: false, error: result.error }
 
+        if (room.currentRound?.teamPlay) {
+            this.afterTeamLock(room)
+            return { success: true }
+        }
         this.broadcastState(room)
         if (allGuessersDone(room)) this.endRound(room)
+        return { success: true }
+    }
+
+    /**
+     * Team mode: a guesser drags the shared needle. Relayed only to the
+     * active team (the other team must not see it before the lock), and
+     * throttled per player so a fast drag cannot flood the room.
+     */
+    moveNeedle(playerId: string, position: number): Result {
+        const room = this.getRoomOfPlayer(playerId)
+        if (!room) return { success: false, error: 'Sala não encontrada' }
+        const now = this.clock.now()
+        const last = this.lastNeedleAt.get(playerId)
+        if (last !== undefined && now - last < TEAM_RULES.NEEDLE_THROTTLE_MS) return { success: false, error: 'Devagar com o ponteiro' }
+
+        const result = moveTeamNeedle(room, playerId, position)
+        if (!result.ok) return { success: false, error: result.error }
+        this.lastNeedleAt.set(playerId, now)
+
+        const team = room.currentRound!.teamPlay!.team
+        for (const member of teamMembers(room, team)) {
+            this.transport.toPlayer(member.id, 'game:needle', { position: result.position!, by: playerId })
+        }
+        return { success: true }
+    }
+
+    /** Team mode: the opposing team calls left or right of the locked needle. */
+    sideGuess(playerId: string, side: unknown): Result {
+        const room = this.getRoomOfPlayer(playerId)
+        if (!room) return { success: false, error: 'Sala não encontrada' }
+        const result = submitSideGuess(room, playerId, side)
+        if (!result.ok) return { success: false, error: result.error }
+        this.endRound(room)
         return { success: true }
     }
 
@@ -507,6 +572,7 @@ export class RoomManager {
     private removePlayer(room: Room, player: Player, reason: string, broadcast = true): void {
         const wasHost = player.isHost
         this.cancelGone(player.id)
+        this.lastNeedleAt.delete(player.id)
         removePlayerFromRoom(room, player.id)
         this.playerRooms.delete(player.id)
         this.forgetSessions(player.id)
@@ -532,7 +598,8 @@ export class RoomManager {
         if (room.status !== 'playing' || !room.currentRound) return
 
         const connected = room.players.filter(p => p.isConnected)
-        if (room.players.length < LIMITS.MIN_PLAYERS) {
+        const teamEmptied = room.settings.mode === 'teams' && ([0, 1] as TeamId[]).some(t => !room.players.some(p => p.team === t))
+        if (room.players.length < LIMITS.MIN_PLAYERS || teamEmptied) {
             this.notify(room, 'warning', 'Jogadores insuficientes, a partida terminou')
             this.clearTimers(room.code)
             finishGame(room)
@@ -545,6 +612,10 @@ export class RoomManager {
         if (round.phase === 'waiting_clue' && round.seerId === player.id) {
             this.notify(room, 'warning', `O Vidente ${player.nickname} ${reason}. Pulando a rodada.`)
             this.beginRound(room)
+        } else if (round.teamPlay) {
+            if (round.phase === 'guessing' && !activeTeamHasGuessers(room)) this.lockTeam(room)
+            else if (round.phase === 'side_guess' && !opposingTeamPresent(room)) this.endRound(room)
+            else if (round.phase === 'revealed' && allReady(room)) this.beginRound(room)
         } else if (round.phase === 'guessing' && allGuessersDone(room)) {
             this.endRound(room)
         } else if (round.phase === 'revealed' && allReady(room)) {
@@ -556,7 +627,14 @@ export class RoomManager {
         this.clearTimers(room.code)
         const round = startNewRound(room, this.clock.now(), this.rng)
         if (!round) {
-            // Nobody connected to be the seer; the sweep will clean up later.
+            if (room.settings.mode === 'teams' && room.status === 'playing') {
+                // Neither team can field a seer and a guesser anymore.
+                this.notify(room, 'warning', 'Jogadores insuficientes, a partida terminou')
+                finishGame(room)
+                this.transport.toRoom(room.code, 'game:finished', room.winnerId)
+                this.broadcastState(room)
+            }
+            // FFA: nobody connected to be the seer; the sweep will clean up later.
             return
         }
         this.transport.toRoom(room.code, 'game:roundStart', round.roundNumber)
@@ -582,6 +660,22 @@ export class RoomManager {
         this.startPhaseTimer(room, 'next', room.settings.timeBetweenRounds)
     }
 
+    /** Team mode: locks the needle where the team left it (timer or nobody left to guess). */
+    private lockTeam(room: Room): void {
+        lockTeamGuess(room)
+        this.afterTeamLock(room)
+    }
+
+    private afterTeamLock(room: Room): void {
+        if (room.currentRound?.phase !== 'side_guess') return
+        this.broadcastState(room)
+        if (opposingTeamPresent(room)) {
+            this.startPhaseTimer(room, 'side', TEAM_RULES.SIDE_GUESS_SECONDS)
+        } else {
+            this.endRound(room)
+        }
+    }
+
     private onPhaseTimeout(code: string, phase: TimerPhase): void {
         const room = this.rooms.get(code)
         const round = room?.currentRound
@@ -591,6 +685,9 @@ export class RoomManager {
             this.notify(room, 'warning', 'Tempo esgotado para a dica. Pulando a rodada.')
             this.beginRound(room)
         } else if (phase === 'guess' && round.phase === 'guessing') {
+            if (round.teamPlay) this.lockTeam(room)
+            else this.endRound(room)
+        } else if (phase === 'side' && round.phase === 'side_guess') {
             this.endRound(room)
         } else if (phase === 'next' && round.phase === 'revealed') {
             this.beginRound(room)

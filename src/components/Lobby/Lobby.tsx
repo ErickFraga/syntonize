@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import type { Room, Player, RoomSettings } from '@/types/game'
-import { SETTINGS_OPTIONS, LIMITS } from '@/types/game'
+import type { Room, Player, RoomSettings, TeamId, NumericSetting, GameMode } from '@/types/game'
+import { SETTINGS_OPTIONS, LIMITS, TEAM_RULES, settingOptionsFor } from '@/types/game'
 import Avatar from '@/components/ui/Avatar'
+import TeamColumns from '@/components/TeamColumns/TeamColumns'
 import { CopyIcon, CheckIcon, ShareIcon, PlayIcon, CrownIcon, XIcon, UsersIcon, SettingsIcon } from '@/components/ui/Icons'
 import styles from './Lobby.module.css'
 
@@ -14,10 +15,16 @@ interface LobbyProps {
     onStartGame: () => void
     onKickPlayer: (playerId: string) => void
     onUpdateSettings: (settings: Partial<RoomSettings>) => void
+    onSetTeam: (playerId: string, team: TeamId) => void
     onNotify: (message: string, kind?: 'info' | 'success' | 'warning' | 'error') => void
 }
 
-const SETTING_LABELS: Record<keyof RoomSettings, { title: string; hint: string; format: (v: number) => string }> = {
+const MODES: Array<{ value: GameMode; label: string }> = [
+    { value: 'ffa', label: 'Todos contra todos' },
+    { value: 'teams', label: 'Em equipes' },
+]
+
+const SETTING_LABELS: Record<NumericSetting, { title: string; hint: string; format: (v: number) => string }> = {
     targetScore: { title: 'Pontos para vencer', hint: 'A partida termina quando alguém chega lá', format: v => `${v}` },
     maxRounds: { title: 'Limite de rodadas', hint: 'Termina antes se o limite chegar primeiro', format: v => (v === 0 ? 'Sem limite' : `${v}`) },
     timePerGuess: { title: 'Tempo para palpitar', hint: 'Contado a partir da dica', format: v => `${v}s` },
@@ -25,10 +32,12 @@ const SETTING_LABELS: Record<keyof RoomSettings, { title: string; hint: string; 
     timeBetweenRounds: { title: 'Pausa entre rodadas', hint: 'Ou quando todos estiverem prontos', format: v => `${v}s` },
 }
 
-export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onUpdateSettings, onNotify }: LobbyProps) {
+export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onUpdateSettings, onSetTeam, onNotify }: LobbyProps) {
     const [copied, setCopied] = useState<'code' | 'link' | null>(null)
     const connected = room.players.filter(p => p.isConnected).length
-    const canStart = connected >= LIMITS.MIN_PLAYERS
+    const teams = room.settings.mode === 'teams'
+    const teamsReady = !teams || ([0, 1] as TeamId[]).every(t => room.players.filter(p => p.team === t && p.isConnected).length >= TEAM_RULES.MIN_PER_TEAM)
+    const canStart = connected >= LIMITS.MIN_PLAYERS && teamsReady
 
     const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}/join/${room.code}` : `/join/${room.code}`
 
@@ -91,6 +100,9 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
                         <span className="chip">{room.players.length}/{LIMITS.MAX_PLAYERS}</span>
                     </header>
 
+                    {teams ? (
+                        <TeamColumns room={room} me={me} isHost={isHost} onSetTeam={onSetTeam} onKickPlayer={onKickPlayer} />
+                    ) : (
                     <ul className={styles.playerList}>
                         {room.players.map((player, index) => (
                             <li key={player.id} className={`${styles.player} ${player.isConnected ? '' : styles.playerOffline} anim-pop`} style={{ animationDelay: `${index * 0.05}s` }}>
@@ -119,6 +131,7 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
                             </li>
                         )}
                     </ul>
+                    )}
                 </section>
 
                 <section className={`card ${styles.settings} anim-fade-up`} style={{ animationDelay: '0.1s' }}>
@@ -128,9 +141,51 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
                     </header>
 
                     <div className={styles.settingList}>
-                        {(Object.keys(SETTINGS_OPTIONS) as Array<keyof RoomSettings>).map(key => {
+                        <div className={styles.setting}>
+                            <div className={styles.settingText}>
+                                <span className={styles.settingTitle}>Modo de jogo</span>
+                                <span className={styles.settingHint}>{teams ? 'Dois times, um palpite por time; o adversário chuta esquerda ou direita' : 'Cada um por si, todo mundo palpita'}</span>
+                            </div>
+                            <div className={styles.segmented} role="radiogroup" aria-label="Modo de jogo">
+                                {MODES.map(m => (
+                                    <button
+                                        key={m.value}
+                                        role="radio"
+                                        aria-checked={m.value === room.settings.mode}
+                                        className={`${styles.segment} ${m.value === room.settings.mode ? styles.segmentActive : ''}`}
+                                        disabled={!isHost}
+                                        onClick={() => onUpdateSettings({ mode: m.value })}
+                                    >
+                                        {m.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        {teams && (
+                            <div className={styles.setting}>
+                                <div className={styles.settingText}>
+                                    <span className={styles.settingTitle}>Revanche no 4</span>
+                                    <span className={styles.settingHint}>Time que acerta na mosca e continua atrás joga de novo</span>
+                                </div>
+                                <div className={styles.segmented} role="radiogroup" aria-label="Revanche no 4">
+                                    {[true, false].map(on => (
+                                        <button
+                                            key={String(on)}
+                                            role="radio"
+                                            aria-checked={on === room.settings.catchUp}
+                                            className={`${styles.segment} ${on === room.settings.catchUp ? styles.segmentActive : ''}`}
+                                            disabled={!isHost}
+                                            onClick={() => onUpdateSettings({ catchUp: on })}
+                                        >
+                                            {on ? 'Ligada' : 'Desligada'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        {(Object.keys(SETTINGS_OPTIONS) as NumericSetting[]).map(key => {
                             const meta = SETTING_LABELS[key]
-                            const options = SETTINGS_OPTIONS[key] as readonly number[]
+                            const options = settingOptionsFor(room.settings.mode, key)
                             const value = room.settings[key]
                             return (
                                 <div key={key} className={styles.setting}>
@@ -164,7 +219,7 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
                     <>
                         <button className="btn btn-primary btn-lg" onClick={onStartGame} disabled={!canStart}>
                             <PlayIcon />
-                            {canStart ? 'Começar partida' : `Faltam ${LIMITS.MIN_PLAYERS - connected} jogador${LIMITS.MIN_PLAYERS - connected > 1 ? 'es' : ''}`}
+                            {canStart ? 'Começar partida' : connected >= LIMITS.MIN_PLAYERS ? `${TEAM_RULES.MIN_PER_TEAM} por time para começar` : `Faltam ${LIMITS.MIN_PLAYERS - connected} jogador${LIMITS.MIN_PLAYERS - connected > 1 ? 'es' : ''}`}
                         </button>
                         <p className="muted">Mínimo de {LIMITS.MIN_PLAYERS} jogadores. Dá para entrar depois que a partida começar também.</p>
                     </>

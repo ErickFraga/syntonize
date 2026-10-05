@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { getSocket, session } from '@/lib/socket'
 import { sounds } from '@/lib/sounds'
-import type { Room, Player, TimerUpdate, Notice, RoomSettings, JoinResult, SimpleResult, RoomInfo } from '@/types/game'
+import type { Room, Player, TimerUpdate, Notice, RoomSettings, JoinResult, SimpleResult, RoomInfo, TeamId, Side } from '@/types/game'
 
 export interface Toast extends Notice {
     id: number
@@ -13,6 +13,16 @@ export interface TimerState {
     phase: TimerUpdate['phase']
     endsAt: number
 }
+
+/** Live needle of my team in team mode, as last relayed by the server. */
+export interface RemoteNeedle {
+    position: number
+    by: string
+    at: number
+}
+
+/** Client-side spacing of live needle updates (the server throttles too). */
+const NEEDLE_SEND_MS = 80
 
 let toastId = 0
 
@@ -25,6 +35,8 @@ export function useGameState() {
     const [timer, setTimer] = useState<TimerState | null>(null)
     const [serverOffset, setServerOffset] = useState(0)
     const [wasKicked, setWasKicked] = useState(false)
+    const [remoteNeedle, setRemoteNeedle] = useState<RemoteNeedle | null>(null)
+    const needleSend = useRef<{ last: number; pending: number | null; timer: number | null }>({ last: 0, pending: null, timer: null })
 
     const pushToast = useCallback((notice: Notice, ttl = 3500) => {
         const id = ++toastId
@@ -83,6 +95,7 @@ export function useGameState() {
             setTimer(null)
             sounds.finish()
         }
+        const onNeedle = (data: { position: number; by: string }) => setRemoteNeedle({ ...data, at: Date.now() })
 
         socket.on('connect', onConnect)
         socket.on('disconnect', onDisconnect)
@@ -96,6 +109,7 @@ export function useGameState() {
         socket.on('game:clueGiven', onClue)
         socket.on('game:reveal', onReveal)
         socket.on('game:finished', onFinished)
+        socket.on('game:needle', onNeedle)
 
         if (socket.connected) onConnect()
 
@@ -112,6 +126,7 @@ export function useGameState() {
             socket.off('game:clueGiven', onClue)
             socket.off('game:reveal', onReveal)
             socket.off('game:finished', onFinished)
+            socket.off('game:needle', onNeedle)
         }
     }, [pushToast])
 
@@ -165,6 +180,30 @@ export function useGameState() {
         return new Promise<SimpleResult>((resolve) => getSocket().emit('room:updateSettings', settings, resolve))
     }, [])
 
+    const setTeam = useCallback((targetId: string, team: TeamId) => {
+        return new Promise<SimpleResult>((resolve) => getSocket().emit('room:setTeam', targetId, team, resolve))
+    }, [])
+
+    /** Team mode: shares my needle drag with my team, at most every NEEDLE_SEND_MS (last value always sent). */
+    const moveNeedle = useCallback((position: number) => {
+        const state = needleSend.current
+        const flush = () => {
+            state.timer = null
+            if (state.pending === null) return
+            state.last = Date.now()
+            getSocket().emit('game:needleMove', state.pending)
+            state.pending = null
+        }
+        state.pending = position
+        const wait = NEEDLE_SEND_MS - (Date.now() - state.last)
+        if (wait <= 0) flush()
+        else if (state.timer === null) state.timer = window.setTimeout(flush, wait)
+    }, [])
+
+    const sideGuess = useCallback((side: Side) => {
+        return new Promise<SimpleResult>((resolve) => getSocket().emit('game:sideGuess', side, resolve))
+    }, [])
+
     const startGame = useCallback(() => getSocket().emit('game:start'), [])
     const giveClue = useCallback((clue: string) => {
         return new Promise<SimpleResult>((resolve) => getSocket().emit('game:giveClue', clue, resolve))
@@ -198,6 +237,7 @@ export function useGameState() {
         toasts,
         timer,
         serverOffset,
+        remoteNeedle,
         pushToast,
         createRoom,
         joinRoom,
@@ -205,6 +245,9 @@ export function useGameState() {
         leaveRoom,
         kickPlayer,
         updateSettings,
+        setTeam,
+        moveNeedle,
+        sideGuess,
         startGame,
         giveClue,
         submitGuess,

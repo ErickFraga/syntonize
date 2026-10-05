@@ -1,8 +1,8 @@
 // Game logic - pure functions shared between client and server.
 // Nothing in here talks to sockets or timers; the server orchestrates.
 
-import type { Room, Player, GameRound, SpectrumCard, RoomSettings, Zone } from './types.ts'
-import { SCORING, LIMITS, DEFAULT_SETTINGS, SETTINGS_OPTIONS, PLAYER_COLORS } from './types.ts'
+import type { Room, Player, GameRound, SpectrumCard, RoomSettings, Zone, TeamId, Side, TeamRoundState, NumericSetting } from './types.ts'
+import { SCORING, LIMITS, DEFAULT_SETTINGS, SETTINGS_OPTIONS, PLAYER_COLORS, TEAM_DEFAULT_TARGET, TEAM_RULES, settingOptionsFor } from './types.ts'
 import { spectrumCards } from './cards.ts'
 
 // ============================================
@@ -82,11 +82,20 @@ const STOP_WORDS = new Set(['para', 'com', 'que', 'nao', 'sem', 'dos', 'das', 'u
 
 export function sanitizeSettings(partial: Partial<RoomSettings>, current: RoomSettings = DEFAULT_SETTINGS): RoomSettings {
     const next: RoomSettings = { ...current }
-    for (const key of Object.keys(SETTINGS_OPTIONS) as Array<keyof RoomSettings>) {
-        const value = partial[key]
+    const input: Partial<RoomSettings> = partial && typeof partial === 'object' ? partial : {}
+
+    // Switching modes resets the target to that mode's default (team points
+    // add up much slower); an explicit valid targetScore below still wins.
+    if ((input.mode === 'ffa' || input.mode === 'teams') && input.mode !== next.mode) {
+        next.mode = input.mode
+        next.targetScore = input.mode === 'teams' ? TEAM_DEFAULT_TARGET : DEFAULT_SETTINGS.targetScore
+    }
+    if (typeof input.catchUp === 'boolean') next.catchUp = input.catchUp
+
+    for (const key of Object.keys(SETTINGS_OPTIONS) as NumericSetting[]) {
+        const value = input[key]
         if (typeof value !== 'number' || !Number.isFinite(value)) continue
-        const allowed = SETTINGS_OPTIONS[key] as readonly number[]
-        if (allowed.includes(value)) next[key] = value
+        if (settingOptionsFor(next.mode, key).includes(value)) next[key] = value
     }
     return next
 }
@@ -130,8 +139,9 @@ export function nextColorIndex(players: Player[]): number {
     return players.length % PLAYER_COLORS.length
 }
 
-export function createPlayer(id: string, nickname: string, colorIndex: number, isHost = false): Player {
+export function createPlayer(id: string, nickname: string, colorIndex: number, isHost = false, team: TeamId = 0): Player {
     return {
+        team,
         id,
         nickname,
         score: 0,
@@ -158,10 +168,21 @@ export function createRoom(code: string, host: Player, now: number = Date.now())
         winnerId: null,
         nextRoundAt: null,
         createdAt: now,
+        teamScores: [0, 0],
+        teamSeerIndex: [0, 0],
+        nextTeam: 0,
+        winnerTeam: null,
     }
 }
 
+/** The team with fewer players (team 0 on a tie): keeps teams balanced on join. */
+export function balancedTeam(players: Player[]): TeamId {
+    const first = players.filter(p => p.team === 0).length
+    return players.length - first < first ? 1 : 0
+}
+
 export function addPlayerToRoom(room: Room, player: Player): void {
+    player.team = balancedTeam(room.players)
     room.players.push(player)
     room.seerOrder.push(player.id)
 }
@@ -214,7 +235,191 @@ export function canStartGame(room: Room): { ok: boolean; error?: string } {
     if (connected.length < LIMITS.MIN_PLAYERS) {
         return { ok: false, error: `Precisa de pelo menos ${LIMITS.MIN_PLAYERS} jogadores conectados` }
     }
+    if (room.settings.mode === 'teams' && !([0, 1] as TeamId[]).every(t => canTeamPlay(room, t))) {
+        return { ok: false, error: `Cada time precisa de pelo menos ${TEAM_RULES.MIN_PER_TEAM} jogadores conectados` }
+    }
     return { ok: true }
+}
+
+// ============================================
+// TEAMS
+// ============================================
+
+export function otherTeam(team: TeamId): TeamId {
+    return team === 0 ? 1 : 0
+}
+
+/** Members of a team, in seer-rotation order. */
+export function teamMembers(room: Room, team: TeamId): Player[] {
+    return room.seerOrder
+        .map(id => room.players.find(p => p.id === id))
+        .filter((p): p is Player => !!p && p.team === team)
+}
+
+/** A team can take a turn with a connected seer and at least one connected guesser. */
+export function canTeamPlay(room: Room, team: TeamId): boolean {
+    return teamMembers(room, team).filter(p => p.isConnected).length >= TEAM_RULES.MIN_PER_TEAM
+}
+
+export function setPlayerTeam(room: Room, playerId: string, team: TeamId): boolean {
+    const player = room.players.find(p => p.id === playerId)
+    if (!player || (team !== 0 && team !== 1)) return false
+    player.team = team
+    return true
+}
+
+/** Team that plays the next round: the scheduled one, or the other if it cannot. */
+export function pickTeamForRound(room: Room): TeamId | null {
+    if (canTeamPlay(room, room.nextTeam)) return room.nextTeam
+    const other = otherTeam(room.nextTeam)
+    return canTeamPlay(room, other) ? other : null
+}
+
+/** Rotates the seer inside a team, skipping offline players. */
+export function pickNextTeamSeer(room: Room, team: TeamId): string | null {
+    const members = teamMembers(room, team)
+    const n = members.length
+    for (let step = 0; step < n; step++) {
+        const idx = (room.teamSeerIndex[team] + step) % n
+        if (members[idx].isConnected) {
+            room.teamSeerIndex[team] = (idx + 1) % n
+            return members[idx].id
+        }
+    }
+    return null
+}
+
+function newTeamPlay(team: TeamId): TeamRoundState {
+    return {
+        team,
+        needle: 50,
+        guess: null,
+        lockedBy: null,
+        side: null,
+        sideBy: null,
+        zone: null,
+        points: [0, 0],
+        sideCorrect: null,
+        catchUp: false,
+    }
+}
+
+/** Which side of `guess` the target is on; null when it is exactly on it. */
+export function sideOfTarget(guess: number, target: number): Side | null {
+    if (target < guess) return 'left'
+    if (target > guess) return 'right'
+    return null
+}
+
+function clampPosition(position: number): number {
+    return Math.round(Math.max(0, Math.min(100, position)))
+}
+
+function activeTeamGuesser(room: Room, playerId: string): { ok: boolean; error?: string; player?: Player; play?: TeamRoundState } {
+    const round = room.currentRound
+    const play = round?.teamPlay
+    if (!round || !play || round.phase !== 'guessing') return { ok: false, error: 'Não é hora de palpitar' }
+    if (round.seerId === playerId) return { ok: false, error: 'O Vidente não dá palpite' }
+    const player = room.players.find(p => p.id === playerId)
+    if (!player) return { ok: false, error: 'Jogador não está na sala' }
+    if (player.team !== play.team) return { ok: false, error: 'Não é a vez do seu time' }
+    return { ok: true, player, play }
+}
+
+/** Live needle drag by any guesser of the active team. */
+export function moveTeamNeedle(room: Room, playerId: string, position: number): { ok: boolean; error?: string; position?: number } {
+    const check = activeTeamGuesser(room, playerId)
+    if (!check.ok) return { ok: false, error: check.error }
+    if (typeof position !== 'number' || !Number.isFinite(position)) return { ok: false, error: 'Palpite inválido' }
+    const clamped = clampPosition(position)
+    check.play!.needle = clamped
+    return { ok: true, position: clamped }
+}
+
+/** Any guesser of the active team locks the single team guess. */
+export function submitTeamGuess(room: Room, playerId: string, position: number): { ok: boolean; error?: string } {
+    const check = activeTeamGuesser(room, playerId)
+    if (!check.ok) return { ok: false, error: check.error }
+    if (typeof position !== 'number' || !Number.isFinite(position)) return { ok: false, error: 'Palpite inválido' }
+    lockTeamGuess(room, clampPosition(position), playerId)
+    check.player!.hasGuessed = true
+    return { ok: true }
+}
+
+/** Locks the team guess (also used when the guess timer runs out). */
+export function lockTeamGuess(room: Room, position: number | null = null, lockedBy: string | null = null): void {
+    const round = room.currentRound
+    const play = round?.teamPlay
+    if (!round || !play || round.phase !== 'guessing') return
+    const guess = position ?? play.needle ?? 50
+    play.needle = guess
+    play.guess = guess
+    play.lockedBy = lockedBy
+    round.phase = 'side_guess'
+}
+
+export function submitSideGuess(room: Room, playerId: string, side: unknown): { ok: boolean; error?: string } {
+    const round = room.currentRound
+    const play = round?.teamPlay
+    if (!round || !play || round.phase !== 'side_guess') return { ok: false, error: 'Não é hora de escolher o lado' }
+    const player = room.players.find(p => p.id === playerId)
+    if (!player) return { ok: false, error: 'Jogador não está na sala' }
+    if (player.team === play.team) return { ok: false, error: 'Quem escolhe o lado é o outro time' }
+    if (side !== 'left' && side !== 'right') return { ok: false, error: 'Lado inválido' }
+    if (play.side) return { ok: false, error: 'Seu time já escolheu o lado' }
+    play.side = side
+    play.sideBy = playerId
+    return { ok: true }
+}
+
+/** Whether a connected guesser of the active team is still around. */
+export function activeTeamHasGuessers(room: Room): boolean {
+    const round = room.currentRound
+    if (!round?.teamPlay) return false
+    return teamMembers(room, round.teamPlay.team).some(p => p.id !== round.seerId && p.isConnected)
+}
+
+/** Whether the opposing team has someone connected to call the side. */
+export function opposingTeamPresent(room: Room): boolean {
+    const play = room.currentRound?.teamPlay
+    if (!play) return false
+    return teamMembers(room, otherTeam(play.team)).some(p => p.isConnected)
+}
+
+function processTeamRoundResults(room: Room, round: GameRound, play: TeamRoundState, now: number): GameRound {
+    const target = round.targetPosition ?? 50
+    const guess = play.guess ?? play.needle ?? 50
+    play.guess = guess
+    play.zone = zoneForDistance(guess - target)
+
+    const points: [number, number] = [0, 0]
+    points[play.team] = play.zone
+    if (play.side) {
+        play.sideCorrect = play.side === sideOfTarget(guess, target)
+        if (play.sideCorrect) points[otherTeam(play.team)] = TEAM_RULES.SIDE_POINTS
+    }
+    play.points = points
+    room.teamScores = [room.teamScores[0] + points[0], room.teamScores[1] + points[1]]
+
+    // Catch-up rule from the original game: a bullseye by a team that is
+    // still behind after scoring earns it another turn.
+    const other = otherTeam(play.team)
+    play.catchUp = room.settings.catchUp && play.zone === 4 && room.teamScores[play.team] < room.teamScores[other]
+    room.nextTeam = play.catchUp ? play.team : other
+
+    round.phase = 'revealed'
+    round.revealedAt = now
+    room.players.forEach(p => { p.isReady = false })
+    room.roundHistory.push(round)
+    room.nextRoundAt = now + room.settings.timeBetweenRounds * 1000
+
+    const { targetScore, maxRounds } = room.settings
+    const [a, b] = room.teamScores
+    // A tie at the target keeps going: the next round breaks it.
+    const reachedScore = Math.max(a, b) >= targetScore && a !== b
+    const reachedRounds = maxRounds > 0 && room.roundHistory.length >= maxRounds
+    if (reachedScore || reachedRounds) finishGame(room)
+    return round
 }
 
 // ============================================
@@ -250,7 +455,16 @@ export function pickNextSeer(room: Room): string | null {
 }
 
 export function startNewRound(room: Room, now: number = Date.now(), rng: () => number = Math.random): GameRound | null {
-    const seerId = pickNextSeer(room)
+    const teams = room.settings.mode === 'teams'
+    let seerId: string | null
+    let teamPlay: TeamRoundState | null = null
+    if (teams) {
+        const team = pickTeamForRound(room)
+        seerId = team === null ? null : pickNextTeamSeer(room, team)
+        if (team !== null) teamPlay = newTeamPlay(team)
+    } else {
+        seerId = pickNextSeer(room)
+    }
     if (!seerId) return null
 
     const card = pickCard(room.usedCardIds, rng)
@@ -276,18 +490,20 @@ export function startNewRound(room: Room, now: number = Date.now(), rng: () => n
         startedAt: now,
         clueAt: null,
         revealedAt: null,
+        teamPlay,
     }
 
     room.currentRound = round
     room.status = 'playing'
     room.nextRoundAt = null
     // Rotation moves on as soon as the round starts, so a seer who leaves
-    // mid-round does not get picked again.
-    room.currentSeerIndex = (room.currentSeerIndex + 1) % Math.max(1, room.seerOrder.length)
+    // mid-round does not get picked again. (Team rotation already moved.)
+    if (!teams) room.currentSeerIndex = (room.currentSeerIndex + 1) % Math.max(1, room.seerOrder.length)
     return round
 }
 
 export function submitGuess(room: Room, playerId: string, position: number): { ok: boolean; error?: string } {
+    if (room.currentRound?.teamPlay) return submitTeamGuess(room, playerId, position)
     const round = room.currentRound
     if (!round || round.phase !== 'guessing') return { ok: false, error: 'Não é hora de palpitar' }
     if (round.seerId === playerId) return { ok: false, error: 'O Vidente não dá palpite' }
@@ -312,6 +528,7 @@ export function allGuessersDone(room: Room): boolean {
 export function processRoundResults(room: Room, now: number = Date.now()): GameRound | null {
     const round = room.currentRound
     if (!round || round.phase === 'revealed') return null
+    if (round.teamPlay) return processTeamRoundResults(room, round, round.teamPlay, now)
     const target = round.targetPosition ?? 50
 
     let bestDistance = Infinity
@@ -362,6 +579,12 @@ export function processRoundResults(room: Room, now: number = Date.now()): GameR
 export function finishGame(room: Room): void {
     room.status = 'finished'
     room.nextRoundAt = null
+    if (room.settings.mode === 'teams') {
+        const [a, b] = room.teamScores
+        room.winnerTeam = a === b ? null : a > b ? 0 : 1
+        room.winnerId = null
+        return
+    }
     const top = [...room.players].sort((a, b) => b.score - a.score)[0]
     room.winnerId = top ? top.id : null
 }
@@ -380,6 +603,10 @@ export function resetGameState(room: Room): void {
     room.roundHistory = []
     room.usedCardIds = []
     room.currentSeerIndex = 0
+    room.teamScores = [0, 0]
+    room.teamSeerIndex = [0, 0]
+    room.nextTeam = 0
+    room.winnerTeam = null
     room.winnerId = null
     room.currentRound = null
     room.nextRoundAt = null
@@ -409,6 +636,14 @@ export function roomViewFor(room: Room, viewerId: string | null): Room {
             : viewerId && round.guesses[viewerId] !== undefined
                 ? { [viewerId]: round.guesses[viewerId] }
                 : {},
+    }
+
+    // Team mode: the live needle belongs to the active team until it locks.
+    if (round.teamPlay) {
+        const viewer = room.players.find(p => p.id === viewerId)
+        const onActiveTeam = !!viewer && viewer.team === round.teamPlay.team
+        const needleVisible = onActiveTeam || round.phase === 'side_guess' || revealed
+        visibleRound.teamPlay = { ...round.teamPlay, needle: needleVisible ? round.teamPlay.needle : null }
     }
 
     return { ...room, currentRound: visibleRound }
@@ -441,4 +676,38 @@ export function computeStats(room: Room): PlayerStats[] {
         }
         return stats
     })
+}
+
+export interface TeamStats {
+    team: TeamId
+    rounds: number
+    bullseyes: number
+    /** Correct left/right calls against the other team. */
+    sideHits: number
+    catchUps: number
+}
+
+export interface SeerStats {
+    playerId: string
+    rounds: number
+    points: number
+}
+
+export function computeTeamStats(room: Room): { teams: [TeamStats, TeamStats]; seers: SeerStats[] } {
+    const teams: [TeamStats, TeamStats] = [0, 1].map(t => ({ team: t as TeamId, rounds: 0, bullseyes: 0, sideHits: 0, catchUps: 0 })) as [TeamStats, TeamStats]
+    const seers = new Map<string, SeerStats>()
+    for (const r of room.roundHistory) {
+        const play = r.teamPlay
+        if (!play) continue
+        const own = teams[play.team]
+        own.rounds++
+        if (play.zone === 4) own.bullseyes++
+        if (play.catchUp) own.catchUps++
+        if (play.sideCorrect) teams[otherTeam(play.team)].sideHits++
+        const seer = seers.get(r.seerId) ?? { playerId: r.seerId, rounds: 0, points: 0 }
+        seer.rounds++
+        seer.points += play.zone ?? 0
+        seers.set(r.seerId, seer)
+    }
+    return { teams, seers: Array.from(seers.values()) }
 }
