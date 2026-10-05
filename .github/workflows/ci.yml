@@ -1,10 +1,10 @@
-# Testes, tipagem, lint e build do Next em cada PR e em cada push na main.
+# Testes, tipagem, lint e build do Next em cada PR e em cada push na main e na release.
 # O `next build` só rodava no deploy do Render; aqui ele quebra antes do merge.
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, release]
   pull_request:
 
 concurrency:
