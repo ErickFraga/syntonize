@@ -64,6 +64,8 @@ tempo acabou enquanto o servidor estava fora avança na hora.
 | Variável | Efeito |
 |---|---|
 | `REDIS_URL` (opcional) | `redis://[usuário:senha@]host[:porta][/db]` ou `rediss://` (TLS). Salas gravadas no Redis com TTL de 24 h renovado a cada alteração. |
+| `LOG_LEVEL` (opcional) | `debug`, `info` (padrão), `warn` ou `error`. |
+| `LOG_FORMAT` (opcional) | `json` (padrão em produção, uma linha por evento) ou `text` (padrão em dev). |
 | *(sem `REDIS_URL`)* | Memória do processo, como antes: reiniciar derruba as partidas. |
 
 O `render.yaml` cria um **Key Value** grátis (`syntonize-kv`, 25 MB, mesma região) e passa a URL

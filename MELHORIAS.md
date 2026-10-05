@@ -56,7 +56,7 @@ Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `
 | ✅ | **Cards de pacote com alturas diferentes** | No lobby, "Comida e bebida" quebrava em duas linhas e a fileira dele ficava mais alta que as outras. Correção: o pacote passou a se chamar **Alimentos** (en *Food*, es *Comida*), cabendo numa linha, e a grade usa `grid-auto-rows: 1fr`, então todas as fileiras têm a mesma altura mesmo se algum nome quebrar. |
 | ⬜ P2 | **Rate limiting** | Nada impede alguém de criar 10 mil salas ou spammar `room:join`. Limitar por IP/socket. |
 | ⬜ P2 | **Expiração de token de sessão** | Tokens vivem até a sala morrer. Com persistência, dar TTL. |
-| ⬜ P3 | **Logs estruturados e métricas** | Hoje é `console.log`. |
+| 🔄 P3 | **Logs estruturados e métricas** | Logs em JSON (um objeto por linha) em produção, texto legível em dev; `LOG_LEVEL` e `LOG_FORMAT`; erros não tratados registrados. Faltam as métricas. |
 
 ## 3. Interface e experiência
 
@@ -108,7 +108,7 @@ Noturno em `home.png`, `lobby.png`, `game-seer-clue.png`, `game-guessing.png`, `
 | ✅ | **CI no GitHub Actions** | `.github/workflows/ci.yml`: em toda PR e em push na `main` e na `release`, com Node 22 e cache do npm, roda `npm ci`, `npm test`, `typecheck:server`, `lint`, `build` e `typecheck` (depois do build, que gera o `next-env.d.ts`). `SITE_URL` fictícia no job para o `metadataBase`. Badge no README. A primeira execução achou um erro de tipagem real em `server/index.ts` (o `withPlayer` tipava o erro como `string`, o contrato usa `Message`). O lint passa com dois avisos de `react-hooks/exhaustive-deps` que são intencionais (efeitos que só devem rodar em nova rodada ou com guarda de tentativa). |
 | ⬜ P2 | **Testes de componente** | O harness usado nesta sessão renderizou os componentes com um React mínimo; vale formalizar com Vitest + Testing Library (Dial: cálculo de ângulo, teclado; Game: painéis por fase). |
 | 🔄 | **Teste de fluxo com prints** | `e2e/` (Playwright): sobe o servidor de verdade e joga uma partida com dois navegadores (criar sala, entrar pelo convite, dica, palpite arrastando o dial, revelação, rodada 2), no desktop (1280 px) e no celular (390 px, com toque), nos temas escuro e claro. Cada tela vira um print em `e2e/prints/<projeto>/` com galeria em `index.html`; o teste falha com erro de JS, `console.error` ou tela rolando na horizontal. Roda na CI depois do build e sobe os prints no artefato `prints-do-fluxo`. Na primeira rodada achou o cabeçalho da sala vazando no celular (acima). |
-| ⬜ P3 | **Dockerfile** | Para deploy simples (Fly.io, Railway, Render). |
+| 🔄 P3 | **Dockerfile** | `Dockerfile` multi-stage (Node 22) e `.dockerignore`; o deploy segue no Render. Falta validar o build numa máquina com Docker. |
 
 ## 5. Decisões de regra que mudaram (para você validar)
 

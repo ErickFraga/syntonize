@@ -8,6 +8,7 @@ import { RoomManager, type Transport } from './roomManager.ts'
 import { MemoryStore, type RoomStore } from './roomStore.ts'
 import { RedisStore } from './redisStore.ts'
 import { handleApiRequest } from './httpApi.ts'
+import { logger } from './logger.ts'
 import { msg, roomViewFor } from '../shared/gameLogic.ts'
 
 const dev = process.env.NODE_ENV !== 'production'
@@ -30,12 +31,12 @@ async function loadRooms(manager: RoomManager, store: RoomStore): Promise<void> 
     for (let attempt = 1; ; attempt++) {
         try {
             const count = await manager.loadFromStore()
-            console.log(`> ${count} sala(s) restaurada(s) do store (${store.name})`)
+            logger.info('rooms restored from store', { count, store: store.name })
             return
         } catch (error) {
-            console.error(`> falha ao carregar as salas (${store.name}, tentativa ${attempt}): ${(error as Error).message}`)
+            logger.error('failed to load rooms', { store: store.name, attempt, err: error })
             if (attempt >= 5) {
-                console.error('> seguindo sem as salas salvas')
+                logger.warn('continuing without saved rooms')
                 return
             }
             await new Promise(resolve => setTimeout(resolve, attempt * 2000))
@@ -71,7 +72,7 @@ app.prepare().then(async () => {
     }
 
     const store = createStore()
-    manager = new RoomManager(transport, { store, log: (m) => console.log(`[game] ${m}`) })
+    manager = new RoomManager(transport, { store, log: (m) => logger.info(m, { scope: 'game' }) })
     // Before accepting connections: returning clients must find their rooms.
     await loadRooms(manager, store)
     setInterval(() => manager.sweep(), 10_000).unref()
@@ -81,11 +82,16 @@ app.prepare().then(async () => {
     const shutdown = async (signal: string) => {
         if (shuttingDown) return
         shuttingDown = true
-        console.log(`> ${signal}: salvando as salas`)
+        logger.info('saving rooms before exit', { signal })
         const timeout = new Promise(resolve => setTimeout(resolve, 5000).unref())
         await Promise.race([manager.flush().then(() => store.close()), timeout]).catch(() => {})
         process.exit(0)
     }
+    process.on('unhandledRejection', err => logger.error('unhandled rejection', { err }))
+    process.on('uncaughtException', err => {
+        logger.error('uncaught exception', { err })
+        process.exit(1)
+    })
     process.on('SIGTERM', () => void shutdown('SIGTERM'))
     process.on('SIGINT', () => void shutdown('SIGINT'))
 
@@ -114,6 +120,7 @@ app.prepare().then(async () => {
     }
 
     io.on('connection', (socket: GameSocket) => {
+        logger.debug('socket connected', { socket: socket.id })
         const token = socket.handshake.auth?.sessionToken as string | undefined
         // Async because a room restored from the store is re-read when its
         // first player comes back; the listeners below are bound meanwhile.
@@ -246,7 +253,8 @@ app.prepare().then(async () => {
             if (playerId) manager.sendState(playerId)
         })
 
-        socket.on('disconnect', () => {
+        socket.on('disconnect', reason => {
+            logger.debug('socket disconnected', { socket: socket.id, reason })
             const playerId = currentPlayerId(socket)
             unbind(socket)
             // Only mark offline if no newer socket took over this player.
@@ -255,6 +263,6 @@ app.prepare().then(async () => {
     })
 
     httpServer.listen(port, () => {
-        console.log(`> Syntonize ready on http://localhost:${port}`)
+        logger.info('server ready', { port, env: dev ? 'development' : 'production', store: store.name })
     })
 })
