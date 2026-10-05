@@ -75,6 +75,17 @@ próprio reiniciar, as salas somem, mas os reinícios do serviço web (os comuns
 Para testar localmente: `redis-server &` e `REDIS_URL=redis://localhost:6379 npm run dev`; crie uma
 sala, derrube o servidor no meio da rodada e suba de novo.
 
+## Música de fundo
+
+Um loop lo-fi toca baixinho em todas as telas, pelo Web Audio (loop sem
+engasgo, diferente da tag `<audio loop>`). O botão de nota musical no
+cabeçalho liga, desliga e ajusta o volume; a escolha fica no navegador. Por
+causa da política de autoplay, a música começa no primeiro toque na tela.
+
+O arquivo é `public/audio/ambient-loop.mp3` (108 s, 32 compassos a 71 BPM,
+emenda com crossfade de 50 ms). Para trocar a faixa, substitua o arquivo por
+outro loop que comece e termine no mesmo ponto do compasso, sem fade.
+
 ## Testes e checagens
 
 ```bash

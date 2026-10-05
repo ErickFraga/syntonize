@@ -124,3 +124,11 @@ export const ChevronLeftIcon = (p: IconProps) => (
 export const ChevronRightIcon = (p: IconProps) => (
     <Icon {...p}><path d="m9 18 6-6-6-6" /></Icon>
 )
+
+export const MusicIcon = (p: IconProps) => (
+    <Icon {...p}><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></Icon>
+)
+
+export const MusicOffIcon = (p: IconProps) => (
+    <Icon {...p}><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /><path d="M3 3l18 18" /></Icon>
+)

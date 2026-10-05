@@ -12,6 +12,7 @@ import LanguageSelect from '@/components/LanguageSelect/LanguageSelect'
 import { useT } from '@/i18n/I18nProvider'
 import { SparklesIcon, ArrowRightIcon, EyeIcon, LightbulbIcon, TargetIcon, TrophyIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/ui/Icons'
 import ThemeToggle from '@/components/ui/ThemeToggle'
+import MusicToggle from '@/components/ui/MusicToggle'
 import styles from './page.module.css'
 
 export default function Home() {
@@ -64,6 +65,7 @@ export default function Home() {
       <div className={styles.topbar}>
         <LanguageSelect />
         <ThemeToggle />
+        <MusicToggle />
       </div>
 
       <section className={styles.hero}>
