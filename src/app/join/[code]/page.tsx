@@ -29,11 +29,12 @@ export default function JoinPage() {
         setNickname(session.getNickname() ?? '')
     }, [])
 
-    // Already in a room (restored session or just joined): go there.
+    // Already in THIS room (restored session or just joined): go there. Estar em
+    // outra sala não pode atropelar o convite: o jogador entra nesta e sai da outra.
     useEffect(() => {
         const target = restoredCode ?? room?.code
-        if (target) router.replace(`/room/${target}`)
-    }, [restoredCode, room, router])
+        if (target && target === code) router.replace(`/room/${target}`)
+    }, [restoredCode, room, code, router])
 
     useEffect(() => {
         if (!isConnected) return
