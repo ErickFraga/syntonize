@@ -187,23 +187,10 @@ export default function Dial({
             onPointerCancel={handlePointerUp}
             onKeyDown={handleKeyDown}
         >
-            <defs>
-                <linearGradient id="dialFace" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor="#fbf6ec" />
-                    <stop offset="1" stopColor="#e9dfcc" />
-                </linearGradient>
-                <linearGradient id="dialCover" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor="#2a2752" />
-                    <stop offset="1" stopColor="#1a1838" />
-                </linearGradient>
-                <filter id="dialShadow" x="-10%" y="-10%" width="120%" height="130%">
-                    <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#000" floodOpacity="0.45" />
-                </filter>
-            </defs>
 
-            {/* Device base and face */}
-            <path d={BASE} fill="#0f0e22" filter="url(#dialShadow)" />
-            <path d={FACE} fill="url(#dialFace)" />
+            {/* Aro e face */}
+            <path d={BASE} className={styles.bezel} />
+            <path d={FACE} className={styles.face} />
 
             {/* Target wedge: 2 | 3 | 4 | 3 | 2 */}
             {zones.length > 0 && (
@@ -228,7 +215,7 @@ export default function Dial({
             {/* Screen that hides the target */}
             {covered && (
                 <g className={styles.cover}>
-                    <path d={FACE} fill="url(#dialCover)" />
+                    <path d={FACE} className={styles.coverFace} />
                     <text x={CX} y={CY - 78} className={styles.coverMark}>?</text>
                 </g>
             )}

@@ -19,6 +19,7 @@
     width: 100px;
     padding: 2px 2px 8px;
     background: #fff;
+    border: var(--outline);
     border-radius: var(--radius-md);
     color: var(--ink);
     box-shadow: var(--shadow-sm);
@@ -52,7 +53,8 @@
     justify-content: center;
     gap: 24px;
     padding: 24px;
-    background: rgba(0, 0, 0, 0.88);
+    /* Follows the theme: page background, nearly opaque. */
+    background: color-mix(in srgb, var(--bg) 94%, transparent);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     cursor: zoom-out;
@@ -69,6 +71,7 @@
     width: min(78vmin, 560px);
     padding: 12px;
     background: #fff;
+    border: var(--outline);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
 }
@@ -92,7 +95,7 @@
 .bigCode {
     font-family: var(--font-display);
     font-size: clamp(36px, 8vmin, 64px);
-    font-weight: 700;
+    font-weight: 900;
     letter-spacing: 0.28em;
     padding-left: 0.28em; /* balances the trailing letter-spacing */
     line-height: 1;

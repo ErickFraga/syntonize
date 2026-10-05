@@ -82,7 +82,7 @@ export default function JoinPage() {
                     <div className={styles.inviteHead}>
                         <span className="eyebrow">{t('join.invited')}</span>
                         <h1 className={styles.title}>
-                            {info ? rich('join.roomOf', { host: <span className="text-gradient">{info.hostName}</span> }) : t('join.enterRoom')}
+                            {info ? rich('join.roomOf', { host: <span className="text-accent">{info.hostName}</span> }) : t('join.enterRoom')}
                         </h1>
                         <div className={styles.meta}>
                             <span className="chip"><CrownIcon size={13} /> {t('join.code', { code })}</span>

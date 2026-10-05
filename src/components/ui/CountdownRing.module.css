@@ -4,7 +4,7 @@
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    --ring-color: var(--teal);
+    --ring-color: var(--sky);
 }
 
 .ring svg {
@@ -16,9 +16,9 @@
 }
 
 .track {
-    fill: rgba(0, 0, 0, 0.35);
-    stroke: rgba(255, 255, 255, 0.12);
-    stroke-width: 4;
+    fill: var(--surface);
+    stroke: var(--line);
+    stroke-width: 2;
 }
 
 .progress {
@@ -32,8 +32,8 @@
 .value {
     position: relative;
     font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 18px;
+    font-weight: 900;
+    font-size: 17px;
     line-height: 1;
     color: var(--text);
 }
@@ -56,10 +56,10 @@
 }
 
 .danger {
-    --ring-color: var(--red);
+    --ring-color: var(--pink);
 }
 
 .danger .value {
-    color: var(--red);
+    color: var(--pink);
     animation: pulse 0.5s ease-in-out infinite;
 }
