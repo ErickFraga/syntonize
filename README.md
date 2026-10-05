@@ -43,6 +43,9 @@ O que esperar do plano free:
   ele dorme (só acontece quando não há partida rolando).
 - Mantenha **uma única instância**: duas instâncias teriam salas diferentes.
 - A porta vem da variável `PORT`, que o Render define sozinho.
+- A prévia do link (imagem Open Graph) precisa da URL pública do site. No Render
+  ela vem de `RENDER_EXTERNAL_URL`, automaticamente; em outro host, defina
+  `SITE_URL=https://seu-dominio` (no build e na execução).
 
 ## Testes e checagens
 
@@ -72,6 +75,22 @@ O anfitrião pode trocar o modo para **Em equipes** no lobby (mínimo de 2 jogad
 4. O time da vez pontua pela cunha (4/3/2). Meta padrão: 10 pontos; empate na meta continua até alguém passar.
 5. **Revanche no 4** (opcional, ligada por padrão): o time que acerta na mosca e continua atrás no placar joga de novo.
 
+### Cartas e pacotes
+
+O anfitrião escolhe no lobby o **idioma das cartas** (português, inglês ou espanhol, valendo para a sala toda,
+independente do idioma da interface de cada um) e quais **pacotes** entram no baralho (pelo menos um):
+
+| Pacote | Cartas | Tema |
+|---|---|---|
+| Clássico | 142 | o baralho original: opinião, coisas, situações, natureza |
+| Comida e bebida | 44 | do boteco ao restaurante chique |
+| Cultura pop | 44 | filmes, séries, música, jogos e memes |
+| Pessoas | 44 | manias, amizades e comportamento |
+| Picante (18+) | 44 | paquera, encontros e noitadas, sem conteúdo explícito ou ofensivo |
+
+As cartas não se repetem até o baralho escolhido acabar. Os textos ficam em `shared/cards/<idioma>.ts`, com os
+mesmos ids e pacotes nos três idiomas (`tests/cards.test.ts` confere).
+
 ## Idiomas
 
 A interface está em português (padrão), inglês e espanhol (`src/i18n/`). Na primeira visita o
@@ -83,7 +102,7 @@ adicionar um texto, crie a chave em `src/i18n/pt-BR.ts` e o typecheck aponta ond
 ## Estrutura
 
 ```
-shared/     tipos, baralho de cartas e regras puras (usados pelo cliente e pelo servidor)
+shared/     tipos, baralho de cartas (cards/<idioma>.ts) e regras puras (usados pelo cliente e pelo servidor)
 server/     roomManager.ts (orquestração testável) e index.ts (Next + Socket.io)
 src/        app Next: páginas, componentes (Dial, Lobby, Game, Results, ui) e hooks
 tests/      casos de uso do RoomManager com relógio e transporte falsos
