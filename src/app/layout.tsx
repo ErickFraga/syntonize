@@ -4,6 +4,7 @@ import { cookies, headers } from 'next/headers'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, matchLocale, translate, type Locale } from '@/i18n'
 import { I18nProvider } from '@/i18n/I18nProvider'
+import PwaRegister from '@/components/PwaRegister/PwaRegister'
 import './globals.css'
 
 const baloo = Baloo_2({
@@ -52,6 +53,8 @@ export async function generateMetadata(): Promise<Metadata> {
     description: t('meta.description'),
     keywords: ['jogo', 'game', 'juego', 'multiplayer', 'sintonia', 'wavelength', 'party game', 'online'],
     applicationName: 'Syntonize',
+    icons: { apple: '/pwa-icon/180' },
+    appleWebApp: { capable: true, title: 'Syntonize', statusBarStyle: 'black-translucent' },
     openGraph: {
       title: t('meta.title'),
       description: t('meta.ogDescription'),
@@ -84,6 +87,7 @@ export default function RootLayout({
       </head>
       <body className={`${baloo.variable} ${nunito.variable}`}>
         <I18nProvider initialLocale={locale}>{children}</I18nProvider>
+        <PwaRegister />
       </body>
     </html>
   )

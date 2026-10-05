@@ -9,7 +9,7 @@ completo · **P3** polimento.
 ## Na `release`, aguardando a PR para a `main`
 
 PRs #13 (CI e remoção das dependências não usadas), #14 (cartas personalizadas),
-#15 (persistência das salas com Redis) e #16 (histórico de rodadas). Já na `main`
+#15 (persistência das salas com Redis), #16 (histórico de rodadas) e o PWA (manifesto, ícones e service worker). Já na `main`
 (PRs #2–#6, #8, #10–#12): modo em equipes, internacionalização, cartas em três
 idiomas e pacotes temáticos, imagem Open Graph (home e convite, com o nome do
 anfitrião e quantos estão na sala), QR code no lobby, chat e reações, animação
@@ -41,6 +41,5 @@ GitHub Actions) e conferir o visual das telas novas contra os mocks do canvas.
 
 ## P3 — polimento
 
-- [ ] **PWA.** Manifesto + ícone para "instalar" no celular.
 - [ ] **Logs estruturados e métricas.** Hoje é `console.log`.
 - [ ] **Dockerfile.** Para Cloud Run, VM da Oracle ou qualquer host com container.
