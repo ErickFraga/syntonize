@@ -105,6 +105,23 @@ Todo mundo na sala pode conversar (texto de até 200 caracteres) e mandar reaç�
 - Mensagens de sistema vão como código + parâmetros (`joined`, `left`, `kicked`,
   `round_revealed` com o número da rodada, `game_finished`) e o cliente escreve o texto.
   A revelação nunca inclui a posição do alvo.
+
+### Histórico da partida
+
+O botão **Histórico** na barra da rodada (e **Ver rodadas** nos resultados) abre um painel com
+as rodadas da mais recente para a mais antiga: carta, dica, Vidente, um mini dial com a cunha e os
+palpites, os pontos de cada um (ou de cada time, com o chute de esquerda/direita) e as rodadas
+puladas com o motivo. No desktop o painel desliza da direita; no celular é uma folha de baixo.
+
+- Só rodadas **já reveladas** entram em `roundHistory`, então o histórico nunca leva o alvo nem os
+  palpites da rodada em jogo. Cada rodada guarda um `roster` (apelido, cor e time de quem participou)
+  para continuar nomeando quem saiu da sala.
+- Rodadas puladas antes da dica (anfitrião, tempo da dica, Vidente que saiu/foi removido/caiu) ficam
+  em `skippedRounds` (últimas 30), sem alvo. Elas continuam não contando no número da rodada.
+- Como o chat, o histórico **não** viaja no `room:state`: vai em `game:history` no join, na
+  reconexão, no `game:requestState` e quando muda (revelação, rodada pulada, início e volta ao
+  lobby). O `useGameState` junta de volta em `room.roundHistory` / `room.skippedRounds`.
+
 ## Idiomas
 
 A interface está em português (padrão), inglês e espanhol (`src/i18n/`). Na primeira visita o

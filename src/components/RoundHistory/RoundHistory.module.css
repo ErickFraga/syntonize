@@ -1,0 +1,449 @@
+/* Histórico de rodadas: painel lateral deslizando da direita no desktop,
+   folha de baixo (bottom sheet) no celular. */
+
+/* Botão da barra da rodada */
+.trigger {
+    gap: 6px;
+}
+
+.count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: var(--radius-full);
+    background: var(--yellow);
+    border: var(--outline);
+    color: var(--on-accent);
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+/* Camada do diálogo */
+.layer {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+}
+
+.backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(5, 4, 15, 0.55);
+    animation: historyFade var(--t-med) var(--ease-out);
+}
+
+.panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(440px, 100vw);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    border-left: var(--outline);
+    box-shadow: var(--shadow-float);
+    animation: historySlide var(--t-med) var(--ease-out);
+}
+
+.grabber {
+    display: none;
+}
+
+.head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px 14px;
+    border-bottom: 2px solid var(--line-soft);
+}
+
+.headText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 20px;
+}
+
+.title svg {
+    color: var(--sky);
+}
+
+.summary {
+    font-size: 13px;
+    color: var(--text-2);
+}
+
+.close {
+    flex-shrink: 0;
+}
+
+.list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 20px calc(24px + env(safe-area-inset-bottom));
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-soft) transparent;
+}
+
+.list:focus-visible {
+    outline-offset: -3px;
+}
+
+.empty {
+    margin: 32px 8px;
+    text-align: center;
+    color: var(--text-3);
+}
+
+/* Uma rodada */
+.entry {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    background: var(--surface);
+    border: var(--outline);
+    border-radius: var(--radius-lg);
+}
+
+.entryHead {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.seer {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 14px;
+    color: var(--text-2);
+}
+
+.seer svg {
+    color: var(--text-2);
+    flex-shrink: 0;
+}
+
+.seer strong {
+    color: var(--text);
+    font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.seerLabel {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.teamChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--team-color);
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text);
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--team-color);
+    flex-shrink: 0;
+}
+
+/* Mini dispositivo: o mesmo fundo do dial da partida, em escala */
+.device {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 12px 10px;
+    background: var(--device);
+    border: 2px solid var(--line);
+    border-radius: var(--radius-md);
+}
+
+.device > svg {
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+.concepts {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    background: var(--cream);
+    border: 2px solid var(--ink);
+    border-radius: var(--radius-sm);
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 14px;
+    line-height: 1.2;
+}
+
+.conceptLeft,
+.conceptRight {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.conceptRight {
+    text-align: right;
+}
+
+.clue {
+    margin: 0;
+    text-align: center;
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 18px;
+    line-height: 1.2;
+    color: var(--clue-color, var(--yellow));
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+}
+
+/* Pontos da rodada */
+.rows {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: var(--radius-md);
+    background: var(--control-bg);
+    border: 1px solid var(--line);
+}
+
+.rowMe {
+    background: var(--highlight-bg);
+    border-color: var(--sky);
+}
+
+.name {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-weight: 800;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.goneTag {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-3);
+}
+
+.label {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-2);
+}
+
+.label strong {
+    color: var(--text);
+}
+
+.zone {
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
+}
+
+.points {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--text);
+    min-width: 2.5ch;
+    text-align: right;
+}
+
+.pointsZero {
+    color: var(--text-3);
+}
+
+.teamRow {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    border-left: 3px solid var(--team-color);
+}
+
+.teamLine {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-2);
+}
+
+.teamLine strong {
+    color: var(--text);
+}
+
+.teamLine .zone {
+    display: inline-flex;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+.teamText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    font-size: 14px;
+}
+
+/* Rodada pulada */
+.skipped {
+    background: transparent;
+    border: 2px dashed var(--line-dashed);
+}
+
+.skipped .concepts {
+    opacity: 0.75;
+}
+
+.note {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-2);
+}
+
+@keyframes historySlide {
+    from {
+        transform: translateX(40px);
+        opacity: 0;
+    }
+}
+
+@keyframes historySheet {
+    from {
+        transform: translateY(40px);
+        opacity: 0;
+    }
+}
+
+@keyframes historyFade {
+    from {
+        opacity: 0;
+    }
+}
+
+/* Celular: folha de baixo que rola */
+@media (max-width: 640px) {
+    .panel {
+        top: auto;
+        left: 0;
+        width: auto;
+        max-height: 88dvh;
+        border-left: 0;
+        border-top: var(--outline);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        animation-name: historySheet;
+    }
+
+    .grabber {
+        display: block;
+        width: 44px;
+        height: 5px;
+        margin: 8px auto 0;
+        border-radius: var(--radius-full);
+        background: var(--line-soft);
+    }
+
+    .head {
+        padding: 8px 16px 12px;
+    }
+
+    .list {
+        padding: 14px 16px calc(20px + env(safe-area-inset-bottom));
+    }
+}
+
+@media (max-width: 520px) {
+    /* Só o ícone e a contagem na barra da rodada, que já é apertada. */
+    .triggerText {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    .trigger {
+        padding: 0 10px;
+    }
+
+    /* Nome em cima, zona e bônus embaixo, como na revelação. */
+    .row:not(.teamRow) {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .row:not(.teamRow) .label {
+        grid-column: 2 / span 2;
+        grid-row: 2;
+    }
+
+    .row:not(.teamRow) .points {
+        grid-column: 3;
+        grid-row: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .panel,
+    .backdrop {
+        animation: none;
+    }
+}

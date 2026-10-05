@@ -1,7 +1,7 @@
 // Game logic - pure functions shared between client and server.
 // Nothing in here talks to sockets or timers; the server orchestrates.
 
-import type { Room, Player, GameRound, SpectrumCard, RoomSettings, CardLocale, Zone, TeamId, Side, TeamRoundState, NumericSetting, Message, MessageCode, MessageParams, ChatInput, ChatReaction } from './types.ts'
+import type { Room, Player, GameRound, RoundPlayer, RoundHistory, SkippedRound, SkipReason, SpectrumCard, RoomSettings, CardLocale, Zone, TeamId, Side, TeamRoundState, NumericSetting, Message, MessageCode, MessageParams, ChatInput, ChatReaction } from './types.ts'
 import { SCORING, LIMITS, CHAT_LIMITS, CHAT_REACTIONS, DEFAULT_SETTINGS, SETTINGS_OPTIONS, PLAYER_COLORS, TEAM_DEFAULT_TARGET, TEAM_RULES, CARD_LOCALES, CARD_PACKS, settingOptionsFor } from './types.ts'
 import { deckFor } from './cards/index.ts'
 
@@ -222,6 +222,7 @@ export function createRoom(code: string, host: Player, now: number = Date.now())
         settings: { ...DEFAULT_SETTINGS },
         currentRound: null,
         roundHistory: [],
+        skippedRounds: [],
         seerOrder: [host.id],
         currentSeerIndex: 0,
         usedCardIds: [],
@@ -470,6 +471,7 @@ function processTeamRoundResults(room: Room, round: GameRound, play: TeamRoundSt
 
     round.phase = 'revealed'
     round.revealedAt = now
+    round.roster = rosterOf(room, round)
     room.players.forEach(p => { p.isReady = false })
     room.roundHistory.push(round)
     room.nextRoundAt = now + room.settings.timeBetweenRounds * 1000
@@ -554,6 +556,7 @@ export function startNewRound(room: Room, now: number = Date.now(), rng: () => n
         clueAt: null,
         revealedAt: null,
         teamPlay,
+        roster: [],
     }
 
     room.currentRound = round
@@ -625,6 +628,7 @@ export function processRoundResults(room: Room, now: number = Date.now()): GameR
 
     round.phase = 'revealed'
     round.revealedAt = now
+    round.roster = rosterOf(room, round)
     room.players.forEach(p => { p.isReady = false })
     room.roundHistory.push(round)
     room.nextRoundAt = now + room.settings.timeBetweenRounds * 1000
@@ -637,6 +641,45 @@ export function processRoundResults(room: Room, now: number = Date.now()): GameR
     }
 
     return round
+}
+
+// ============================================
+// HISTORY
+// ============================================
+
+function roundPlayer(p: Player): RoundPlayer {
+    return { id: p.id, nickname: p.nickname, colorIndex: p.colorIndex, team: p.team }
+}
+
+/** Snapshot of everyone the round mentions (players who already left are not in the room to copy). */
+function rosterOf(room: Room, round: GameRound): RoundPlayer[] {
+    const ids = new Set([round.seerId, ...Object.keys(round.guesses), ...Object.keys(round.scores)])
+    if (round.teamPlay?.lockedBy) ids.add(round.teamPlay.lockedBy)
+    if (round.teamPlay?.sideBy) ids.add(round.teamPlay.sideBy)
+    return room.players.filter(p => ids.has(p.id)).map(roundPlayer)
+}
+
+/**
+ * Logs the round in play as skipped (only before the clue, the only moment a
+ * round can be skipped). Call it before starting the next round. Pass the
+ * seer when they were just removed from the room.
+ */
+export function recordSkippedRound(room: Room, reason: SkipReason, now: number = Date.now(), gone: Player | null = null): SkippedRound | null {
+    const round = room.currentRound
+    if (!round || round.phase !== 'waiting_clue') return null
+    const seer = room.players.find(p => p.id === round.seerId) ?? (gone?.id === round.seerId ? gone : undefined)
+    const skipped: SkippedRound = {
+        roundNumber: round.roundNumber,
+        seer: seer ? roundPlayer(seer) : null,
+        spectrumCard: round.spectrumCard,
+        team: round.teamPlay?.team ?? null,
+        reason,
+        startedAt: round.startedAt,
+        skippedAt: now,
+    }
+    room.skippedRounds.push(skipped)
+    if (room.skippedRounds.length > LIMITS.SKIPPED_KEPT) room.skippedRounds.splice(0, room.skippedRounds.length - LIMITS.SKIPPED_KEPT)
+    return skipped
 }
 
 export function finishGame(room: Room): void {
@@ -664,6 +707,7 @@ export function resetGameState(room: Room): void {
         p.isReady = false
     })
     room.roundHistory = []
+    room.skippedRounds = []
     room.usedCardIds = []
     room.currentSeerIndex = 0
     room.teamScores = [0, 0]
@@ -686,8 +730,10 @@ export function resetGameState(room: Room): void {
  */
 export function roomViewFor(room: Room, viewerId: string | null): Room {
     const round = room.currentRound
-    // The chat history goes in its own event (`chat:history`), not on every state.
-    if (!round) return { ...room, chat: [] }
+    // Chat and round history go in their own events (`chat:history`,
+    // `game:history`), only when they change, not on every state.
+    const lean = { roundHistory: [], skippedRounds: [], chat: [] }
+    if (!round) return { ...room, ...lean }
 
     const revealed = round.phase === 'revealed'
     const isSeer = viewerId === round.seerId
@@ -710,7 +756,19 @@ export function roomViewFor(room: Room, viewerId: string | null): Room {
         visibleRound.teamPlay = { ...round.teamPlay, needle: needleVisible ? round.teamPlay.needle : null }
     }
 
-    return { ...room, chat: [], currentRound: visibleRound }
+    return { ...room, ...lean, currentRound: visibleRound }
+}
+
+/**
+ * Round history as sent in `game:history`, the same for everyone. Only
+ * revealed rounds join `roundHistory`, so it never carries the target or the
+ * guesses of the round in play; the filter keeps that true by construction.
+ */
+export function historyViewFor(room: Room): RoundHistory {
+    return {
+        rounds: room.roundHistory.filter(r => r.phase === 'revealed'),
+        skipped: room.skippedRounds,
+    }
 }
 
 // ============================================

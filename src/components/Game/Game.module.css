@@ -37,6 +37,13 @@
     flex-wrap: wrap;
 }
 
+.roundTools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
 .seerChip {
     display: inline-flex;
     align-items: center;
