@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { DEFAULT_MUSIC_PREFS, MUSIC_MAX_GAIN, clampVolume, gainFor, parseMusicPrefs, serializeMusicPrefs } from '../src/lib/music.ts'
+import { DEFAULT_MUSIC_PREFS, MUSIC_MAX_GAIN, clampVolume, gainFor, parseMusicPrefs, serializeMusicPrefs } from '../src/lib/musicPrefs.ts'
 
 describe('background music preferences', () => {
     test('defaults: on, quiet', () => {
