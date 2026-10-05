@@ -9,7 +9,7 @@ import Logo from '@/components/ui/Logo'
 import Toasts from '@/components/ui/Toasts'
 import LanguageSelect from '@/components/LanguageSelect/LanguageSelect'
 import { useT } from '@/i18n/I18nProvider'
-import { ArrowRightIcon, UsersIcon, CrownIcon } from '@/components/ui/Icons'
+import { ArrowRightIcon, UsersIcon, CrownIcon, EyeIcon } from '@/components/ui/Icons'
 import styles from './page.module.css'
 
 export default function JoinPage() {
@@ -48,14 +48,18 @@ export default function JoinPage() {
         }
     }, [code, isConnected, getRoomInfo])
 
-    const handleJoin = async (e: FormEvent) => {
-        e.preventDefault()
+    const enter = async (spectator: boolean) => {
         if (!nickname.trim()) return pushToast({ kind: 'warning', message: t('form.nicknameFirst') })
         setBusy(true)
-        const result = await joinRoom(code, nickname.trim())
+        const result = await joinRoom(code, nickname.trim(), spectator)
         setBusy(false)
         if (result.success) router.push(`/room/${code}`)
         else pushToast({ kind: 'error', message: msg(result.error, 'error.joinRoom') })
+    }
+
+    const handleJoin = (e: FormEvent) => {
+        e.preventDefault()
+        void enter(false)
     }
 
     if (lookupError) {
@@ -89,6 +93,9 @@ export default function JoinPage() {
                             {info && (
                                 <span className="chip"><UsersIcon size={13} /> {t('join.players', { count: info.playerCount })}</span>
                             )}
+                            {!!info?.spectatorCount && (
+                                <span className="chip"><EyeIcon size={13} /> {t('join.spectators', { count: info.spectatorCount })}</span>
+                            )}
                             {info?.status === 'playing' && <span className="chip chip-orange">{t('join.inProgress')}</span>}
                         </div>
                     </div>
@@ -110,6 +117,9 @@ export default function JoinPage() {
                         <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={!isConnected || busy || !info}>
                             {busy || !isConnected ? <span className="spinner spinner-sm" /> : <ArrowRightIcon />}
                             {!isConnected ? t('join.connecting') : busy ? t('join.joining') : t('join.enterRoom')}
+                        </button>
+                        <button type="button" className="btn btn-ghost btn-block" disabled={!isConnected || busy || !info} onClick={() => void enter(true)} title={t('join.watchHint')}>
+                            <EyeIcon size={16} /> {t('join.watch')}
                         </button>
                     </form>
                 </div>

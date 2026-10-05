@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { Room, Player, RoomSettings, TeamId, NumericSetting, GameMode } from '@/types/game'
+import { activePlayers, spectatorsOf } from '@shared/gameLogic'
 import { SETTINGS_OPTIONS, LIMITS, TEAM_RULES, settingOptionsFor } from '@/types/game'
 import Avatar from '@/components/ui/Avatar'
 import TeamColumns from '@/components/TeamColumns/TeamColumns'
@@ -10,7 +11,7 @@ import CustomCards from '@/components/CustomCards/CustomCards'
 import QrCode from '@/components/QrCode/QrCode'
 import { useT, type Translator } from '@/i18n/I18nProvider'
 import type { TranslationKey } from '@/i18n'
-import { CopyIcon, CheckIcon, ShareIcon, PlayIcon, CrownIcon, XIcon, UsersIcon, SettingsIcon } from '@/components/ui/Icons'
+import { CopyIcon, CheckIcon, ShareIcon, PlayIcon, CrownIcon, XIcon, UsersIcon, SettingsIcon, EyeIcon } from '@/components/ui/Icons'
 import styles from './Lobby.module.css'
 
 interface LobbyProps {
@@ -40,9 +41,11 @@ const SETTING_LABELS: Record<NumericSetting, { title: TranslationKey; hint: Tran
 export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onUpdateSettings, onSetTeam, onNotify }: LobbyProps) {
     const { t } = useT()
     const [copied, setCopied] = useState<'code' | 'link' | null>(null)
-    const connected = room.players.filter(p => p.isConnected).length
+    const playing = activePlayers(room)
+    const spectators = spectatorsOf(room)
+    const connected = playing.filter(p => p.isConnected).length
     const teams = room.settings.mode === 'teams'
-    const teamsReady = !teams || ([0, 1] as TeamId[]).every(t => room.players.filter(p => p.team === t && p.isConnected).length >= TEAM_RULES.MIN_PER_TEAM)
+    const teamsReady = !teams || ([0, 1] as TeamId[]).every(t => playing.filter(p => p.team === t && p.isConnected).length >= TEAM_RULES.MIN_PER_TEAM)
     // Guests get only the count (`roomViewFor`), the host gets the cards.
     const customCount = room.customCardCount ?? room.settings.customCards.length
     const canStart = connected >= LIMITS.MIN_PLAYERS && teamsReady
@@ -106,14 +109,14 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
                 <section className={`card ${styles.players} anim-fade-up`} style={{ animationDelay: '0.05s' }}>
                     <header className={styles.sectionHeader}>
                         <h2><UsersIcon size={20} /> {t('lobby.players')}</h2>
-                        <span className="chip">{room.players.length}/{LIMITS.MAX_PLAYERS}</span>
+                        <span className="chip">{playing.length}/{LIMITS.MAX_PLAYERS}</span>
                     </header>
 
                     {teams ? (
                         <TeamColumns room={room} me={me} isHost={isHost} onSetTeam={onSetTeam} onKickPlayer={onKickPlayer} />
                     ) : (
                     <ul className={styles.playerList}>
-                        {room.players.map((player, index) => (
+                        {playing.map((player, index) => (
                             <li key={player.id} className={`${styles.player} ${player.isConnected ? '' : styles.playerOffline} anim-pop`} style={{ animationDelay: `${index * 0.05}s` }}>
                                 <Avatar name={player.nickname} colorIndex={player.colorIndex} offline={!player.isConnected} />
                                 <div className={styles.playerInfo}>
@@ -133,13 +136,37 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
                                 )}
                             </li>
                         ))}
-                        {room.players.length < LIMITS.MIN_PLAYERS && (
+                        {playing.length < LIMITS.MIN_PLAYERS && (
                             <li className={styles.playerPlaceholder}>
                                 <span className={styles.placeholderAvatar} />
                                 <span>{t('lobby.waitingMore')}</span>
                             </li>
                         )}
                     </ul>
+                    )}
+
+                    {spectators.length > 0 && (
+                        <div className={styles.spectators}>
+                            <h3 className={styles.spectatorsTitle}><EyeIcon size={16} /> {t('lobby.spectators', { count: spectators.length })}</h3>
+                            <ul className={styles.playerList}>
+                                {spectators.map(spectator => (
+                                    <li key={spectator.id} className={`${styles.player} ${spectator.isConnected ? '' : styles.playerOffline}`}>
+                                        <Avatar name={spectator.nickname} colorIndex={spectator.colorIndex} size="sm" offline={!spectator.isConnected} />
+                                        <div className={styles.playerInfo}>
+                                            <span className={styles.playerName}>
+                                                {spectator.nickname}
+                                                {spectator.id === me?.id && <span className={styles.you}>{t('common.you')}</span>}
+                                            </span>
+                                        </div>
+                                        {isHost && (
+                                            <button className={styles.kick} onClick={() => onKickPlayer(spectator.id)} title={t('lobby.remove', { name: spectator.nickname })} aria-label={t('lobby.remove', { name: spectator.nickname })}>
+                                                <XIcon size={16} />
+                                            </button>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     )}
                 </section>
 

@@ -214,9 +214,10 @@ export function useGameState() {
         })
     }, [])
 
-    const joinRoom = useCallback((code: string, nickname: string) => {
+    /** `spectator`: joins only to watch (outside the rotation, the teams and the scoreboard). */
+    const joinRoom = useCallback((code: string, nickname: string, spectator = false) => {
         return new Promise<JoinResult>((resolve) => {
-            getSocket().emit('room:join', code, nickname, (result) => {
+            getSocket().emit(spectator ? 'room:watch' : 'room:join', code, nickname, (result) => {
                 if (result.success && result.playerId) {
                     if (result.sessionToken) session.save(result.sessionToken, result.playerId)
                     session.saveNickname(nickname)
@@ -303,6 +304,7 @@ export function useGameState() {
         [room, playerId],
     )
     const isHost = !!me?.isHost
+    const isSpectator = !!me?.isSpectator
     const isSeer = !!room?.currentRound && room.currentRound.seerId === playerId
 
     return {
@@ -310,6 +312,7 @@ export function useGameState() {
         me,
         playerId,
         isHost,
+        isSpectator,
         isSeer,
         isConnected,
         restoredCode,

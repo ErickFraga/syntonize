@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Room, Player, SimpleResult } from '@/types/game'
 import { LIMITS } from '@/types/game'
+import { activePlayers } from '@shared/gameLogic'
 import Dial, { type DialMarker } from '@/components/Dial/Dial'
 import Avatar from '@/components/ui/Avatar'
 import CountdownRing from '@/components/ui/CountdownRing'
@@ -82,12 +83,14 @@ export default function Game({
         if (timerPhase === 'guess' && secondsLeft !== null && secondsLeft <= 5 && secondsLeft > 0) sounds.tick()
     }, [secondsLeft, timerPhase])
 
+    const spectating = !!me?.isSpectator
+    const playing = useMemo(() => activePlayers(room), [room])
     const myGuess = me ? round.guesses[me.id] : undefined
     const hasLocked = !!me?.hasGuessed
-    const guessers = useMemo(() => room.players.filter(p => p.id !== round.seerId), [room.players, round.seerId])
+    const guessers = useMemo(() => playing.filter(p => p.id !== round.seerId), [playing, round.seerId])
     const lockedCount = guessers.filter(p => p.hasGuessed).length
-    const connectedCount = room.players.filter(p => p.isConnected).length
-    const readyCount = room.players.filter(p => p.isConnected && p.isReady).length
+    const connectedCount = playing.filter(p => p.isConnected).length
+    const readyCount = playing.filter(p => p.isConnected && p.isReady).length
 
     const submitClue = async () => {
         if (!clue.trim() || sending) return
@@ -110,7 +113,7 @@ export default function Game({
         : []
 
     const showTarget = phase === 'revealed' || (isSeer && round.targetPosition !== null)
-    const dialNeedle = phase === 'revealed' ? null : isSeer ? null : hasLocked && myGuess !== undefined ? myGuess : needle
+    const dialNeedle = phase === 'revealed' ? null : isSeer || spectating ? null : hasLocked && myGuess !== undefined ? myGuess : needle
 
     const totalForTimer = timerPhase === 'guess' ? room.settings.timePerGuess : timerPhase === 'clue' ? room.settings.timePerClue : room.settings.timeBetweenRounds
 
@@ -152,7 +155,7 @@ export default function Game({
                         revealing={phase === 'revealed' && justRevealed}
                         needle={dialNeedle}
                         onNeedleChange={setNeedle}
-                        interactive={phase === 'guessing' && !isSeer && !hasLocked}
+                        interactive={phase === 'guessing' && !isSeer && !spectating && !hasLocked}
                         locked={hasLocked}
                         markers={markers}
                     />
@@ -231,14 +234,14 @@ export default function Game({
                         </div>
                     )}
 
-                    {phase === 'guessing' && isSeer && (
+                    {phase === 'guessing' && (isSeer || spectating) && (
                         <div className={styles.waitingPanel}>
-                            <p>{rich('game.seerWaiting', { count: <strong>{lockedCount}/{guessers.length}</strong> })}</p>
+                            <p>{rich(spectating ? 'game.spectatorWaiting' : 'game.seerWaiting', { count: <strong>{lockedCount}/{guessers.length}</strong> })}</p>
                             <LockedList players={guessers} />
                         </div>
                     )}
 
-                    {phase === 'guessing' && !isSeer && !hasLocked && (
+                    {phase === 'guessing' && !isSeer && !spectating && !hasLocked && (
                         <div className={styles.guessPanel}>
                             <div className={styles.guessHint}>
                                 <p>{t('game.dragHint')}</p>
@@ -257,7 +260,7 @@ export default function Game({
                         </div>
                     )}
 
-                    {phase === 'guessing' && !isSeer && hasLocked && (
+                    {phase === 'guessing' && !isSeer && !spectating && hasLocked && (
                         <div className={styles.waitingPanel}>
                             <span className={styles.lockedBadge}><CheckIcon size={16} /> {t('game.lockedAt', { n: myGuess ?? '' })}</span>
                             <p>{rich('game.waitingOthers', { count: <strong>{lockedCount}/{guessers.length}</strong> })}</p>
@@ -306,7 +309,9 @@ export default function Game({
                                     {secondsLeft !== null && timerPhase === 'next' && <span className="muted">{t('game.nextIn', { n: secondsLeft })}</span>}
                                 </div>
                                 <div className={styles.readyActions}>
-                                    {me?.isReady ? (
+                                    {spectating ? (
+                                        <span className="chip"><EyeIcon size={14} /> {t('game.spectating')}</span>
+                                    ) : me?.isReady ? (
                                         <span className={styles.lockedBadge}><CheckIcon size={16} /> {t('game.youReady')}</span>
                                     ) : (
                                         <button className="btn btn-primary" onClick={onSetReady}>

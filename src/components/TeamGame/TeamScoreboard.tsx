@@ -1,5 +1,6 @@
 'use client'
 
+import { activePlayers } from '@shared/gameLogic'
 import type { Room } from '@/types/game'
 import Avatar from '@/components/ui/Avatar'
 import { TrophyIcon, EyeIcon, CheckIcon, CrownIcon } from '@/components/ui/Icons'
@@ -28,7 +29,7 @@ export default function TeamScoreboard({ room, meId }: TeamScoreboardProps) {
             {TEAM_IDS.map(team => {
                 const score = room.teamScores[team]
                 const pct = Math.max(0, Math.min(100, (score / target) * 100))
-                const members = room.players.filter(p => p.team === team)
+                const members = activePlayers(room).filter(p => p.team === team)
                 return (
                     <section
                         key={team}

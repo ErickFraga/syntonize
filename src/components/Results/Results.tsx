@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import type { Room, Player } from '@/types/game'
-import { computeStats } from '@shared/gameLogic'
+import { activePlayers, computeStats } from '@shared/gameLogic'
 import Avatar from '@/components/ui/Avatar'
 import { TrophyIcon, RotateIcon, HomeIcon, LogOutIcon, TargetIcon, EyeIcon, SparklesIcon } from '@/components/ui/Icons'
 import RoundHistory from '@/components/RoundHistory/RoundHistory'
@@ -30,7 +30,7 @@ const CONFETTI = Array.from({ length: 36 }, (_, i) => ({
 
 export default function Results({ room, me, isHost, onPlayAgain, onBackToLobby, onLeave, historyOpen = false }: ResultsProps) {
     const { t } = useT()
-    const sorted = useMemo(() => [...room.players].sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname)), [room.players])
+    const sorted = useMemo(() => [...activePlayers(room)].sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname)), [room])
     const winner = sorted[0]
     const isWinner = !!me && winner?.id === me.id
     const stats = useMemo(() => computeStats(room), [room])

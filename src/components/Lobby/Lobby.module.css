@@ -371,3 +371,17 @@
         padding: 0 4px;
     }
 }
+
+.spectators {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 2px dashed var(--border, rgba(0, 0, 0, 0.15));
+}
+
+.spectatorsTitle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0 0 0.6rem;
+    font-size: 0.95rem;
+}

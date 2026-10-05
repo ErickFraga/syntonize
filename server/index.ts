@@ -3,7 +3,7 @@ import { parse } from 'url'
 import next from 'next'
 import { Server, type Socket } from 'socket.io'
 
-import type { ServerToClientEvents, ClientToServerEvents, SimpleResult } from '../shared/types.ts'
+import type { ServerToClientEvents, ClientToServerEvents, SimpleResult, JoinResult } from '../shared/types.ts'
 import { RoomManager, type Transport } from './roomManager.ts'
 import { MemoryStore, type RoomStore } from './roomStore.ts'
 import { RedisStore } from './redisStore.ts'
@@ -151,7 +151,8 @@ app.prepare().then(async () => {
             callback({ success: true, code: result.data.room.code, playerId: result.data.playerId, sessionToken: result.data.sessionToken })
         })
 
-        socket.on('room:join', async (code, nickname, callback) => {
+        // Join as a player or, with `spectator`, only to watch.
+        const joinHandler = (spectator: boolean) => async (code: string, nickname: string, callback: (result: JoinResult) => void) => {
             await manager.wake(String(code ?? ''))
             const existing = currentPlayerId(socket)
             if (existing) {
@@ -165,7 +166,7 @@ app.prepare().then(async () => {
                 manager.leaveRoom(existing)
                 unbind(socket)
             }
-            const result = manager.joinRoom(code, nickname)
+            const result = manager.joinRoom(code, nickname, spectator)
             if (!result.success || !result.data) {
                 callback({ success: false, error: result.error })
                 return
@@ -173,7 +174,9 @@ app.prepare().then(async () => {
             bind(socket, result.data.playerId, result.data.room.code)
             manager.sendState(result.data.playerId)
             callback({ success: true, code: result.data.room.code, playerId: result.data.playerId, sessionToken: result.data.sessionToken })
-        })
+        }
+        socket.on('room:join', joinHandler(false))
+        socket.on('room:watch', joinHandler(true))
 
         socket.on('room:info', (code, callback) => {
             const result = manager.getRoomInfo(String(code ?? ''))

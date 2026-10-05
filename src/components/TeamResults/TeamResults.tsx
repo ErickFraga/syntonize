@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import type { Room, Player } from '@/types/game'
-import { computeTeamStats } from '@shared/gameLogic'
+import { activePlayers, computeTeamStats } from '@shared/gameLogic'
 import Avatar from '@/components/ui/Avatar'
 import { TrophyIcon, RotateIcon, HomeIcon, LogOutIcon, TargetIcon, EyeIcon, SparklesIcon } from '@/components/ui/Icons'
 import { TEAM_IDS, teamColor, teamKey } from '@/lib/teams'
@@ -32,7 +32,7 @@ const CONFETTI = Array.from({ length: 36 }, (_, i) => ({
 export default function TeamResults({ room, me, isHost, onPlayAgain, onBackToLobby, onLeave, historyOpen = false }: TeamResultsProps) {
     const { t } = useT()
     const winner = room.winnerTeam
-    const myTeamWon = !!me && winner !== null && me.team === winner
+    const myTeamWon = !!me && !me.isSpectator && winner !== null && me.team === winner
     const stats = useMemo(() => computeTeamStats(room), [room])
     const [a, b] = room.teamScores
     const rounds = room.roundHistory.length
@@ -82,7 +82,7 @@ export default function TeamResults({ room, me, isHost, onPlayAgain, onBackToLob
                         </div>
                         <span className={styles.score}>{room.teamScores[team]}<small> {t('results.pointsUnit')}</small></span>
                         <ul className={styles.members}>
-                            {room.players.filter(p => p.team === team).map(p => (
+                            {activePlayers(room).filter(p => p.team === team).map(p => (
                                 <li key={p.id} className={styles.member}>
                                     <Avatar name={p.nickname} colorIndex={p.colorIndex} size="sm" />
                                     <span>{p.nickname}{p.id === me?.id ? t('common.youSuffix') : ''}</span>
