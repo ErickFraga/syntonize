@@ -1,0 +1,114 @@
+/* The QR itself is always black on white: scanners need the contrast, whatever the theme. */
+.svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    color: #000;
+    border-radius: var(--radius-sm);
+}
+
+.svgBg {
+    fill: #fff;
+}
+
+/* Thumbnail next to the room code: a white card with the QR and an "enlarge" label */
+.thumb {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100px;
+    padding: 2px 2px 8px;
+    background: #fff;
+    border: var(--outline);
+    border-radius: var(--radius-md);
+    color: var(--ink);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast);
+}
+
+.thumb:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.thumbHint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: -2px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* Full screen */
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 24px;
+    /* Follows the theme: page background, nearly opaque. */
+    background: color-mix(in srgb, var(--bg) 94%, transparent);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    cursor: zoom-out;
+    animation: qrFade var(--t-med) var(--ease-out);
+}
+
+.close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+}
+
+.big {
+    width: min(78vmin, 560px);
+    padding: 12px;
+    background: #fff;
+    border: var(--outline);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+.bigCaption {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+}
+
+.bigLabel {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-2);
+}
+
+.bigCode {
+    font-family: var(--font-display);
+    font-size: clamp(36px, 8vmin, 64px);
+    font-weight: 900;
+    letter-spacing: 0.28em;
+    padding-left: 0.28em; /* balances the trailing letter-spacing */
+    line-height: 1;
+    color: var(--text);
+}
+
+@keyframes qrFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@media (max-width: 480px) {
+    .thumb {
+        width: 88px;
+    }
+}

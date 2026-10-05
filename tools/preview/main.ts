@@ -13,6 +13,7 @@ import TeamGame from '../../src/components/TeamGame/TeamGame.tsx'
 import TeamResults from '../../src/components/TeamResults/TeamResults.tsx'
 import Logo from '../../src/components/ui/Logo.tsx'
 import Dial from '../../src/components/Dial/Dial.tsx'
+import { QrFullscreen } from '../../src/components/QrCode/QrCode.tsx'
 import { I18nContext, makeTranslator } from '../../src/i18n/I18nProvider.tsx'
 
 const g = globalThis as any
@@ -112,6 +113,12 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
     lobby: {
         node: page(jsx(Lobby, { room: room('waiting', null, { settings: { ...DEFAULT_SETTINGS, packs: ['classic', 'food', 'spicy'] } }), me: players[0], isHost: true, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
     },
+    'lobby-qr': {
+        node: jsx('div', { children: [
+            page(jsx(Lobby, { room: room('waiting', null), me: players[0], isHost: true, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
+            jsx(QrFullscreen, { value: 'https://syntonize.onrender.com/join/K7PX2Q', code: 'K7PX2Q', onClose: noop }),
+        ] }),
+    },
     'lobby-guest': {
         node: page(jsx(Lobby, { room: room('waiting', null, { settings: { ...DEFAULT_SETTINGS, cardLocale: 'en', packs: ['pop', 'people'] } }), me: players[1], isHost: false, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
     },
@@ -166,11 +173,11 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
 g.__params = { code: 'K7PX2Q' }
 
 // Same screens in other interface languages (the shim's useContext reads the context default).
-for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-revealed']], ['es', ['lobby-guest', 'team-side-guess', 'results']]] as const) {
+for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-revealed', 'lobby-qr']], ['es', ['lobby-guest', 'team-side-guess', 'results']]] as const) {
     for (const name of names) screens[`${name}-${locale}`] = { ...screens[name], locale }
 }
 
-const LIGHT = new Set(['home', 'lobby', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid'])
+const LIGHT = new Set(['home', 'lobby', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid', 'lobby-qr'])
 for (const [name, screen] of Object.entries(screens) as Array<[string, { node: any; locale?: 'en' | 'es' }]>) {
     ;(I18nContext as any)._value = makeTranslator(screen.locale ?? 'pt-BR')
     const body = renderToString(screen.node)
