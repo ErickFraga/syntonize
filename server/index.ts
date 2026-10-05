@@ -172,6 +172,13 @@ app.prepare().then(() => {
         socket.on('game:skipRound', () => withPlayer(id => manager.skipRound(id))())
         socket.on('game:backToLobby', () => withPlayer(id => manager.backToLobby(id))())
 
+        socket.on('chat:send', (input, callback) => {
+            // Errors go back in the callback only (shown next to the chat box, not as a toast).
+            const playerId = currentPlayerId(socket)
+            const result = playerId ? manager.sendChat(playerId, input) : { success: false, error: 'Você não está em uma sala' }
+            if (typeof callback === 'function') callback({ success: result.success, error: result.error })
+        })
+
         socket.on('game:requestState', () => {
             const playerId = currentPlayerId(socket)
             if (playerId) manager.sendState(playerId)

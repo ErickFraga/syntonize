@@ -147,7 +147,56 @@ export interface Room {
     nextTeam: TeamId
     /** Team mode: winning team (null on a draw or in free-for-all). */
     winnerTeam: TeamId | null
+    /**
+     * Last CHAT_LIMITS.HISTORY chat messages (server only: `roomViewFor`
+     * sends it empty, the history goes in `chat:history`, see README).
+     */
+    chat: ChatMessage[]
 }
+
+// ============================================
+// CHAT
+// ============================================
+
+/** Quick reactions: the only emojis accepted in a `reaction` message. */
+export const CHAT_REACTIONS = ['🔥', '😂', '😮', '👏', '🤔', '💀', '😭', '🎯'] as const
+export type ChatReaction = (typeof CHAT_REACTIONS)[number]
+
+export const CHAT_LIMITS = {
+    TEXT_MAX: 200,
+    /** Messages kept per room for players who join later. */
+    HISTORY: 50,
+    /** Sliding window rate limit per player: RATE_COUNT messages per RATE_WINDOW_MS. */
+    RATE_COUNT: 5,
+    RATE_WINDOW_MS: 10_000,
+} as const
+
+/** What a client sends with `chat:send`. */
+export type ChatInput = { kind: 'text'; text: string } | { kind: 'reaction'; emoji: ChatReaction }
+
+/**
+ * System messages travel as a code + params and are worded by the client.
+ * `round_revealed` only carries the round number, never the target.
+ */
+export type ChatSystemCode = 'joined' | 'left' | 'kicked' | 'round_revealed' | 'game_finished'
+
+interface ChatMessageBase {
+    id: string
+    /** Server timestamp (ms). */
+    at: number
+}
+
+interface ChatAuthor {
+    authorId: string
+    /** Nickname and color at send time (the author may leave later). */
+    author: string
+    colorIndex: number
+}
+
+export type ChatMessage =
+    | (ChatMessageBase & ChatAuthor & { kind: 'text'; text: string })
+    | (ChatMessageBase & ChatAuthor & { kind: 'reaction'; emoji: ChatReaction })
+    | (ChatMessageBase & { kind: 'system'; code: ChatSystemCode; params: Record<string, string | number> })
 
 // ============================================
 // REALTIME PAYLOADS
@@ -205,6 +254,9 @@ export interface ServerToClientEvents {
     'game:timer': (timer: TimerUpdate) => void
     /** Team mode: live needle of the active team (sent only to that team). */
     'game:needle': (data: { position: number; by: string }) => void
+    'chat:message': (message: ChatMessage) => void
+    /** Full chat history, sent to one player with their state (join, restore, resync). */
+    'chat:history': (messages: ChatMessage[]) => void
 }
 
 export interface ClientToServerEvents {
@@ -225,6 +277,7 @@ export interface ClientToServerEvents {
     'game:skipRound': () => void
     'game:backToLobby': () => void
     'game:requestState': () => void
+    'chat:send': (input: ChatInput, callback?: (result: SimpleResult) => void) => void
 }
 
 // ============================================
