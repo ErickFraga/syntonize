@@ -30,6 +30,8 @@ interface TeamGameProps {
     onSetReady: () => void
     onNextRound: () => void
     onSkipRound: () => void
+    /** Chat panel, rendered under the scoreboard. */
+    chat?: React.ReactNode
 }
 
 const ZONE_LABEL = { 4: 'zone.4', 3: 'zone.3', 2: 'zone.2', 0: 'zone.0' } as const
@@ -51,6 +53,7 @@ export default function TeamGame({
     onSetReady,
     onNextRound,
     onSkipRound,
+    chat,
 }: TeamGameProps) {
     const { t, rich, msg } = useT()
     const round = room.currentRound!
@@ -365,6 +368,7 @@ export default function TeamGame({
 
             <aside className={gameStyles.sidebar}>
                 <TeamScoreboard room={room} meId={me?.id ?? null} />
+                {chat}
             </aside>
         </div>
     )

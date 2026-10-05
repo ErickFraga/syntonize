@@ -1,7 +1,7 @@
-import { readFileSync, writeFileSync } from 'fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { jsx } from './shims/jsx-runtime.ts'
 import { renderToString } from './render.ts'
-import type { Room, Player, GameRound } from '../../shared/types.ts'
+import type { Room, Player, GameRound, ChatMessage } from '../../shared/types.ts'
 import { DEFAULT_SETTINGS } from '../../shared/types.ts'
 
 import Home from '../../src/app/page.tsx'
@@ -12,6 +12,9 @@ import Results from '../../src/components/Results/Results.tsx'
 import TeamGame from '../../src/components/TeamGame/TeamGame.tsx'
 import TeamResults from '../../src/components/TeamResults/TeamResults.tsx'
 import Logo from '../../src/components/ui/Logo.tsx'
+import Dial from '../../src/components/Dial/Dial.tsx'
+import { QrFullscreen } from '../../src/components/QrCode/QrCode.tsx'
+import Chat from '../../src/components/Chat/Chat.tsx'
 import { I18nContext, makeTranslator } from '../../src/i18n/I18nProvider.tsx'
 
 const g = globalThis as any
@@ -42,7 +45,7 @@ function room(status: Room['status'], currentRound: GameRound | null, extra: Par
     return {
         code: 'K7PX2Q', players, status, settings: { ...DEFAULT_SETTINGS }, currentRound, roundHistory: [], seerOrder: players.map(p => p.id),
         currentSeerIndex: 0, usedCardIds: [], winnerId: null, nextRoundAt: null, createdAt: 0,
-        teamScores: [0, 0], teamSeerIndex: [0, 0], nextTeam: 0, winnerTeam: null, ...extra,
+        teamScores: [0, 0], teamSeerIndex: [0, 0], nextTeam: 0, winnerTeam: null, chat: [], ...extra,
     }
 }
 
@@ -85,11 +88,53 @@ const teamRevealed = round('revealed', {
     teamPlay: teamPlay({ guess: 58, needle: 58, lockedBy: 'p3', side: 'right', sideBy: 'p2', zone: 3, points: [3, 1], sideCorrect: true }),
 })
 
+// Frozen frames of the screen opening on the reveal (--lid-angle is a preview-only hook in Dial.module.css).
+const revealedMarkers = [
+    { id: 'p2', name: 'Bia', colorIndex: 1, position: 60 },
+    { id: 'p3', name: 'Caio', colorIndex: 2, position: 71 },
+    { id: 'p4', name: 'Duda', colorIndex: 3, position: 30, dim: true },
+]
+const lidFrame = (angle: number, label: string, markers: typeof revealedMarkers = []) =>
+    jsx('section', {
+        className: 'card-solid',
+        style: { padding: '16px', '--lid-angle': `${angle}deg` },
+        children: [
+            jsx(Dial, { target: 62, covered: true, needle: null, markers }),
+            jsx('p', { style: { textAlign: 'center', margin: '8px 0 0', color: 'var(--text-2)' }, children: label }),
+        ],
+    })
+const lidFrames = jsx('div', {
+    style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', maxWidth: '1200px', margin: '0 auto' },
+    children: [lidFrame(0, 'tampa fechada (0°)'), lidFrame(45, '45°'), lidFrame(90, '90°'), lidFrame(140, '140°'), lidFrame(180, 'aberta (180°) + marcadores', revealedMarkers)],
+})
+const say = (i: number, p: Player, text: string): ChatMessage => ({ id: `m${i}`, at: i, kind: 'text', authorId: p.id, author: p.nickname, colorIndex: p.colorIndex, text })
+const react = (i: number, p: Player, emoji: '🔥' | '😂' | '🤔'): ChatMessage => ({ id: `m${i}`, at: i, kind: 'reaction', authorId: p.id, author: p.nickname, colorIndex: p.colorIndex, emoji })
+const chatMessages: ChatMessage[] = [
+    { id: 'm1', at: 1, kind: 'system', code: 'joined', params: { name: 'Eduardo Silva' } },
+    say(2, players[2], 'boa noite, bora que hoje eu ganho'),
+    { id: 'm3', at: 3, kind: 'system', code: 'round_revealed', params: { round: 3 } },
+    react(4, players[4], '😂'),
+    say(5, players[1], 'nuggets de salmão??? isso é comida de quem'),
+    say(6, players[2], 'de criança rica kkkk, tô indo pra direita'),
+    react(7, players[0], '🤔'),
+    say(8, players[4], 'eu acho que é bem no meio, criança come nugget mas salmão é coisa de adulto'),
+    react(9, players[3], '🔥'),
+]
+const chatProps = { messages: chatMessages, meId: 'p2', playerCount: players.length, onSend: ok }
+const guessingRoom = room('playing', round('guessing', { clue: 'Nuggets de salmão', clueAt: 2000, targetPosition: null }), { players: players.map(p => p.id === 'p3' ? { ...p, hasGuessed: true } : p) })
+const guessingProps = { room: guessingRoom, me: players[1], isHost: false, isSeer: false, secondsLeft: 27, timerPhase: 'guess', onGiveClue: ok, onSubmitGuess: ok, onSetReady: noop, onNextRound: noop, onSkipRound: noop }
+
 const screens: Record<string, { node: any; mobile?: boolean }> = {
     home: { node: jsx(Home, {}) },
     join: { node: jsx(JoinPage, {}) },
     lobby: {
         node: page(jsx(Lobby, { room: room('waiting', null, { settings: { ...DEFAULT_SETTINGS, packs: ['classic', 'food', 'spicy'] } }), me: players[0], isHost: true, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
+    },
+    'lobby-qr': {
+        node: jsx('div', { children: [
+            page(jsx(Lobby, { room: room('waiting', null), me: players[0], isHost: true, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
+            jsx(QrFullscreen, { value: 'https://syntonize.onrender.com/join/K7PX2Q', code: 'K7PX2Q', onClose: noop }),
+        ] }),
     },
     'lobby-guest': {
         node: page(jsx(Lobby, { room: room('waiting', null, { settings: { ...DEFAULT_SETTINGS, cardLocale: 'en', packs: ['pop', 'people'] } }), me: players[1], isHost: false, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop })),
@@ -136,19 +181,40 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
     'team-results': {
         node: page(jsx(TeamResults, { room: teamRoom(null, { teamScores: [11, 9], winnerTeam: 0, roundHistory: [teamRevealed, teamRevealed, teamRevealed] }), me: players[2], isHost: true, onPlayAgain: noop, onBackToLobby: noop, onLeave: noop })),
     },
+    'dial-lid': { node: page(lidFrames) },
+    'game-chat': {
+        node: page(jsx(Game, { ...guessingProps, chat: jsx(Chat, { ...chatProps, docked: true }) })),
+    },
+    'game-chat-open': {
+        node: page(jsx(Game, { ...guessingProps, chat: jsx(Chat, { ...chatProps, docked: true, defaultOpen: true }) })),
+    },
+    'game-seer-chat': {
+        node: page(jsx(Game, {
+            ...guessingProps, me: players[0], isHost: true, isSeer: true,
+            room: room('playing', round('guessing', { clue: 'Nuggets de salmão', clueAt: 2000 })),
+            chat: jsx(Chat, { ...chatProps, meId: 'p1', docked: true, defaultOpen: true, textLocked: 'Vidente: só reações' }),
+        })),
+    },
+    'lobby-chat': {
+        node: page([
+            jsx(Lobby, { room: room('waiting', null), me: players[1], isHost: false, onStartGame: noop, onKickPlayer: noop, onUpdateSettings: noop, onSetTeam: noop, onNotify: noop }),
+            jsx(Chat, { ...chatProps, defaultOpen: true }),
+        ]),
+    },
     results: {
         node: page(jsx(Results, { room: room('finished', null, { roundHistory: [revealed, revealed, revealed], winnerId: 'p2' }), me: players[1], isHost: true, onPlayAgain: noop, onBackToLobby: noop, onLeave: noop })),
     },
 }
 
 g.__params = { code: 'K7PX2Q' }
+mkdirSync(`${import.meta.dir}/out`, { recursive: true })
 
 // Same screens in other interface languages (the shim's useContext reads the context default).
-for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-revealed']], ['es', ['lobby-guest', 'team-side-guess', 'results']]] as const) {
+for (const [locale, names] of [['en', ['home', 'lobby', 'lobby-teams', 'game-revealed', 'lobby-qr', 'game-chat-open']], ['es', ['lobby-guest', 'team-side-guess', 'results']]] as const) {
     for (const name of names) screens[`${name}-${locale}`] = { ...screens[name], locale }
 }
 
-const LIGHT = new Set(['home', 'lobby', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed'])
+const LIGHT = new Set(['home', 'lobby', 'game-guessing', 'game-revealed', 'results', 'lobby-teams', 'team-revealed', 'dial-lid', 'lobby-qr', 'game-chat', 'game-chat-open'])
 for (const [name, screen] of Object.entries(screens) as Array<[string, { node: any; locale?: 'en' | 'es' }]>) {
     ;(I18nContext as any)._value = makeTranslator(screen.locale ?? 'pt-BR')
     const body = renderToString(screen.node)

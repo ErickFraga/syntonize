@@ -1,8 +1,8 @@
 // Game logic - pure functions shared between client and server.
 // Nothing in here talks to sockets or timers; the server orchestrates.
 
-import type { Room, Player, GameRound, SpectrumCard, RoomSettings, CardLocale, Zone, TeamId, Side, TeamRoundState, NumericSetting, Message, MessageCode, MessageParams } from './types.ts'
-import { SCORING, LIMITS, DEFAULT_SETTINGS, SETTINGS_OPTIONS, PLAYER_COLORS, TEAM_DEFAULT_TARGET, TEAM_RULES, CARD_LOCALES, CARD_PACKS, settingOptionsFor } from './types.ts'
+import type { Room, Player, GameRound, SpectrumCard, RoomSettings, CardLocale, Zone, TeamId, Side, TeamRoundState, NumericSetting, Message, MessageCode, MessageParams, ChatInput, ChatReaction } from './types.ts'
+import { SCORING, LIMITS, CHAT_LIMITS, CHAT_REACTIONS, DEFAULT_SETTINGS, SETTINGS_OPTIONS, PLAYER_COLORS, TEAM_DEFAULT_TARGET, TEAM_RULES, CARD_LOCALES, CARD_PACKS, settingOptionsFor } from './types.ts'
 import { deckFor } from './cards/index.ts'
 
 // ============================================
@@ -90,6 +90,35 @@ export function validateClue(rawClue: unknown, card: SpectrumCard, locale: CardL
     if (hit) return { ok: false, clue, error: msg('clue_uses_card_word', { word: hit }) }
 
     return { ok: true, clue }
+}
+
+/**
+ * Chat input from an untrusted client: text is normalized (whitespace
+ * collapsed, control characters dropped, trimmed) and limited to
+ * CHAT_LIMITS.TEXT_MAX characters; reactions must be one of CHAT_REACTIONS.
+ */
+export function validateChatInput(raw: unknown): { ok: boolean; input?: ChatInput; error?: Message } {
+    if (!raw || typeof raw !== 'object') return { ok: false, error: msg('chat_invalid') }
+    const data = raw as Record<string, unknown>
+    if (data.kind === 'reaction') {
+        if (!CHAT_REACTIONS.includes(data.emoji as ChatReaction)) return { ok: false, error: msg('chat_invalid_reaction') }
+        return { ok: true, input: { kind: 'reaction', emoji: data.emoji as ChatReaction } }
+    }
+    if (data.kind !== 'text' || typeof data.text !== 'string') return { ok: false, error: msg('chat_invalid') }
+    // eslint-disable-next-line no-control-regex
+    const text = data.text.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim()
+    if (!text) return { ok: false, error: msg('chat_empty') }
+    if (Array.from(text).length > CHAT_LIMITS.TEXT_MAX) return { ok: false, error: msg('chat_too_long', { max: CHAT_LIMITS.TEXT_MAX }) }
+    return { ok: true, input: { kind: 'text', text } }
+}
+
+/**
+ * The seer cannot type while their round is open (only react), so the clue
+ * or the target cannot leak through the chat.
+ */
+export function canSendChatText(room: Room, playerId: string): boolean {
+    const round = room.currentRound
+    return !(room.status === 'playing' && round && round.seerId === playerId && round.phase !== 'revealed')
 }
 
 /** Words of the card that the clue may still use (compared without accents). */
@@ -203,6 +232,7 @@ export function createRoom(code: string, host: Player, now: number = Date.now())
         teamSeerIndex: [0, 0],
         nextTeam: 0,
         winnerTeam: null,
+        chat: [],
     }
 }
 
@@ -656,7 +686,8 @@ export function resetGameState(room: Room): void {
  */
 export function roomViewFor(room: Room, viewerId: string | null): Room {
     const round = room.currentRound
-    if (!round) return room
+    // The chat history goes in its own event (`chat:history`), not on every state.
+    if (!round) return { ...room, chat: [] }
 
     const revealed = round.phase === 'revealed'
     const isSeer = viewerId === round.seerId
@@ -679,7 +710,7 @@ export function roomViewFor(room: Room, viewerId: string | null): Room {
         visibleRound.teamPlay = { ...round.teamPlay, needle: needleVisible ? round.teamPlay.needle : null }
     }
 
-    return { ...room, currentRound: visibleRound }
+    return { ...room, chat: [], currentRound: visibleRound }
 }
 
 // ============================================

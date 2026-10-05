@@ -1,0 +1,321 @@
+/* Chat: inline panel in the game sidebar (desktop), floating button +
+   bottom sheet on mobile and outside the game (lobby, results). */
+
+.chat {
+    --chat-height: 360px;
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    min-width: 0;
+}
+
+.head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.title svg {
+    color: var(--teal);
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: var(--chat-height);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 4px 4px 4px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-2) transparent;
+}
+
+.empty {
+    margin: auto;
+    text-align: center;
+    color: var(--text-3);
+    font-size: 14px;
+}
+
+.message {
+    align-self: flex-start;
+    max-width: 85%;
+    margin: 0;
+    padding: 6px 10px 7px;
+    border-radius: var(--radius-sm) var(--radius-sm) var(--radius-sm) 4px;
+    background: var(--surface-2);
+    font-size: 14px;
+    line-height: 1.35;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+.mine {
+    align-self: flex-end;
+    border-radius: var(--radius-sm) var(--radius-sm) 4px var(--radius-sm);
+    background: var(--surface);
+    border: 1px solid var(--line);
+}
+
+.mine .author {
+    text-align: right;
+}
+
+.author {
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    margin-bottom: 1px;
+    /* Mixed with the text color so pastel names stay readable on both themes. */
+    color: color-mix(in srgb, var(--author-color) 55%, var(--text));
+}
+
+.text {
+    color: var(--text);
+}
+
+.reaction {
+    background: none;
+    border: 0;
+    padding: 0 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mine.reaction {
+    flex-direction: row-reverse;
+}
+
+.reaction .author {
+    margin: 0;
+}
+
+.emoji {
+    font-size: 24px;
+    line-height: 1;
+}
+
+.system {
+    margin: 2px 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-3);
+}
+
+.reactions {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 4px;
+}
+
+.reactionBtn {
+    min-width: 0;
+    height: 34px;
+    padding: 0;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform var(--t-fast) var(--ease-spring), background var(--t-fast);
+}
+
+.reactionBtn:hover:not(:disabled) {
+    background: var(--surface-2);
+    transform: translateY(-2px);
+}
+
+.reactionBtn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.form {
+    display: flex;
+    gap: 8px;
+}
+
+.input {
+    flex: 1;
+    min-width: 0;
+    height: 40px;
+    padding: 0 10px;
+    font-size: 13px;
+}
+
+.meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    min-height: 16px;
+    margin-top: -4px;
+}
+
+.error {
+    color: var(--danger);
+}
+
+.counter {
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+}
+
+.counterNear {
+    color: var(--warning);
+}
+
+.close {
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    min-height: 34px;
+    cursor: pointer;
+}
+
+/* Floating button and backdrop: hidden while docked on desktop */
+.fab,
+.backdrop,
+.close {
+    display: none;
+}
+
+.fab {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 60;
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--line-2);
+    background: var(--surface-solid);
+    color: var(--teal);
+    box-shadow: var(--shadow-md);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: var(--radius-full);
+    background: var(--pink);
+    color: var(--on-accent);
+    font-size: 12px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    background: rgba(5, 4, 15, 0.55);
+}
+
+/* Sheet mode (shared by mobile docked and floating everywhere) */
+.floating .fab {
+    display: inline-flex;
+}
+
+.floating .close {
+    display: inline-flex;
+}
+
+.floating .panel {
+    display: none;
+}
+
+.floating.open .fab {
+    display: none;
+}
+
+.floating.open .panel {
+    display: flex;
+    position: fixed;
+    z-index: 80;
+    right: 16px;
+    bottom: 16px;
+    width: 360px;
+    max-width: calc(100vw - 32px);
+    background: var(--surface-solid);
+    box-shadow: var(--shadow-lg);
+}
+
+.docked .panel {
+    margin-top: 16px;
+}
+
+@media (max-width: 960px) {
+    .chat {
+        --chat-height: min(50vh, 420px);
+    }
+
+    .docked .fab,
+    .docked .close {
+        display: inline-flex;
+    }
+
+    .docked .panel {
+        display: none;
+        margin-top: 0;
+    }
+
+    .docked.open .fab {
+        display: none;
+    }
+
+    .open .backdrop {
+        display: block;
+    }
+
+    .docked.open .panel,
+    .floating.open .panel {
+        display: flex;
+        position: fixed;
+        z-index: 80;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: auto;
+        max-width: none;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        border-bottom: 0;
+        background: var(--surface-solid);
+        box-shadow: var(--shadow-lg);
+        padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+        animation: chat-sheet-up var(--t-med) var(--ease-out);
+    }
+}
+
+@keyframes chat-sheet-up {
+    from {
+        transform: translateY(40px);
+        opacity: 0;
+    }
+}

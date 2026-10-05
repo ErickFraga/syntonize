@@ -12,6 +12,8 @@ import type {
     TimerPhase,
     Notice,
     TeamId,
+    ChatMessage,
+    ChatSystemCode,
     Message,
 } from '../shared/types.ts'
 import {
@@ -45,8 +47,11 @@ import {
     activeTeamHasGuessers,
     opposingTeamPresent,
     teamMembers,
+    validateChatInput,
+    canSendChatText,
     LIMITS,
     TEAM_RULES,
+    CHAT_LIMITS,
     msg,
 } from '../shared/index.ts'
 
@@ -126,6 +131,8 @@ export class RoomManager {
     private goneTimers = new Map<string, TimerHandle>()
     /** Last accepted live-needle update per player (throttle). */
     private lastNeedleAt = new Map<string, number>()
+    /** Timestamps of each player's recent chat messages (sliding-window rate limit). */
+    private chatSentAt = new Map<string, number[]>()
 
     private clock: Clock
     private rng: () => number
@@ -221,6 +228,7 @@ export class RoomManager {
 
         this.log(`${nickname} joined ${code}`)
         this.notify(room, 'info', msg('player_joined', { name: nickname }))
+        this.systemChat(room, 'joined', { name: nickname })
         this.broadcastState(room)
         this.resyncTimer(player.id)
         return { success: true, data: { room, playerId: player.id, sessionToken } }
@@ -496,7 +504,43 @@ export class RoomManager {
         const room = this.getRoomOfPlayer(playerId)
         if (!room) return
         this.transport.toPlayer(playerId, 'room:state', roomViewFor(room, playerId))
+        this.transport.toPlayer(playerId, 'chat:history', room.chat)
         this.resyncTimer(playerId)
+    }
+
+    // ---------- chat ----------
+
+    /**
+     * A text or a quick reaction from a player. Validated, rate limited
+     * (CHAT_LIMITS.RATE_COUNT per RATE_WINDOW_MS, sliding window) and kept
+     * in the room history. The seer may only react while their round is open.
+     */
+    sendChat(playerId: string, raw: unknown): Result<ChatMessage> {
+        const room = this.getRoomOfPlayer(playerId)
+        const player = room?.players.find(p => p.id === playerId)
+        if (!room || !player) return { success: false, error: msg('room_not_found') }
+
+        const valid = validateChatInput(raw)
+        if (!valid.ok || !valid.input) return { success: false, error: valid.error }
+        if (valid.input.kind === 'text' && !canSendChatText(room, playerId)) {
+            return { success: false, error: msg('chat_seer_reactions_only') }
+        }
+
+        const now = this.clock.now()
+        const recent = (this.chatSentAt.get(playerId) ?? []).filter(t => now - t < CHAT_LIMITS.RATE_WINDOW_MS)
+        if (recent.length >= CHAT_LIMITS.RATE_COUNT) {
+            this.chatSentAt.set(playerId, recent)
+            return { success: false, error: msg('chat_rate_limited') }
+        }
+        recent.push(now)
+        this.chatSentAt.set(playerId, recent)
+
+        const author = { id: this.newId('m'), at: now, authorId: player.id, author: player.nickname, colorIndex: player.colorIndex }
+        const message: ChatMessage = valid.input.kind === 'text'
+            ? { ...author, kind: 'text', text: valid.input.text }
+            : { ...author, kind: 'reaction', emoji: valid.input.emoji }
+        this.pushChat(room, message)
+        return { success: true, data: message }
     }
 
     // ---------- housekeeping ----------
@@ -571,6 +615,26 @@ export class RoomManager {
         this.transport.toRoom(room.code, 'room:notice', { kind, ...message })
     }
 
+    private pushChat(room: Room, message: ChatMessage): void {
+        room.chat.push(message)
+        if (room.chat.length > CHAT_LIMITS.HISTORY) room.chat.splice(0, room.chat.length - CHAT_LIMITS.HISTORY)
+        this.transport.toRoom(room.code, 'chat:message', message)
+    }
+
+    private systemChat(room: Room, code: ChatSystemCode, params: Record<string, string | number> = {}): void {
+        this.pushChat(room, { id: this.newId('m'), at: this.clock.now(), kind: 'system', code, params })
+    }
+
+    /** Ends the game for everyone: `game:finished` plus the chat line. */
+    private announceFinished(room: Room): void {
+        this.transport.toRoom(room.code, 'game:finished', room.winnerId)
+        const winner = room.players.find(p => p.id === room.winnerId)
+        const params: Record<string, string | number> = room.settings.mode === 'teams'
+            ? (room.winnerTeam !== null ? { team: room.winnerTeam } : {})
+            : (winner ? { name: winner.nickname } : {})
+        this.systemChat(room, 'game_finished', params)
+    }
+
     private broadcastState(room: Room): void {
         for (const player of room.players) {
             this.transport.toPlayer(player.id, 'room:state', roomViewFor(room, player.id))
@@ -581,6 +645,7 @@ export class RoomManager {
         const wasHost = player.isHost
         this.cancelGone(player.id)
         this.lastNeedleAt.delete(player.id)
+        this.chatSentAt.delete(player.id)
         removePlayerFromRoom(room, player.id)
         this.playerRooms.delete(player.id)
         this.forgetSessions(player.id)
@@ -592,6 +657,7 @@ export class RoomManager {
         }
 
         this.notify(room, 'info', msg(`player_${reason}`, { name: player.nickname }))
+        this.systemChat(room, reason === 'kicked' ? 'kicked' : 'left', { name: player.nickname })
         if (wasHost) {
             const newHost = room.players.find(p => p.isHost)
             if (newHost) this.notify(room, 'info', msg('new_host', { name: newHost.nickname }))
@@ -611,7 +677,7 @@ export class RoomManager {
             this.notify(room, 'warning', msg('not_enough_players_end'))
             this.clearTimers(room.code)
             finishGame(room)
-            this.transport.toRoom(room.code, 'game:finished', room.winnerId)
+            this.announceFinished(room)
             return
         }
         if (connected.length === 0) return
@@ -639,7 +705,7 @@ export class RoomManager {
                 // Neither team can field a seer and a guesser anymore.
                 this.notify(room, 'warning', msg('not_enough_players_end'))
                 finishGame(room)
-                this.transport.toRoom(room.code, 'game:finished', room.winnerId)
+                this.announceFinished(room)
                 this.broadcastState(room)
             }
             // FFA: nobody connected to be the seer; the sweep will clean up later.
@@ -658,10 +724,11 @@ export class RoomManager {
         if (!round) return
 
         this.transport.toRoom(room.code, 'game:reveal', round.roundNumber)
+        this.systemChat(room, 'round_revealed', { round: round.roundNumber })
         this.broadcastState(room)
 
         if (room.status === 'finished') {
-            this.transport.toRoom(room.code, 'game:finished', room.winnerId)
+            this.announceFinished(room)
             this.log(`game finished in ${room.code}, winner ${room.winnerId}`)
             return
         }
@@ -756,6 +823,7 @@ export class RoomManager {
         for (const player of room.players) {
             this.cancelGone(player.id)
             this.playerRooms.delete(player.id)
+            this.chatSentAt.delete(player.id)
             this.forgetSessions(player.id)
         }
         this.rooms.delete(code)

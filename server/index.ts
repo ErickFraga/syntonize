@@ -5,6 +5,7 @@ import { Server, type Socket } from 'socket.io'
 
 import type { ServerToClientEvents, ClientToServerEvents } from '../shared/types.ts'
 import { RoomManager, type Transport } from './roomManager.ts'
+import { handleApiRequest } from './httpApi.ts'
 import { msg } from '../shared/gameLogic.ts'
 
 const dev = process.env.NODE_ENV !== 'production'
@@ -17,7 +18,11 @@ const handle = app.getRequestHandler()
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>
 
 app.prepare().then(() => {
+    // Assigned below, once the transport (which needs `io`) exists.
+    let manager: RoomManager
+
     const httpServer = createServer((req, res) => {
+        if (handleApiRequest(manager, req, res)) return
         handle(req, res, parse(req.url!, true))
     })
 
@@ -39,7 +44,7 @@ app.prepare().then(() => {
         },
     }
 
-    const manager = new RoomManager(transport, { log: (m) => console.log(`[game] ${m}`) })
+    manager = new RoomManager(transport, { log: (m) => console.log(`[game] ${m}`) })
     setInterval(() => manager.sweep(), 10_000).unref()
 
     function bind(socket: GameSocket, playerId: string, roomCode: string) {
@@ -172,6 +177,13 @@ app.prepare().then(() => {
         socket.on('game:nextRound', () => withPlayer(id => manager.forceNextRound(id))())
         socket.on('game:skipRound', () => withPlayer(id => manager.skipRound(id))())
         socket.on('game:backToLobby', () => withPlayer(id => manager.backToLobby(id))())
+
+        socket.on('chat:send', (input, callback) => {
+            // Errors go back in the callback only (shown next to the chat box, not as a toast).
+            const playerId = currentPlayerId(socket)
+            const result = playerId ? manager.sendChat(playerId, input) : { success: false, error: msg('not_in_room') }
+            if (typeof callback === 'function') callback({ success: result.success, error: result.error })
+        })
 
         socket.on('game:requestState', () => {
             const playerId = currentPlayerId(socket)

@@ -29,9 +29,18 @@
 }
 
 .codeBlock {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 12px;
+}
+
+.codeBlock > .inviteActions {
+    grid-column: 1 / -1;
+}
+
+.qr {
+    grid-column: 2;
+    grid-row: 1;
 }
 
 .code {
@@ -340,6 +349,21 @@
 @media (max-width: 480px) {
     .inviteActions {
         grid-template-columns: 1fr;
+    }
+
+    /* Leaves room for the QR thumbnail next to the code. */
+    .code {
+        padding: 12px 14px;
+    }
+
+    .codeValue {
+        font-size: 28px;
+        letter-spacing: 0.14em;
+    }
+
+    .codeCopy {
+        width: 30px;
+        height: 30px;
     }
 
     .segment {

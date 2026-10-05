@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { getSocket, session } from '@/lib/socket'
 import { sounds } from '@/lib/sounds'
 import { useT } from '@/i18n/I18nProvider'
-import type { Room, Player, TimerUpdate, Notice, RoomSettings, JoinResult, SimpleResult, RoomInfo, TeamId, Side, Message } from '@/types/game'
+import type { Room, Player, TimerUpdate, Notice, RoomSettings, JoinResult, SimpleResult, RoomInfo, TeamId, Side, Message, ChatMessage, ChatInput } from '@/types/game'
+import { CHAT_LIMITS } from '@/types/game'
 
 /** A toast is already translated text (server notices arrive as codes). */
 export interface ToastInput {
@@ -43,6 +44,9 @@ export function useGameState() {
     const [serverOffset, setServerOffset] = useState(0)
     const [wasKicked, setWasKicked] = useState(false)
     const [remoteNeedle, setRemoteNeedle] = useState<RemoteNeedle | null>(null)
+    const [chat, setChat] = useState<ChatMessage[]>([])
+    const playerIdRef = useRef<string | null>(null)
+    playerIdRef.current = playerId
     const needleSend = useRef<{ last: number; pending: number | null; timer: number | null }>({ last: 0, pending: null, timer: null })
 
     const { msg } = useT()
@@ -86,6 +90,7 @@ export function useGameState() {
             session.clear()
             setRoom(null)
             setPlayerId(null)
+            setChat([])
             setWasKicked(true)
         }
 
@@ -108,6 +113,16 @@ export function useGameState() {
             sounds.finish()
         }
         const onNeedle = (data: { position: number; by: string }) => setRemoteNeedle({ ...data, at: Date.now() })
+        const onChatHistory = (messages: ChatMessage[]) => setChat(messages)
+        let lastChatSound = 0
+        const onChatMessage = (message: ChatMessage) => {
+            setChat(prev => [...prev, message].slice(-CHAT_LIMITS.HISTORY))
+            // One blip per burst of reactions is plenty.
+            if (message.kind !== 'system' && message.authorId !== playerIdRef.current && Date.now() - lastChatSound > 600) {
+                lastChatSound = Date.now()
+                sounds.chat()
+            }
+        }
 
         socket.on('connect', onConnect)
         socket.on('disconnect', onDisconnect)
@@ -122,6 +137,8 @@ export function useGameState() {
         socket.on('game:reveal', onReveal)
         socket.on('game:finished', onFinished)
         socket.on('game:needle', onNeedle)
+        socket.on('chat:history', onChatHistory)
+        socket.on('chat:message', onChatMessage)
 
         if (socket.connected) onConnect()
 
@@ -139,6 +156,8 @@ export function useGameState() {
             socket.off('game:reveal', onReveal)
             socket.off('game:finished', onFinished)
             socket.off('game:needle', onNeedle)
+            socket.off('chat:history', onChatHistory)
+            socket.off('chat:message', onChatMessage)
         }
     }, [pushToast])
 
@@ -182,6 +201,7 @@ export function useGameState() {
         setRoom(null)
         setPlayerId(null)
         setTimer(null)
+        setChat([])
     }, [])
 
     const kickPlayer = useCallback((targetId: string) => {
@@ -214,6 +234,10 @@ export function useGameState() {
 
     const sideGuess = useCallback((side: Side) => {
         return new Promise<SimpleResult>((resolve) => getSocket().emit('game:sideGuess', side, resolve))
+    }, [])
+
+    const sendChat = useCallback((input: ChatInput) => {
+        return new Promise<SimpleResult>((resolve) => getSocket().emit('chat:send', input, resolve))
     }, [])
 
     const startGame = useCallback(() => getSocket().emit('game:start'), [])
@@ -250,6 +274,7 @@ export function useGameState() {
         timer,
         serverOffset,
         remoteNeedle,
+        chat,
         pushToast,
         createRoom,
         joinRoom,
@@ -260,6 +285,7 @@ export function useGameState() {
         setTeam,
         moveNeedle,
         sideGuess,
+        sendChat,
         startGame,
         giveClue,
         submitGuess,

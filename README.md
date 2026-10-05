@@ -43,6 +43,9 @@ O que esperar do plano free:
   ele dorme (só acontece quando não há partida rolando).
 - Mantenha **uma única instância**: duas instâncias teriam salas diferentes.
 - A porta vem da variável `PORT`, que o Render define sozinho.
+- A prévia do link (imagem Open Graph) precisa da URL pública do site. No Render
+  ela vem de `RENDER_EXTERNAL_URL`, automaticamente; em outro host, defina
+  `SITE_URL=https://seu-dominio` (no build e na execução).
 
 ## Testes e checagens
 
@@ -88,6 +91,20 @@ independente do idioma da interface de cada um) e quais **pacotes** entram no ba
 As cartas não se repetem até o baralho escolhido acabar. Os textos ficam em `shared/cards/<idioma>.ts`, com os
 mesmos ids e pacotes nos três idiomas (`tests/cards.test.ts` confere).
 
+### Chat
+
+Todo mundo na sala pode conversar (texto de até 200 caracteres) e mandar reações rápidas
+(🔥 😂 🤔 👏 😱 ❤️), no lobby, na partida e nos resultados.
+
+- **O Vidente só manda reações enquanto a rodada dele está aberta** (da carta até a revelação,
+  incluindo a fase de esquerda/direita no modo em equipes), para não dar a dica pelo chat.
+- Limite de 5 mensagens a cada 10 segundos por jogador.
+- A sala guarda as últimas 50 mensagens. O histórico **não** viaja no `room:state` (seria
+  reenviado a cada mudança de estado): o servidor manda `chat:history` junto com o estado no
+  join, na reconexão e no `game:requestState`; depois cada mensagem chega em `chat:message`.
+- Mensagens de sistema vão como código + parâmetros (`joined`, `left`, `kicked`,
+  `round_revealed` com o número da rodada, `game_finished`) e o cliente escreve o texto.
+  A revelação nunca inclui a posição do alvo.
 ## Idiomas
 
 A interface está em português (padrão), inglês e espanhol (`src/i18n/`). Na primeira visita o
