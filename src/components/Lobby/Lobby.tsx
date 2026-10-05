@@ -10,7 +10,7 @@ import CustomCards from '@/components/CustomCards/CustomCards'
 import QrCode from '@/components/QrCode/QrCode'
 import { useT, type Translator } from '@/i18n/I18nProvider'
 import type { TranslationKey } from '@/i18n'
-import { CopyIcon, CheckIcon, ShareIcon, PlayIcon, CrownIcon, XIcon, UsersIcon, SettingsIcon } from '@/components/ui/Icons'
+import { CopyIcon, CheckIcon, ShareIcon, PlayIcon, CrownIcon, XIcon, UsersIcon, SettingsIcon, ShuffleIcon } from '@/components/ui/Icons'
 import styles from './Lobby.module.css'
 
 interface LobbyProps {
@@ -21,6 +21,7 @@ interface LobbyProps {
     onKickPlayer: (playerId: string) => void
     onUpdateSettings: (settings: Partial<RoomSettings>) => void
     onSetTeam: (playerId: string, team: TeamId) => void
+    onShuffleTeams: () => void
     onNotify: (message: string, kind?: 'info' | 'success' | 'warning' | 'error') => void
 }
 
@@ -38,7 +39,7 @@ const SETTING_LABELS: Record<NumericSetting, { title: TranslationKey; hint: Tran
     timeBetweenRounds: { title: 'settings.timeBetweenRounds', hint: 'settings.timeBetweenRoundsHint', format: (v, t) => t('settings.seconds', { n: v }) },
 }
 
-export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onUpdateSettings, onSetTeam, onNotify }: LobbyProps) {
+export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onUpdateSettings, onSetTeam, onShuffleTeams, onNotify }: LobbyProps) {
     const { t } = useT()
     const [copied, setCopied] = useState<'code' | 'link' | null>(null)
     const connected = room.players.filter(p => p.isConnected).length
@@ -112,7 +113,14 @@ export default function Lobby({ room, me, isHost, onStartGame, onKickPlayer, onU
                     </header>
 
                     {teams ? (
-                        <TeamColumns room={room} me={me} isHost={isHost} onSetTeam={onSetTeam} onKickPlayer={onKickPlayer} />
+                        <>
+                            <TeamColumns room={room} me={me} isHost={isHost} onSetTeam={onSetTeam} onKickPlayer={onKickPlayer} />
+                            {isHost && (
+                                <button className="btn btn-ghost btn-sm" onClick={onShuffleTeams}>
+                                    <ShuffleIcon size={16} /> {t('teams.shuffle')}
+                                </button>
+                            )}
+                        </>
                     ) : (
                     <ul className={styles.playerList}>
                         {room.players.map((player, index) => (

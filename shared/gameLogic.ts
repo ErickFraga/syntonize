@@ -375,6 +375,17 @@ export function setPlayerTeam(room: Room, playerId: string, team: TeamId): boole
     return true
 }
 
+/** Lobby: deal everyone into two shuffled, balanced teams (Fisher-Yates on a copy). */
+export function shuffleTeams(room: Room, rng: () => number): void {
+    const order = [...room.players]
+    for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1))
+        ;[order[i], order[j]] = [order[j], order[i]]
+    }
+    const first: TeamId = rng() < 0.5 ? 0 : 1
+    order.forEach((p, i) => { p.team = (i % 2 === 0 ? first : first === 0 ? 1 : 0) as TeamId })
+}
+
 /** Team that plays the next round: the scheduled one, or the other if it cannot. */
 export function pickTeamForRound(room: Room): TeamId | null {
     if (canTeamPlay(room, room.nextTeam)) return room.nextTeam

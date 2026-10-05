@@ -33,7 +33,7 @@ export default function RoomPage() {
 
     const {
         room, me, isHost, isSeer, isConnected, wasKicked, sessionLost, toasts, timer, serverOffset, remoteNeedle, chat,
-        pushToast, joinRoom, leaveRoom, kickPlayer, updateSettings, setTeam, moveNeedle, sideGuess, sendChat, startGame, giveClue,
+        pushToast, joinRoom, leaveRoom, kickPlayer, updateSettings, setTeam, shuffleTeams, moveNeedle, sideGuess, sendChat, startGame, giveClue,
         submitGuess, setReady, nextRound, skipRound, backToLobby,
     } = useGameState()
 
@@ -209,6 +209,7 @@ export default function RoomPage() {
                         onKickPlayer={(id) => kickPlayer(id).then(notifyError)}
                         onUpdateSettings={(s) => updateSettings(s).then(notifyError)}
                         onSetTeam={(id, team) => setTeam(id, team).then(notifyError)}
+                        onShuffleTeams={() => shuffleTeams().then(notifyError)}
                         onNotify={notify}
                     />
                 )}
