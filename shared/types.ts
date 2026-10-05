@@ -217,22 +217,23 @@ export const SETTINGS_OPTIONS = {
     timeBetweenRounds: [10, 15, 20, 30],
 } as const
 
-/** Colors assigned to players (index = Player.colorIndex). */
+/** Colors assigned to players (index = Player.colorIndex). Pastéis da família
+ *  do design: sempre com texto e contorno ameixa por cima. */
 export const PLAYER_COLORS = [
-    '#ff5d8f', // pink
-    '#2ee6d6', // teal
-    '#ffb347', // orange
-    '#8f7bff', // violet
-    '#5be37d', // green
-    '#ff6b4a', // coral
-    '#4cc9f0', // sky
-    '#f9e547', // yellow
-    '#c77dff', // lilac
-    '#ff9ecd', // rose
-    '#7bd389', // mint
-    '#ffa0a0', // salmon
-    '#6fa8ff', // blue
-    '#e0c070', // sand
-    '#a0e0ff', // ice
-    '#ffd6a5', // peach
+    '#8CCBFF', // céu
+    '#9BE8AE', // verde
+    '#FFBE7D', // laranja
+    '#FFA8C5', // rosa
+    '#FFD96A', // amarelo
+    '#D9C8F0', // lilás
+    '#A9DDFF', // gelo
+    '#FFC9A8', // pêssego
+    '#B8F2E6', // menta
+    '#C8B6FF', // lavanda
+    '#F3F6A5', // limão
+    '#FFB4A2', // coral
+    '#9EE5D9', // água
+    '#F8C8DC', // rosa claro
+    '#EAD9A6', // areia
+    '#B5C7FF', // pervinca
 ] as const

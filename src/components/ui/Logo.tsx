@@ -5,25 +5,17 @@ interface LogoProps {
     withWordmark?: boolean
 }
 
-/** Brand mark: a tiny dial with its needle, plus the wordmark. */
+/** Marca: um mostrador em miniatura com a cunha e o ponteiro, mais o logotipo. */
 export default function Logo({ size = 'md', withWordmark = true }: LogoProps) {
     return (
         <span className={`${styles.logo} ${styles[size]}`}>
             <svg viewBox="0 0 48 30" className={styles.mark} aria-hidden="true">
-                <defs>
-                    <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0" stopColor="#2ee6d6" />
-                        <stop offset="0.5" stopColor="#8f7bff" />
-                        <stop offset="1" stopColor="#ff5d8f" />
-                    </linearGradient>
-                </defs>
-                <path d="M3 27 A21 21 0 0 1 45 27 Z" fill="#f6efe3" />
-                <path d="M24 27 L31.5 8.2 A21 21 0 0 1 38.6 14.3 Z" fill="url(#logoGrad)" opacity="0.95" />
-                <path d="M3 27 A21 21 0 0 1 45 27" fill="none" stroke="#1b1a2e" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M21.5 27 L24 9 L26.5 27 Z" fill="#d62828" stroke="#fff" strokeWidth="0.8" strokeLinejoin="round" />
-                <circle cx="24" cy="27" r="3.2" fill="#1b1a2e" stroke="#fff" strokeWidth="1" />
+                <path d="M3 27 A21 21 0 0 1 45 27 Z" fill="#FFFDF8" stroke="var(--line)" strokeWidth="2.5" />
+                <path d="M24 27 L31.5 8.2 A21 21 0 0 1 38.6 14.3 Z" fill="#FF6F9C" stroke="var(--line)" strokeWidth="1.5" />
+                <path d="M21.5 27 L24 9 L26.5 27 Z" fill="#3B1F5C" />
+                <circle cx="24" cy="27" r="3.2" fill="#3B1F5C" />
             </svg>
-            {withWordmark && <span className={`${styles.word} text-gradient`}>Syntonize</span>}
+            {withWordmark && <span className={styles.word}>Syntonize</span>}
         </span>
     )
 }

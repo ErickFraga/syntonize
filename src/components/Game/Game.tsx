@@ -6,7 +6,7 @@ import { LIMITS } from '@/types/game'
 import Dial, { type DialMarker } from '@/components/Dial/Dial'
 import Avatar from '@/components/ui/Avatar'
 import CountdownRing from '@/components/ui/CountdownRing'
-import { EyeIcon, LockIcon, CheckIcon, SkipIcon, LightbulbIcon, ChevronRightIcon, SparklesIcon } from '@/components/ui/Icons'
+import { EyeIcon, LockIcon, CheckIcon, SkipIcon, LightbulbIcon, ChevronLeftIcon, ChevronRightIcon, SparklesIcon } from '@/components/ui/Icons'
 import Scoreboard from './Scoreboard'
 import { sounds } from '@/lib/sounds'
 import styles from './Game.module.css'
@@ -151,8 +151,8 @@ export default function Game({
                     />
 
                     <div className={styles.concepts}>
-                        <span className={styles.conceptLeft}>◀ {round.spectrumCard.leftConcept}</span>
-                        <span className={styles.conceptRight}>{round.spectrumCard.rightConcept} ▶</span>
+                        <span className={styles.conceptLeft}><ChevronLeftIcon size={22} strokeWidth={3.2} /> {round.spectrumCard.leftConcept}</span>
+                        <span className={styles.conceptRight}>{round.spectrumCard.rightConcept} <ChevronRightIcon size={22} strokeWidth={3.2} /></span>
                     </div>
 
                     <div className={styles.clueArea}>

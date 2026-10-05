@@ -78,7 +78,7 @@ export default function JoinPage() {
                     <div className={styles.inviteHead}>
                         <span className="eyebrow">Você foi convidado</span>
                         <h1 className={styles.title}>
-                            {info ? <>Sala de <span className="text-gradient">{info.hostName}</span></> : 'Entrar na sala'}
+                            {info ? <>Sala de <span className="text-accent">{info.hostName}</span></> : 'Entrar na sala'}
                         </h1>
                         <div className={styles.meta}>
                             <span className="chip"><CrownIcon size={13} /> código {code}</span>

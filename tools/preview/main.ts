@@ -46,7 +46,7 @@ const noop = () => {}
 const ok = async () => ({ success: true })
 
 const header = jsx('header', {
-    style: { display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '12px', padding: '10px 20px', background: 'rgba(13,11,31,.78)', borderBottom: '1px solid rgba(255,255,255,.1)', position: 'sticky', top: 0, zIndex: 50 },
+    style: { display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '12px', padding: '10px 20px', background: 'var(--surface)', borderBottom: '2px solid var(--line)', position: 'sticky', top: 0, zIndex: 50 },
     children: [
         jsx(Logo, { size: 'sm' }),
         jsx('span', { className: 'chip', children: 'sala K7PX2Q' }),
@@ -109,8 +109,14 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
 
 g.__params = { code: 'K7PX2Q' }
 
+const LIGHT = new Set(['home', 'lobby', 'game-guessing', 'game-revealed', 'results'])
 for (const [name, screen] of Object.entries(screens)) {
     const body = renderToString(screen.node)
+    const variants: Array<[string, string]> = [[name, '']]
+    if (LIGHT.has(name)) variants.push([`${name}-light`, ' data-theme="light"'])
+    for (const [file, attr] of variants) writeFileSync(`${import.meta.dir}/out/${file}.html`, `<!doctype html><html lang="pt-BR"${attr}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${file}</title><style>${css}</style><style>:root{--font-nunito:'DejaVu Sans';--font-baloo:'DejaVu Sans'} *,*::before,*::after{animation:none!important;transition:none!important}</style></head><body>${body}</body></html>`)
+    console.log('rendered', name)
+    continue
     const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${name}</title><style>${css}</style><style>:root{--font-fredoka:'DejaVu Sans';--font-nunito:'DejaVu Sans'} *,*::before,*::after{animation:none!important;transition:none!important}</style></head><body>${body}</body></html>`
     writeFileSync(`${import.meta.dir}/out/${name}.html`, html)
     console.log('rendered', name, html.length)

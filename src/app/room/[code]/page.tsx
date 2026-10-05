@@ -11,6 +11,7 @@ import Game from '@/components/Game/Game'
 import Results from '@/components/Results/Results'
 import Logo from '@/components/ui/Logo'
 import Toasts from '@/components/ui/Toasts'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 import { LogOutIcon, VolumeIcon, VolumeOffIcon, WifiOffIcon, CopyIcon, CheckIcon } from '@/components/ui/Icons'
 import styles from './page.module.css'
 
@@ -151,6 +152,7 @@ export default function RoomPage() {
                     {!isConnected && (
                         <span className={styles.offline}><WifiOffIcon size={16} /> reconectando…</span>
                     )}
+                    <ThemeToggle />
                     <button className="btn-icon" onClick={toggleMute} title={muted ? 'Ativar sons' : 'Silenciar'} aria-label={muted ? 'Ativar sons' : 'Silenciar'}>
                         {muted ? <VolumeOffIcon size={18} /> : <VolumeIcon size={18} />}
                     </button>
