@@ -1,7 +1,7 @@
 // Game logic - pure functions shared between client and server.
 // Nothing in here talks to sockets or timers; the server orchestrates.
 
-import type { Room, Player, GameRound, SpectrumCard, RoomSettings, Zone, TeamId, Side, TeamRoundState, NumericSetting, ChatInput, ChatReaction } from './types.ts'
+import type { Room, Player, GameRound, SpectrumCard, RoomSettings, Zone, TeamId, Side, TeamRoundState, NumericSetting, Message, MessageCode, MessageParams, ChatInput, ChatReaction } from './types.ts'
 import { SCORING, LIMITS, CHAT_LIMITS, CHAT_REACTIONS, DEFAULT_SETTINGS, SETTINGS_OPTIONS, PLAYER_COLORS, TEAM_DEFAULT_TARGET, TEAM_RULES, settingOptionsFor } from './types.ts'
 import { spectrumCards } from './cards.ts'
 
@@ -38,14 +38,19 @@ export function generateRoomCode(existingCodes: Set<string>, rng: () => number =
 // VALIDATION
 // ============================================
 
+/** Builds a translatable message: the client turns codes into text in the player's language. */
+export function msg(code: MessageCode, params?: MessageParams): Message {
+    return params ? { code, params } : { code }
+}
+
 export function normalizeNickname(raw: unknown): string {
     if (typeof raw !== 'string') return ''
     return raw.replace(/\s+/g, ' ').trim().slice(0, LIMITS.NICKNAME_MAX)
 }
 
-export function validateNickname(nickname: string): { ok: boolean; error?: string } {
-    if (nickname.length < LIMITS.NICKNAME_MIN) return { ok: false, error: 'Digite um apelido' }
-    if (nickname.length > LIMITS.NICKNAME_MAX) return { ok: false, error: `Apelido com no máximo ${LIMITS.NICKNAME_MAX} letras` }
+export function validateNickname(nickname: string): { ok: boolean; error?: Message } {
+    if (nickname.length < LIMITS.NICKNAME_MIN) return { ok: false, error: msg('nickname_empty') }
+    if (nickname.length > LIMITS.NICKNAME_MAX) return { ok: false, error: msg('nickname_too_long', { max: LIMITS.NICKNAME_MAX }) }
     return { ok: true }
 }
 
@@ -62,10 +67,10 @@ function stripAccents(s: string): string {
  * The one real rule of the game: the clue cannot contain the words printed
  * on the card. We compare accent- and case-insensitively, word by word.
  */
-export function validateClue(rawClue: unknown, card: SpectrumCard): { ok: boolean; clue: string; error?: string } {
+export function validateClue(rawClue: unknown, card: SpectrumCard): { ok: boolean; clue: string; error?: Message } {
     const clue = typeof rawClue === 'string' ? rawClue.replace(/\s+/g, ' ').trim() : ''
-    if (!clue) return { ok: false, clue, error: 'A dica não pode ficar vazia' }
-    if (clue.length > LIMITS.CLUE_MAX) return { ok: false, clue, error: `A dica pode ter no máximo ${LIMITS.CLUE_MAX} caracteres` }
+    if (!clue) return { ok: false, clue, error: msg('clue_empty') }
+    if (clue.length > LIMITS.CLUE_MAX) return { ok: false, clue, error: msg('clue_too_long', { max: LIMITS.CLUE_MAX }) }
 
     const clueWords = new Set(stripAccents(clue).split(/[^a-z0-9]+/).filter(w => w.length > 2))
     const forbidden = [card.leftConcept, card.rightConcept]
@@ -73,7 +78,7 @@ export function validateClue(rawClue: unknown, card: SpectrumCard): { ok: boolea
         .filter(w => w.length > 2 && !STOP_WORDS.has(w))
 
     const hit = forbidden.find(w => clueWords.has(w))
-    if (hit) return { ok: false, clue, error: `A dica não pode usar palavras da carta ("${hit}")` }
+    if (hit) return { ok: false, clue, error: msg('clue_uses_card_word', { word: hit }) }
 
     return { ok: true, clue }
 }
@@ -83,18 +88,18 @@ export function validateClue(rawClue: unknown, card: SpectrumCard): { ok: boolea
  * collapsed, control characters dropped, trimmed) and limited to
  * CHAT_LIMITS.TEXT_MAX characters; reactions must be one of CHAT_REACTIONS.
  */
-export function validateChatInput(raw: unknown): { ok: boolean; input?: ChatInput; error?: string } {
-    if (!raw || typeof raw !== 'object') return { ok: false, error: 'Mensagem inválida' }
+export function validateChatInput(raw: unknown): { ok: boolean; input?: ChatInput; error?: Message } {
+    if (!raw || typeof raw !== 'object') return { ok: false, error: msg('chat_invalid') }
     const data = raw as Record<string, unknown>
     if (data.kind === 'reaction') {
-        if (!CHAT_REACTIONS.includes(data.emoji as ChatReaction)) return { ok: false, error: 'Reação inválida' }
+        if (!CHAT_REACTIONS.includes(data.emoji as ChatReaction)) return { ok: false, error: msg('chat_invalid_reaction') }
         return { ok: true, input: { kind: 'reaction', emoji: data.emoji as ChatReaction } }
     }
-    if (data.kind !== 'text' || typeof data.text !== 'string') return { ok: false, error: 'Mensagem inválida' }
+    if (data.kind !== 'text' || typeof data.text !== 'string') return { ok: false, error: msg('chat_invalid') }
     // eslint-disable-next-line no-control-regex
     const text = data.text.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim()
-    if (!text) return { ok: false, error: 'A mensagem não pode ficar vazia' }
-    if (Array.from(text).length > CHAT_LIMITS.TEXT_MAX) return { ok: false, error: `A mensagem pode ter no máximo ${CHAT_LIMITS.TEXT_MAX} caracteres` }
+    if (!text) return { ok: false, error: msg('chat_empty') }
+    if (Array.from(text).length > CHAT_LIMITS.TEXT_MAX) return { ok: false, error: msg('chat_too_long', { max: CHAT_LIMITS.TEXT_MAX }) }
     return { ok: true, input: { kind: 'text', text } }
 }
 
@@ -247,26 +252,26 @@ export function ensureHost(room: Room): Player | null {
     return candidate
 }
 
-export function canJoinRoom(room: Room, nickname: string): { ok: boolean; error?: string } {
+export function canJoinRoom(room: Room, nickname: string): { ok: boolean; error?: Message } {
     if (room.status === 'finished') {
-        return { ok: false, error: 'Essa partida já terminou' }
+        return { ok: false, error: msg('game_already_finished') }
     }
     if (room.players.length >= LIMITS.MAX_PLAYERS) {
-        return { ok: false, error: `Sala cheia (máximo ${LIMITS.MAX_PLAYERS} jogadores)` }
+        return { ok: false, error: msg('room_full', { max: LIMITS.MAX_PLAYERS }) }
     }
     if (room.players.some(p => p.nickname.toLowerCase() === nickname.toLowerCase())) {
-        return { ok: false, error: 'Já existe alguém com esse apelido na sala' }
+        return { ok: false, error: msg('nickname_taken') }
     }
     return { ok: true }
 }
 
-export function canStartGame(room: Room): { ok: boolean; error?: string } {
+export function canStartGame(room: Room): { ok: boolean; error?: Message } {
     const connected = room.players.filter(p => p.isConnected)
     if (connected.length < LIMITS.MIN_PLAYERS) {
-        return { ok: false, error: `Precisa de pelo menos ${LIMITS.MIN_PLAYERS} jogadores conectados` }
+        return { ok: false, error: msg('not_enough_players', { min: LIMITS.MIN_PLAYERS }) }
     }
     if (room.settings.mode === 'teams' && !([0, 1] as TeamId[]).every(t => canTeamPlay(room, t))) {
-        return { ok: false, error: `Cada time precisa de pelo menos ${TEAM_RULES.MIN_PER_TEAM} jogadores conectados` }
+        return { ok: false, error: msg('team_needs_players', { min: TEAM_RULES.MIN_PER_TEAM }) }
     }
     return { ok: true }
 }
@@ -345,32 +350,32 @@ function clampPosition(position: number): number {
     return Math.round(Math.max(0, Math.min(100, position)))
 }
 
-function activeTeamGuesser(room: Room, playerId: string): { ok: boolean; error?: string; player?: Player; play?: TeamRoundState } {
+function activeTeamGuesser(room: Room, playerId: string): { ok: boolean; error?: Message; player?: Player; play?: TeamRoundState } {
     const round = room.currentRound
     const play = round?.teamPlay
-    if (!round || !play || round.phase !== 'guessing') return { ok: false, error: 'Não é hora de palpitar' }
-    if (round.seerId === playerId) return { ok: false, error: 'O Vidente não dá palpite' }
+    if (!round || !play || round.phase !== 'guessing') return { ok: false, error: msg('not_guess_time') }
+    if (round.seerId === playerId) return { ok: false, error: msg('seer_cannot_guess') }
     const player = room.players.find(p => p.id === playerId)
-    if (!player) return { ok: false, error: 'Jogador não está na sala' }
-    if (player.team !== play.team) return { ok: false, error: 'Não é a vez do seu time' }
+    if (!player) return { ok: false, error: msg('player_not_in_room') }
+    if (player.team !== play.team) return { ok: false, error: msg('not_your_team_turn') }
     return { ok: true, player, play }
 }
 
 /** Live needle drag by any guesser of the active team. */
-export function moveTeamNeedle(room: Room, playerId: string, position: number): { ok: boolean; error?: string; position?: number } {
+export function moveTeamNeedle(room: Room, playerId: string, position: number): { ok: boolean; error?: Message; position?: number } {
     const check = activeTeamGuesser(room, playerId)
     if (!check.ok) return { ok: false, error: check.error }
-    if (typeof position !== 'number' || !Number.isFinite(position)) return { ok: false, error: 'Palpite inválido' }
+    if (typeof position !== 'number' || !Number.isFinite(position)) return { ok: false, error: msg('invalid_guess') }
     const clamped = clampPosition(position)
     check.play!.needle = clamped
     return { ok: true, position: clamped }
 }
 
 /** Any guesser of the active team locks the single team guess. */
-export function submitTeamGuess(room: Room, playerId: string, position: number): { ok: boolean; error?: string } {
+export function submitTeamGuess(room: Room, playerId: string, position: number): { ok: boolean; error?: Message } {
     const check = activeTeamGuesser(room, playerId)
     if (!check.ok) return { ok: false, error: check.error }
-    if (typeof position !== 'number' || !Number.isFinite(position)) return { ok: false, error: 'Palpite inválido' }
+    if (typeof position !== 'number' || !Number.isFinite(position)) return { ok: false, error: msg('invalid_guess') }
     lockTeamGuess(room, clampPosition(position), playerId)
     check.player!.hasGuessed = true
     return { ok: true }
@@ -388,15 +393,15 @@ export function lockTeamGuess(room: Room, position: number | null = null, locked
     round.phase = 'side_guess'
 }
 
-export function submitSideGuess(room: Room, playerId: string, side: unknown): { ok: boolean; error?: string } {
+export function submitSideGuess(room: Room, playerId: string, side: unknown): { ok: boolean; error?: Message } {
     const round = room.currentRound
     const play = round?.teamPlay
-    if (!round || !play || round.phase !== 'side_guess') return { ok: false, error: 'Não é hora de escolher o lado' }
+    if (!round || !play || round.phase !== 'side_guess') return { ok: false, error: msg('not_side_time') }
     const player = room.players.find(p => p.id === playerId)
-    if (!player) return { ok: false, error: 'Jogador não está na sala' }
-    if (player.team === play.team) return { ok: false, error: 'Quem escolhe o lado é o outro time' }
-    if (side !== 'left' && side !== 'right') return { ok: false, error: 'Lado inválido' }
-    if (play.side) return { ok: false, error: 'Seu time já escolheu o lado' }
+    if (!player) return { ok: false, error: msg('player_not_in_room') }
+    if (player.team === play.team) return { ok: false, error: msg('side_is_other_team') }
+    if (side !== 'left' && side !== 'right') return { ok: false, error: msg('invalid_side') }
+    if (play.side) return { ok: false, error: msg('side_already_called') }
     play.side = side
     play.sideBy = playerId
     return { ok: true }
@@ -532,15 +537,15 @@ export function startNewRound(room: Room, now: number = Date.now(), rng: () => n
     return round
 }
 
-export function submitGuess(room: Room, playerId: string, position: number): { ok: boolean; error?: string } {
+export function submitGuess(room: Room, playerId: string, position: number): { ok: boolean; error?: Message } {
     if (room.currentRound?.teamPlay) return submitTeamGuess(room, playerId, position)
     const round = room.currentRound
-    if (!round || round.phase !== 'guessing') return { ok: false, error: 'Não é hora de palpitar' }
-    if (round.seerId === playerId) return { ok: false, error: 'O Vidente não dá palpite' }
+    if (!round || round.phase !== 'guessing') return { ok: false, error: msg('not_guess_time') }
+    if (round.seerId === playerId) return { ok: false, error: msg('seer_cannot_guess') }
     const player = room.players.find(p => p.id === playerId)
-    if (!player) return { ok: false, error: 'Jogador não está na sala' }
-    if (player.hasGuessed) return { ok: false, error: 'Você já travou seu palpite' }
-    if (typeof position !== 'number' || !Number.isFinite(position)) return { ok: false, error: 'Palpite inválido' }
+    if (!player) return { ok: false, error: msg('player_not_in_room') }
+    if (player.hasGuessed) return { ok: false, error: msg('guess_already_locked') }
+    if (typeof position !== 'number' || !Number.isFinite(position)) return { ok: false, error: msg('invalid_guess') }
 
     const clamped = Math.round(Math.max(0, Math.min(100, position)))
     player.hasGuessed = true

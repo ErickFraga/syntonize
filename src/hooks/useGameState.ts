@@ -3,10 +3,17 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { getSocket, session } from '@/lib/socket'
 import { sounds } from '@/lib/sounds'
-import type { Room, Player, TimerUpdate, Notice, RoomSettings, JoinResult, SimpleResult, RoomInfo, TeamId, Side, ChatMessage, ChatInput } from '@/types/game'
+import { useT } from '@/i18n/I18nProvider'
+import type { Room, Player, TimerUpdate, Notice, RoomSettings, JoinResult, SimpleResult, RoomInfo, TeamId, Side, Message, ChatMessage, ChatInput } from '@/types/game'
 import { CHAT_LIMITS } from '@/types/game'
 
-export interface Toast extends Notice {
+/** A toast is already translated text (server notices arrive as codes). */
+export interface ToastInput {
+    kind: Notice['kind']
+    message: string
+}
+
+export interface Toast extends ToastInput {
     id: number
 }
 
@@ -42,7 +49,12 @@ export function useGameState() {
     playerIdRef.current = playerId
     const needleSend = useRef<{ last: number; pending: number | null; timer: number | null }>({ last: 0, pending: null, timer: null })
 
-    const pushToast = useCallback((notice: Notice, ttl = 3500) => {
+    const { msg } = useT()
+    // Socket listeners are bound once; read the current language through a ref.
+    const msgRef = useRef(msg)
+    msgRef.current = msg
+
+    const pushToast = useCallback((notice: ToastInput, ttl = 3500) => {
         const id = ++toastId
         setToasts(prev => [...prev.slice(-3), { ...notice, id }])
         window.setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), ttl)
@@ -71,8 +83,8 @@ export function useGameState() {
             setRestoredCode(data.room.code)
         }
 
-        const onNotice = (notice: Notice) => pushToast(notice)
-        const onError = (message: string) => pushToast({ kind: 'error', message })
+        const onNotice = (notice: Notice) => pushToast({ kind: notice.kind, message: msgRef.current(notice) })
+        const onError = (message: Message) => pushToast({ kind: 'error', message: msgRef.current(message) })
 
         const onKicked = () => {
             session.clear()
@@ -178,7 +190,7 @@ export function useGameState() {
     }, [])
 
     const getRoomInfo = useCallback((code: string) => {
-        return new Promise<{ success: boolean; info?: RoomInfo; error?: string }>((resolve) => {
+        return new Promise<{ success: boolean; info?: RoomInfo; error?: Message }>((resolve) => {
             getSocket().emit('room:info', code, resolve)
         })
     }, [])

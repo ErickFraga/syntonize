@@ -83,7 +83,7 @@ Capturas (renderização estática dos componentes, 1280 px e 390 px) em `docs/s
 | ⬜ P2 | **Modo espectador** | Entrar numa sala só para assistir (sem participar da rotação). |
 | ⬜ P2 | **Tema claro** | Os tokens estão prontos; falta a paleta clara e o toggle. |
 | ⬜ P3 | **PWA** | Manifesto + ícone para "instalar" no celular. |
-| ⬜ P3 | **Internacionalização** | Textos estão todos em pt-BR hard-coded. |
+| ✅ | **Internacionalização** | pt-BR (padrão), en e es sem biblioteca: dicionários em `src/i18n/<locale>.ts` tipados pelo pt-BR (chave faltando quebra o typecheck), `useT()` com interpolação `{nome}`, plural simples e texto rico, seletor de idioma no cabeçalho da sala e na home/convite, escolha salva no localStorage + cookie (o servidor usa o cookie ou o `Accept-Language` para `<html lang>` e os metadados). O servidor não manda mais texto: erros e avisos são `{ code, params }` (`MESSAGE_CODES` em `shared/types.ts`) traduzidos no cliente. Testes em `tests/i18n.test.ts` (cobertura de chaves e placeholders nos 3 idiomas). |
 | ⬜ P3 | **Animação da tampa** | Hoje a cunha "cresce"; uma tampa deslizando como no jogo físico seria ainda mais fiel. |
 
 ## 4. Código, testes e tooling

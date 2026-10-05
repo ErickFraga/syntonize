@@ -13,6 +13,7 @@ import TeamGame from '../../src/components/TeamGame/TeamGame.tsx'
 import TeamResults from '../../src/components/TeamResults/TeamResults.tsx'
 import Logo from '../../src/components/ui/Logo.tsx'
 import Chat from '../../src/components/Chat/Chat.tsx'
+import { I18nContext, makeTranslator } from '../../src/i18n/I18nProvider.tsx'
 
 const g = globalThis as any
 const css = readFileSync('../../src/app/globals.css', 'utf8') + '\n' + g.__cssRegistry.join('\n')
@@ -179,7 +180,13 @@ const screens: Record<string, { node: any; mobile?: boolean }> = {
 
 g.__params = { code: 'K7PX2Q' }
 
-for (const [name, screen] of Object.entries(screens)) {
+// Same screens in other interface languages (the shim's useContext reads the context default).
+for (const [locale, names] of [['en', ['home', 'lobby-teams', 'game-revealed', 'game-chat-open']], ['es', ['team-side-guess', 'results']]] as const) {
+    for (const name of names) screens[`${name}-${locale}`] = { ...screens[name], locale }
+}
+
+for (const [name, screen] of Object.entries(screens) as Array<[string, { node: any; locale?: 'en' | 'es' }]>) {
+    ;(I18nContext as any)._value = makeTranslator(screen.locale ?? 'pt-BR')
     const body = renderToString(screen.node)
     const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${name}</title><style>${css}</style><style>:root{--font-fredoka:'DejaVu Sans';--font-nunito:'DejaVu Sans'} *,*::before,*::after{animation:none!important;transition:none!important}</style></head><body>${body}</body></html>`
     writeFileSync(`${import.meta.dir}/out/${name}.html`, html)

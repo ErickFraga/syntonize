@@ -5,7 +5,8 @@ import type { ChatMessage, ChatInput, SimpleResult } from '@/types/game'
 import { CHAT_LIMITS, CHAT_REACTIONS } from '@/types/game'
 import { playerColor } from '@/components/ui/Avatar'
 import { XIcon } from '@/components/ui/Icons'
-import { teamName } from '@/lib/teams'
+import { teamKey } from '@/lib/teams'
+import { useT, type Translator } from '@/i18n/I18nProvider'
 import styles from './Chat.module.css'
 
 interface ChatProps {
@@ -26,18 +27,18 @@ interface ChatProps {
 /** Same breakpoint as the game layout, where the sidebar drops below the dial. */
 const DESKTOP_QUERY = '(min-width: 961px)'
 
-/** System messages arrive as codes; worded here (pt-BR until the i18n lands). */
-export function systemText(message: Extract<ChatMessage, { kind: 'system' }>): string {
+/** System messages arrive as codes + params and are worded in the viewer's language. */
+export function systemText(message: Extract<ChatMessage, { kind: 'system' }>, t: Translator['t']): string {
     const { code, params } = message
     switch (code) {
-        case 'joined': return `${params.name} entrou na sala`
-        case 'left': return `${params.name} saiu da sala`
-        case 'kicked': return `${params.name} foi removido da sala`
-        case 'round_revealed': return `Rodada ${params.round} revelada`
+        case 'joined': return t('chat.system.joined', params)
+        case 'left': return t('chat.system.left', params)
+        case 'kicked': return t('chat.system.kicked', params)
+        case 'round_revealed': return t('chat.system.roundRevealed', params)
         case 'game_finished':
-            if (typeof params.name === 'string') return `Fim de jogo! ${params.name} venceu`
-            if (params.team === 0 || params.team === 1) return `Fim de jogo! ${teamName(params.team)} venceu`
-            return 'Fim de jogo!'
+            if (typeof params.name === 'string') return t('chat.system.finishedPlayer', params)
+            if (params.team === 0 || params.team === 1) return t('chat.system.finishedTeam', { team: t(teamKey(params.team)) })
+            return t('chat.system.finished')
     }
 }
 
@@ -54,6 +55,7 @@ function useMediaQuery(query: string): boolean {
 }
 
 export default function Chat({ messages, meId, onSend, docked = false, textLocked = null, defaultOpen = false }: ChatProps) {
+    const { t, msg } = useT()
     const [open, setOpen] = useState(defaultOpen)
     const [draft, setDraft] = useState('')
     const [error, setError] = useState<string | null>(null)
@@ -105,7 +107,7 @@ export default function Chat({ messages, meId, onSend, docked = false, textLocke
         const result = await onSend(input)
         setSending(false)
         if (!result.success) {
-            setError(result.error ?? 'Não deu para enviar')
+            setError(msg(result.error, 'chat.sendError'))
             return
         }
         setError(null)
@@ -126,7 +128,7 @@ export default function Chat({ messages, meId, onSend, docked = false, textLocke
                 type="button"
                 className={styles.fab}
                 onClick={() => setOpen(true)}
-                aria-label={unread > 0 ? `Abrir chat (${unread} não lidas)` : 'Abrir chat'}
+                aria-label={unread > 0 ? t('chat.openUnread', { count: unread }) : t('chat.open')}
             >
                 <ChatBubbleIcon />
                 {unread > 0 && <span className={styles.badge}>{unread > 9 ? '9+' : unread}</span>}
@@ -134,10 +136,10 @@ export default function Chat({ messages, meId, onSend, docked = false, textLocke
 
             <div className={styles.backdrop} onClick={() => setOpen(false)} aria-hidden="true" />
 
-            <section className={`card ${styles.panel}`} aria-label="Chat da sala">
+            <section className={`card ${styles.panel}`} aria-label={t('chat.region')}>
                 <header className={styles.head}>
-                    <span className={styles.title}><ChatBubbleIcon size={16} /> Chat</span>
-                    <button type="button" className={`btn-icon ${styles.close}`} onClick={() => setOpen(false)} aria-label="Fechar chat">
+                    <span className={styles.title}><ChatBubbleIcon size={16} /> {t('chat.title')}</span>
+                    <button type="button" className={`btn-icon ${styles.close}`} onClick={() => setOpen(false)} aria-label={t('chat.close')}>
                         <XIcon size={16} />
                     </button>
                 </header>
@@ -152,24 +154,24 @@ export default function Chat({ messages, meId, onSend, docked = false, textLocke
                     role="log"
                     aria-live="polite"
                 >
-                    {messages.length === 0 && <p className={styles.empty}>Ninguém falou nada ainda. Manda um 🔥!</p>}
+                    {messages.length === 0 && <p className={styles.empty}>{t('chat.empty')}</p>}
                     {messages.map(m => {
                         if (m.kind === 'system') {
-                            return <p key={m.id} className={styles.system}>{systemText(m)}</p>
+                            return <p key={m.id} className={styles.system}>{systemText(m, t)}</p>
                         }
                         const mine = m.authorId === meId
                         return (
                             <p key={m.id} className={`${styles.message} ${mine ? styles.mine : ''} ${m.kind === 'reaction' ? styles.reaction : ''}`}>
-                                <span className={styles.author} style={{ color: playerColor(m.colorIndex) }}>{mine ? 'você' : m.author}</span>
+                                <span className={styles.author} style={{ color: playerColor(m.colorIndex) }}>{mine ? t('common.you') : m.author}</span>
                                 {m.kind === 'text' ? <span className={styles.text}>{m.text}</span> : <span className={styles.emoji}>{m.emoji}</span>}
                             </p>
                         )
                     })}
                 </div>
 
-                <div className={styles.reactions} role="group" aria-label="Reações rápidas">
+                <div className={styles.reactions} role="group" aria-label={t('chat.reactions')}>
                     {CHAT_REACTIONS.map(emoji => (
-                        <button key={emoji} type="button" className={styles.reactionBtn} onClick={() => send({ kind: 'reaction', emoji })} disabled={sending} aria-label={`Reagir com ${emoji}`}>
+                        <button key={emoji} type="button" className={styles.reactionBtn} onClick={() => send({ kind: 'reaction', emoji })} disabled={sending} aria-label={t('chat.react', { emoji })}>
                             {emoji}
                         </button>
                     ))}
@@ -186,17 +188,17 @@ export default function Chat({ messages, meId, onSend, docked = false, textLocke
                         className={`input ${styles.input}`}
                         value={draft}
                         maxLength={CHAT_LIMITS.TEXT_MAX}
-                        placeholder={textLocked ?? 'Mande uma mensagem…'}
+                        placeholder={textLocked ?? t('chat.placeholder')}
                         disabled={!!textLocked}
                         onChange={(e) => {
                             setDraft(e.target.value)
                             setError(null)
                         }}
                         autoComplete="off"
-                        aria-label="Mensagem"
+                        aria-label={t('chat.inputLabel')}
                     />
                     <button type="submit" className="btn btn-primary btn-sm" disabled={!!textLocked || !draft.trim() || sending}>
-                        Enviar
+                        {t('chat.send')}
                     </button>
                 </form>
                 <div className={styles.meta}>

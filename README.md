@@ -86,6 +86,13 @@ Todo mundo na sala pode conversar (texto de até 200 caracteres) e mandar reaç�
 - Mensagens de sistema vão como código + parâmetros (`joined`, `left`, `kicked`,
   `round_revealed` com o número da rodada, `game_finished`) e o cliente escreve o texto.
   A revelação nunca inclui a posição do alvo.
+## Idiomas
+
+A interface está em português (padrão), inglês e espanhol (`src/i18n/`). Na primeira visita o
+idioma vem do navegador; depois, do seletor no cabeçalho. O servidor nunca manda texto pronto:
+erros e avisos são códigos (`MESSAGE_CODES` em `shared/types.ts`) traduzidos no cliente. Para
+adicionar um texto, crie a chave em `src/i18n/pt-BR.ts` e o typecheck aponta onde faltar em
+`en.ts` e `es.ts`.
 
 ## Estrutura
 

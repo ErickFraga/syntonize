@@ -62,7 +62,10 @@ describe('chat: messages', () => {
 
         assert.equal(send(text('')).success, false, 'empty')
         assert.equal(send(text('   \n  ')).success, false, 'only whitespace')
-        assert.equal(send(text('x'.repeat(CHAT_LIMITS.TEXT_MAX + 1))).success, false, 'too long')
+        assert.equal(send(text('')).error!.code, 'chat_empty')
+        assert.deepEqual(send(text('x'.repeat(CHAT_LIMITS.TEXT_MAX + 1))).error, { code: 'chat_too_long', params: { max: CHAT_LIMITS.TEXT_MAX } }, 'too long')
+        assert.equal(send(text(123)).error!.code, 'chat_invalid')
+        assert.equal(send(reaction('🍕')).error!.code, 'chat_invalid_reaction')
         const max = send(text('x'.repeat(CHAT_LIMITS.TEXT_MAX)))
         assert.equal(max.success, true, 'exactly the limit')
         const emojiMax = send(text('🔥'.repeat(CHAT_LIMITS.TEXT_MAX)))
@@ -96,7 +99,7 @@ describe('chat: rate limit', () => {
         // 6th within the window (first one was sent 5 s ago): refused.
         const sixth = h.manager.sendChat(ana, text('mais uma'))
         assert.equal(sixth.success, false)
-        assert.match(sixth.error!, /espere/i)
+        assert.equal(sixth.error!.code, 'chat_rate_limited')
 
         // Another player is not affected.
         assert.equal(h.manager.sendChat(seats[1].id, text('eu posso')).success, true)
@@ -260,7 +263,7 @@ describe('chat: the seer cannot leak the clue', () => {
 
         const waiting = h.manager.sendChat(ana, text('é tipo 50'))
         assert.equal(waiting.success, false, 'waiting_clue')
-        assert.match(waiting.error!, /Vidente/)
+        assert.equal(waiting.error!.code, 'chat_seer_reactions_only')
         assert.equal(h.manager.sendChat(ana, reaction('🤔')).success, true, 'reactions are fine')
         assert.equal(h.manager.sendChat(seats[1].id, text('capricha na dica')).success, true, 'guessers chat freely')
 
