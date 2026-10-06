@@ -1,5 +1,6 @@
 'use client'
 
+import { activePlayers } from '@shared/gameLogic'
 import type { Room, Player, TeamId } from '@/types/game'
 import { TEAM_RULES } from '@/types/game'
 import Avatar from '@/components/ui/Avatar'
@@ -22,7 +23,7 @@ export default function TeamColumns({ room, me, isHost, onSetTeam, onKickPlayer 
     return (
         <div className={styles.columns}>
             {TEAM_IDS.map(team => {
-                const members = room.players.filter(p => p.team === team)
+                const members = activePlayers(room).filter(p => p.team === team)
                 const other: TeamId = team === 0 ? 1 : 0
                 const short = members.filter(p => p.isConnected).length < TEAM_RULES.MIN_PER_TEAM
                 return (
@@ -55,7 +56,7 @@ export default function TeamColumns({ room, me, isHost, onSetTeam, onKickPlayer 
                             ))}
                             {short && <li className={styles.placeholder}>{t('teams.needs', { min: TEAM_RULES.MIN_PER_TEAM })}</li>}
                         </ul>
-                        {me && me.team !== team && (
+                        {me && !me.isSpectator && me.team !== team && (
                             <button className={`btn btn-secondary btn-sm btn-block ${styles.joinBtn}`} onClick={() => onSetTeam(me.id, team)}>
                                 {t('teams.join', { team: t(teamKey(team)) })}
                             </button>

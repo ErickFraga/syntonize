@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import type { Room, Player } from '@/types/game'
 import { SCORING } from '@/types/game'
-import { computeTeamStats } from '@shared/gameLogic'
+import { activePlayers, computeTeamStats } from '@shared/gameLogic'
 import Avatar from '@/components/ui/Avatar'
 import { TrophyIcon, RotateIcon, HomeIcon, LogOutIcon, TargetIcon, EyeIcon } from '@/components/ui/Icons'
 import { teamColor } from '@/lib/teams'
@@ -85,7 +85,7 @@ export default function CoopResults({ room, me, isHost, onPlayAgain, onBackToLob
                     </div>
                     <span className={styles.score}>{score}<small> / {goal} {t('results.pointsUnit')}</small></span>
                     <ul className={styles.members}>
-                        {room.players.map(p => (
+                        {activePlayers(room).map(p => (
                             <li key={p.id} className={styles.member}>
                                 <Avatar name={p.nickname} colorIndex={p.colorIndex} size="sm" />
                                 <span>{p.nickname}{p.id === me?.id ? t('common.youSuffix') : ''}</span>

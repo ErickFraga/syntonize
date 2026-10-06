@@ -33,6 +33,7 @@ import {
     deckSettingsFrom,
     isDeckPlayable,
     canJoinRoom,
+    activePlayers,
     canStartGame,
     startNewRound,
     recordSkippedRound,
@@ -240,7 +241,8 @@ export class RoomManager {
             data: {
                 code: room.code,
                 hostName: host?.nickname ?? 'Alguém',
-                playerCount: room.players.length,
+                playerCount: activePlayers(room).length,
+                spectatorCount: room.players.length - activePlayers(room).length,
                 status: room.status,
             },
         }
@@ -266,7 +268,7 @@ export class RoomManager {
         return { success: true, data: { room, playerId: host.id, sessionToken } }
     }
 
-    joinRoom(rawCode: unknown, rawNickname: unknown): Result<SessionData> {
+    joinRoom(rawCode: unknown, rawNickname: unknown, asSpectator = false): Result<SessionData> {
         const code = normalizeRoomCode(rawCode)
         if (this.dormant.has(code)) this.activate(code)
         const room = this.rooms.get(code)
@@ -276,15 +278,16 @@ export class RoomManager {
         const valid = validateNickname(nickname)
         if (!valid.ok) return { success: false, error: valid.error }
 
-        const canJoin = canJoinRoom(room, nickname)
+        const canJoin = canJoinRoom(room, nickname, asSpectator)
         if (!canJoin.ok) return { success: false, error: canJoin.error }
 
         const player = createPlayer(this.newId('p'), nickname, nextColorIndex(room.players))
+        if (asSpectator) player.isSpectator = true
         addPlayerToRoom(room, player)
         this.playerRooms.set(player.id, code)
         const sessionToken = this.newSession(player.id, code)
 
-        this.log(`${nickname} joined ${code}`)
+        this.log(`${nickname} joined ${code}${asSpectator ? ' (spectator)' : ''}`)
         this.notify(room, 'info', msg('player_joined', { name: nickname }))
         this.systemChat(room, 'joined', { name: nickname })
         this.broadcastState(room)
@@ -554,6 +557,7 @@ export class RoomManager {
         const room = this.getRoomOfPlayer(playerId)
         const player = room?.players.find(p => p.id === playerId)
         if (!room || !player) return { success: false, error: msg('room_not_found') }
+        if (player.isSpectator) return { success: false, error: msg('spectator_cannot_play') }
         if (room.status !== 'playing' || room.currentRound?.phase !== 'revealed') {
             return { success: false, error: msg('not_next_round_time') }
         }
@@ -675,7 +679,7 @@ export class RoomManager {
                 }
             }
 
-            const anyoneConnected = room.players.some(p => p.isConnected)
+            const anyoneConnected = activePlayers(room).some(p => p.isConnected)
             if (!anyoneConnected) {
                 const lastSeen = Math.max(room.createdAt, ...room.players.map(p => p.disconnectedAt ?? 0))
                 if (room.players.length === 0 || now - lastSeen >= this.emptyRoomMs) {
@@ -960,7 +964,9 @@ export class RoomManager {
         this.forgetSessions(player.id)
         this.log(`${player.nickname} removed from ${room.code} (${reason})`)
 
-        if (room.players.length === 0) {
+        // Only spectators left: nobody to play or host, so the room ends.
+        if (activePlayers(room).length === 0) {
+            for (const spectator of room.players) this.transport.toPlayer(spectator.id, 'room:kicked')
             this.deleteRoom(room.code)
             return
         }
@@ -978,11 +984,13 @@ export class RoomManager {
 
     /** Shared follow-up for disconnects, leaves and kicks during a game. */
     private afterPlayerGone(room: Room, player: Player, reason: GoneReason): void {
-        if (room.status !== 'playing' || !room.currentRound) return
+        // A spectator coming or going changes nothing in the game.
+        if (player.isSpectator || room.status !== 'playing' || !room.currentRound) return
 
-        const connected = room.players.filter(p => p.isConnected)
-        const teamEmptied = room.settings.mode === 'teams' && ([0, 1] as TeamId[]).some(t => !room.players.some(p => p.team === t))
-        if (room.players.length < LIMITS.MIN_PLAYERS || teamEmptied) {
+        const playing = activePlayers(room)
+        const connected = playing.filter(p => p.isConnected)
+        const teamEmptied = room.settings.mode === 'teams' && ([0, 1] as TeamId[]).some(t => !playing.some(p => p.team === t))
+        if (playing.length < LIMITS.MIN_PLAYERS || teamEmptied) {
             this.notify(room, 'warning', msg('not_enough_players_end'))
             this.clearTimers(room.code)
             finishGame(room)

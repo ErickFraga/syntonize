@@ -1,5 +1,6 @@
 'use client'
 
+import { activePlayers } from '@shared/gameLogic'
 import type { Room } from '@/types/game'
 import Avatar from '@/components/ui/Avatar'
 import { TrophyIcon, EyeIcon, CheckIcon, CrownIcon } from '@/components/ui/Icons'
@@ -14,7 +15,7 @@ interface ScoreboardProps {
 export default function Scoreboard({ room, meId }: ScoreboardProps) {
     const { t } = useT()
     const round = room.currentRound
-    const sorted = [...room.players].sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname))
+    const sorted = [...activePlayers(room)].sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname))
     const target = room.settings.targetScore
     const leader = sorted[0]?.score ?? 0
 

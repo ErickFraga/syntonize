@@ -222,6 +222,16 @@ export function calculateSeerScore(zones: Zone[]): number {
 // ROOM & PLAYERS
 // ============================================
 
+/** Players who take part in the game (everyone but the spectators). */
+export function activePlayers(room: Room): Player[] {
+    return room.players.filter(p => !p.isSpectator)
+}
+
+/** People who only watch the room. */
+export function spectatorsOf(room: Room): Player[] {
+    return room.players.filter(p => !!p.isSpectator)
+}
+
 export function nextColorIndex(players: Player[]): number {
     const used = new Set(players.map(p => p.colorIndex))
     for (let i = 0; i < PLAYER_COLORS.length; i++) {
@@ -270,11 +280,17 @@ export function createRoom(code: string, host: Player, now: number = Date.now())
 
 /** The team with fewer players (team 0 on a tie): keeps teams balanced on join. */
 export function balancedTeam(players: Player[]): TeamId {
-    const first = players.filter(p => p.team === 0).length
-    return players.length - first < first ? 1 : 0
+    const playing = players.filter(p => !p.isSpectator)
+    const first = playing.filter(p => p.team === 0).length
+    return playing.length - first < first ? 1 : 0
 }
 
 export function addPlayerToRoom(room: Room, player: Player): void {
+    if (player.isSpectator) {
+        // Watches only: never enters the seer rotation or a team.
+        room.players.push(player)
+        return
+    }
     player.team = balancedTeam(room.players)
     room.players.push(player)
     room.seerOrder.push(player.id)
@@ -300,21 +316,26 @@ export function removePlayerFromRoom(room: Room, playerId: string): void {
 
 /** Guarantees exactly one host, preferring a connected player. */
 export function ensureHost(room: Room): Player | null {
-    if (room.players.length === 0) return null
-    const hosts = room.players.filter(p => p.isHost)
-    if (hosts.length === 1 && hosts[0].isConnected) return hosts[0]
+    const playing = activePlayers(room)
+    if (playing.length === 0) return null
+    const hosts = playing.filter(p => p.isHost)
+    if (hosts.length === 1 && hosts[0].isConnected && room.players.filter(p => p.isHost).length === 1) return hosts[0]
 
     room.players.forEach(p => { p.isHost = false })
-    const candidate = room.players.find(p => p.isConnected) ?? room.players[0]
+    const candidate = playing.find(p => p.isConnected) ?? playing[0]
     candidate.isHost = true
     return candidate
 }
 
-export function canJoinRoom(room: Room, nickname: string): { ok: boolean; error?: Message } {
+export function canJoinRoom(room: Room, nickname: string, asSpectator = false): { ok: boolean; error?: Message } {
     if (room.status === 'finished') {
         return { ok: false, error: msg('game_already_finished') }
     }
-    if (room.players.length >= LIMITS.MAX_PLAYERS) {
+    if (asSpectator) {
+        if (room.players.length - activePlayers(room).length >= LIMITS.MAX_SPECTATORS) {
+            return { ok: false, error: msg('room_full_spectators', { max: LIMITS.MAX_SPECTATORS }) }
+        }
+    } else if (activePlayers(room).length >= LIMITS.MAX_PLAYERS) {
         return { ok: false, error: msg('room_full', { max: LIMITS.MAX_PLAYERS }) }
     }
     if (room.players.some(p => p.nickname.toLowerCase() === nickname.toLowerCase())) {
@@ -324,7 +345,7 @@ export function canJoinRoom(room: Room, nickname: string): { ok: boolean; error?
 }
 
 export function canStartGame(room: Room): { ok: boolean; error?: Message } {
-    const connected = room.players.filter(p => p.isConnected)
+    const connected = activePlayers(room).filter(p => p.isConnected)
     if (connected.length < LIMITS.MIN_PLAYERS) {
         return { ok: false, error: msg('not_enough_players', { min: LIMITS.MIN_PLAYERS }) }
     }
@@ -370,7 +391,7 @@ export function canTeamPlay(room: Room, team: TeamId): boolean {
 
 export function setPlayerTeam(room: Room, playerId: string, team: TeamId): boolean {
     const player = room.players.find(p => p.id === playerId)
-    if (!player || (team !== 0 && team !== 1)) return false
+    if (!player || player.isSpectator || (team !== 0 && team !== 1)) return false
     player.team = team
     return true
 }
@@ -440,6 +461,7 @@ function activeTeamGuesser(room: Room, playerId: string): { ok: boolean; error?:
     if (round.seerId === playerId) return { ok: false, error: msg('seer_cannot_guess') }
     const player = room.players.find(p => p.id === playerId)
     if (!player) return { ok: false, error: msg('player_not_in_room') }
+    if (player.isSpectator) return { ok: false, error: msg('spectator_cannot_play') }
     if (!isOnTeam(room, player, play.team)) return { ok: false, error: msg('not_your_team_turn') }
     return { ok: true, player, play }
 }
@@ -482,6 +504,7 @@ export function submitSideGuess(room: Room, playerId: string, side: unknown): { 
     if (!round || !play || round.phase !== 'side_guess') return { ok: false, error: msg('not_side_time') }
     const player = room.players.find(p => p.id === playerId)
     if (!player) return { ok: false, error: msg('player_not_in_room') }
+    if (player.isSpectator) return { ok: false, error: msg('spectator_cannot_play') }
     if (player.team === play.team) return { ok: false, error: msg('side_is_other_team') }
     if (side !== 'left' && side !== 'right') return { ok: false, error: msg('invalid_side') }
     if (play.side) return { ok: false, error: msg('side_already_called') }
@@ -552,7 +575,7 @@ export function getSeer(room: Room): Player | undefined {
 
 export function getGuessers(room: Room): Player[] {
     const seerId = room.currentRound?.seerId
-    return room.players.filter(p => p.id !== seerId)
+    return activePlayers(room).filter(p => p.id !== seerId)
 }
 
 /**
@@ -632,6 +655,7 @@ export function submitGuess(room: Room, playerId: string, position: number): { o
     if (round.seerId === playerId) return { ok: false, error: msg('seer_cannot_guess') }
     const player = room.players.find(p => p.id === playerId)
     if (!player) return { ok: false, error: msg('player_not_in_room') }
+    if (player.isSpectator) return { ok: false, error: msg('spectator_cannot_play') }
     if (player.hasGuessed) return { ok: false, error: msg('guess_already_locked') }
     if (typeof position !== 'number' || !Number.isFinite(position)) return { ok: false, error: msg('invalid_guess') }
 
@@ -753,12 +777,12 @@ export function finishGame(room: Room): void {
         room.winnerId = null
         return
     }
-    const top = [...room.players].sort((a, b) => b.score - a.score)[0]
+    const top = [...activePlayers(room)].sort((a, b) => b.score - a.score)[0]
     room.winnerId = top ? top.id : null
 }
 
 export function allReady(room: Room): boolean {
-    const connected = room.players.filter(p => p.isConnected)
+    const connected = activePlayers(room).filter(p => p.isConnected)
     return connected.length > 0 && connected.every(p => p.isReady)
 }
 
@@ -857,7 +881,7 @@ export interface PlayerStats {
 }
 
 export function computeStats(room: Room): PlayerStats[] {
-    return room.players.map(p => {
+    return activePlayers(room).map(p => {
         const stats: PlayerStats = { playerId: p.id, bullseyes: 0, closest: 0, bestRound: 0, roundsAsSeer: 0, seerPoints: 0 }
         for (const r of room.roundHistory) {
             if (r.zones[p.id] === 4) stats.bullseyes++

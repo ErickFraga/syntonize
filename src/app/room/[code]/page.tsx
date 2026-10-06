@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useGameState, useCountdown } from '@/hooks/useGameState'
 import { session } from '@/lib/socket'
 import { isMuted, setMuted } from '@/lib/sounds'
-import { normalizeRoomCode, canSendChatText } from '@shared/gameLogic'
+import { normalizeRoomCode, canSendChatText, activePlayers, spectatorsOf } from '@shared/gameLogic'
 import type { Message } from '@/types/game'
 import Lobby from '@/components/Lobby/Lobby'
 import Game from '@/components/Game/Game'
@@ -20,7 +20,7 @@ import LanguageSelect from '@/components/LanguageSelect/LanguageSelect'
 import { useT } from '@/i18n/I18nProvider'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import MusicToggle from '@/components/ui/MusicToggle'
-import { LogOutIcon, VolumeIcon, VolumeOffIcon, WifiOffIcon, CopyIcon, CheckIcon } from '@/components/ui/Icons'
+import { LogOutIcon, VolumeIcon, VolumeOffIcon, WifiOffIcon, CopyIcon, CheckIcon, EyeIcon } from '@/components/ui/Icons'
 import styles from './page.module.css'
 
 type Stage = 'connecting' | 'resolving' | 'ready' | 'redirecting'
@@ -32,7 +32,7 @@ export default function RoomPage() {
     const code = normalizeRoomCode(String(params.code ?? ''))
 
     const {
-        room, me, isHost, isSeer, isConnected, wasKicked, sessionLost, toasts, timer, serverOffset, remoteNeedle, chat,
+        room, me, isHost, isSeer, isSpectator, isConnected, wasKicked, sessionLost, toasts, timer, serverOffset, remoteNeedle, chat,
         pushToast, joinRoom, leaveRoom, kickPlayer, updateSettings, setTeam, shuffleTeams, moveNeedle, sideGuess, sendChat, startGame, giveClue,
         submitGuess, setReady, nextRound, skipRound, backToLobby,
     } = useGameState()
@@ -161,7 +161,7 @@ export default function RoomPage() {
         <Chat
             messages={chat}
             meId={me?.id ?? null}
-            playerCount={room.players.length}
+            playerCount={activePlayers(room).length}
             onSend={sendChat}
             docked={inGame}
             textLocked={me && !canSendChatText(room, me.id) ? t('chat.seerLocked') : null}
@@ -184,6 +184,11 @@ export default function RoomPage() {
                 </button>
 
                 <div className={styles.headerActions}>
+                    {spectatorsOf(room).length > 0 && (
+                        <span className="chip" title={spectatorsOf(room).map(s => s.nickname).join(', ')}>
+                            <EyeIcon size={14} /> {isSpectator ? t('room.youWatch', { count: spectatorsOf(room).length }) : spectatorsOf(room).length}
+                        </span>
+                    )}
                     {!isConnected && (
                         <span className={styles.offline}><WifiOffIcon size={16} /> {t('common.reconnecting')}</span>
                     )}

@@ -64,7 +64,7 @@ describe('lobby: create & join', () => {
         const { code } = makeRoom(h, ['Ana', 'Bia'])
         const info = h.manager.getRoomInfo(code)
         assert.equal(info.success, true)
-        assert.deepEqual(info.data, { code, hostName: 'Ana', playerCount: 2, status: 'waiting' })
+        assert.deepEqual(info.data, { code, hostName: 'Ana', playerCount: 2, spectatorCount: 0, status: 'waiting' })
         assert.equal(h.manager.getRoomInfo('ZZZZZZ').success, false)
     })
 })

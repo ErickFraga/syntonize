@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Room, Player, SimpleResult, Side, TimerPhase, TeamId } from '@/types/game'
 import { LIMITS, TEAM_RULES } from '@/types/game'
+import { activePlayers } from '@shared/gameLogic'
 import type { RemoteNeedle } from '@/hooks/useGameState'
 import Dial from '@/components/Dial/Dial'
 import Avatar from '@/components/ui/Avatar'
@@ -66,8 +67,9 @@ export default function TeamGame({
     const seer = room.players.find(p => p.id === round.seerId)
     const activeTeam = play.team
     const otherTeam: TeamId = activeTeam === 0 ? 1 : 0
+    const spectating = !!me?.isSpectator
     const coop = room.settings.mode === 'coop'
-    const onActiveTeam = coop ? !!me : me?.team === activeTeam
+    const onActiveTeam = !spectating && (coop ? !!me : me?.team === activeTeam)
     const canDrag = phase === 'guessing' && onActiveTeam && !isSeer
 
     const [pickedSide, setPickedSide] = useState<Side | null>(null)
@@ -143,8 +145,9 @@ export default function TeamGame({
 
     const lockedBy = room.players.find(p => p.id === play.lockedBy)
     const sideBy = room.players.find(p => p.id === play.sideBy)
-    const connectedCount = room.players.filter(p => p.isConnected).length
-    const readyCount = room.players.filter(p => p.isConnected && p.isReady).length
+    const playing = activePlayers(room)
+    const connectedCount = playing.filter(p => p.isConnected).length
+    const readyCount = playing.filter(p => p.isConnected && p.isReady).length
     const teamStyle = (team: TeamId) => ({ '--team-color': teamColor(team) } as React.CSSProperties)
 
     return (
@@ -292,7 +295,7 @@ export default function TeamGame({
                                 <CheckIcon size={16} /> {rich('teamGame.lockedLine', { team: activeName, n: <strong>{play.guess}</strong> })}
                                 {lockedBy ? t('teamGame.lockedBy', { name: lockedBy.nickname }) : null}
                             </p>
-                            {!onActiveTeam && me ? (
+                            {!onActiveTeam && me && !spectating ? (
                                 <>
                                     <h3>{t('teamGame.sideQuestion')}</h3>
                                     <p className="muted">{t('teamGame.sideWorth', { count: TEAM_RULES.SIDE_POINTS, team: otherName })}</p>
@@ -362,7 +365,9 @@ export default function TeamGame({
                                     {secondsLeft !== null && timerPhase === 'next' && <span className="muted">{t('game.nextIn', { n: secondsLeft })}</span>}
                                 </div>
                                 <div className={gameStyles.readyActions}>
-                                    {me?.isReady ? (
+                                    {spectating ? (
+                                        <span className="chip"><EyeIcon size={14} /> {t('game.spectating')}</span>
+                                    ) : me?.isReady ? (
                                         <span className={gameStyles.lockedBadge}><CheckIcon size={16} /> {t('game.youReady')}</span>
                                     ) : (
                                         <button className="btn btn-primary" onClick={onSetReady}>

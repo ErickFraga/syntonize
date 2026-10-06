@@ -21,6 +21,12 @@ export interface Player {
     disconnectedAt: number | null
     /** Team (only used in team mode, but always assigned so switching modes is instant). */
     team: TeamId
+    /**
+     * Only watches: in the room (state, history, chat) but outside the seer
+     * rotation, the guessers, the scoreboard and the teams. Absent in rooms
+     * saved before the spectator mode.
+     */
+    isSpectator?: boolean
 }
 
 /** Team mode has exactly two teams: 0 and 1. */
@@ -310,7 +316,7 @@ export const MESSAGE_CODES = [
     'host_only_kick', 'player_not_found', 'cannot_kick_self', 'host_only_settings', 'settings_lobby_only',
     'host_only_move', 'teams_lobby_only', 'invalid_team', 'host_only_start', 'host_only_lobby',
     'needle_throttled', 'not_next_round_time', 'host_only_next', 'host_only_skip', 'skip_only_waiting_clue',
-    'not_in_room', 'packs_empty', 'rate_limited',
+    'not_in_room', 'packs_empty', 'rate_limited', 'room_full_spectators', 'spectator_cannot_play',
     // chat
     'chat_invalid', 'chat_empty', 'chat_too_long', 'chat_invalid_reaction', 'chat_seer_reactions_only', 'chat_rate_limited',
     // room notices
@@ -335,6 +341,8 @@ export interface RoomInfo {
     code: string
     hostName: string
     playerCount: number
+    /** Spectators in the room (not counted in `playerCount`). */
+    spectatorCount: number
     status: RoomStatus
 }
 
@@ -380,6 +388,8 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
     'room:create': (nickname: string, callback: (result: JoinResult) => void) => void
     'room:join': (code: string, nickname: string, callback: (result: JoinResult) => void) => void
+    /** Joins as a spectator: watches the room without playing. */
+    'room:watch': (code: string, nickname: string, callback: (result: JoinResult) => void) => void
     'room:info': (code: string, callback: (result: { success: boolean; info?: RoomInfo; error?: Message }) => void) => void
     'room:leave': () => void
     'room:kick': (playerId: string, callback: (result: SimpleResult) => void) => void
@@ -422,6 +432,8 @@ export const SCORING = {
 export const LIMITS = {
     MIN_PLAYERS: 2,
     MAX_PLAYERS: 16,
+    /** Spectators allowed on top of the players. */
+    MAX_SPECTATORS: 20,
     NICKNAME_MIN: 1,
     NICKNAME_MAX: 16,
     CLUE_MAX: 60,
