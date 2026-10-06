@@ -18,5 +18,5 @@ if (!window.matchMedia) {
             dispatchEvent: () => false,
         }) as MediaQueryList
 }
-Element.prototype.setPointerCapture ??= () => {}
-Element.prototype.releasePointerCapture ??= () => {}
+window.Element.prototype.setPointerCapture ??= () => {}
+window.Element.prototype.releasePointerCapture ??= () => {}

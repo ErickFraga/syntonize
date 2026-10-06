@@ -9,7 +9,8 @@ completo · **P3** polimento.
 ## Na `release`, aguardando a PR para a `main`
 
 PRs #13 (CI e remoção das dependências não usadas), #14 (cartas personalizadas),
-#15 (persistência das salas com Redis) e #16 (histórico de rodadas). Já na `main`
+#15 (persistência das salas com Redis), #16 (histórico de rodadas) e a de rate limiting
+e TTL do token de sessão. Já na `main`
 (PRs #2–#6, #8, #10–#12): modo em equipes, internacionalização, cartas em três
 idiomas e pacotes temáticos, imagem Open Graph (home e convite, com o nome do
 anfitrião e quantos estão na sala), QR code no lobby, chat e reações, animação
@@ -22,23 +23,20 @@ GitHub Actions) e conferir o visual das telas novas contra os mocks do canvas.
 
 - [ ] **Validar uma partida real no deploy.** O `next build` agora roda na CI de cada
       PR (PR #13); falta uma partida completa com 3+ celulares no deploy (livre e em equipes).
-- [ ] **Conferir o visual das telas novas contra o canvas.** Lobby em equipes,
-      "esquerda ou direita", chat no celular, QR e Open Graph; aplicar o que ficou de
-      fora do design (botão Confirmar, Embaralhar times, pílula de idioma, rótulo
-      "Psychic" em inglês).
+- [x] **Conferir o visual das telas novas contra o canvas.** Feito: botão Confirmar
+      no "esquerda ou direita", Embaralhar times no lobby, pílula de idioma PT·EN·ES
+      (o rótulo "Psychic" em inglês já estava nas traduções). O teste de fluxo em equipes
+      (`e2e/equipes.spec.ts`) guarda os prints dessas telas.
 
 ## P2 — deixa o jogo mais completo
 
-- [ ] **Modo cooperativo.** Como no app oficial: todos no mesmo time, 7 rodadas,
-      meta de pontos conjunta. Deriva do modo atual.
 - [ ] **Modo espectador.** Entrar na sala só para assistir, fora da rotação de Videntes.
-- [ ] **Rate limiting.** Nada impede criar milhares de salas ou spammar `room:join`.
-      Limitar por IP/socket.
-- [ ] **Expiração de token de sessão.** Hoje o token vive até a sala morrer; com
-      persistência, dar TTL.
 
 ## P3 — polimento
 
 - [ ] **PWA.** Manifesto + ícone para "instalar" no celular.
-- [ ] **Logs estruturados e métricas.** Hoje é `console.log`.
-- [ ] **Dockerfile.** Para Cloud Run, VM da Oracle ou qualquer host com container.
+- [ ] **Métricas.** Os logs já são estruturados (JSON em produção; `LOG_LEVEL` e
+      `LOG_FORMAT`); faltam contadores (salas ativas, jogadores, erros) e um endpoint
+      de saúde/métricas.
+- [ ] **Validar a imagem Docker.** O `Dockerfile` existe, mas ainda não foi
+      construído num ambiente com Docker (o build e o start foram simulados sem ele).

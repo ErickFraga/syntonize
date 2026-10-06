@@ -8,6 +8,8 @@ import { RoomManager, type Transport } from './roomManager.ts'
 import { MemoryStore, type RoomStore } from './roomStore.ts'
 import { RedisStore } from './redisStore.ts'
 import { handleApiRequest } from './httpApi.ts'
+import { logger } from './logger.ts'
+import { RateLimiter, clientIp, DEFAULT_LIMITS } from './rateLimit.ts'
 import { msg, roomViewFor } from '../shared/gameLogic.ts'
 
 const dev = process.env.NODE_ENV !== 'production'
@@ -30,12 +32,12 @@ async function loadRooms(manager: RoomManager, store: RoomStore): Promise<void> 
     for (let attempt = 1; ; attempt++) {
         try {
             const count = await manager.loadFromStore()
-            console.log(`> ${count} sala(s) restaurada(s) do store (${store.name})`)
+            logger.info('rooms restored from store', { count, store: store.name })
             return
         } catch (error) {
-            console.error(`> falha ao carregar as salas (${store.name}, tentativa ${attempt}): ${(error as Error).message}`)
+            logger.error('failed to load rooms', { store: store.name, attempt, err: error })
             if (attempt >= 5) {
-                console.error('> seguindo sem as salas salvas')
+                logger.warn('continuing without saved rooms')
                 return
             }
             await new Promise(resolve => setTimeout(resolve, attempt * 2000))
@@ -43,12 +45,24 @@ async function loadRooms(manager: RoomManager, store: RoomStore): Promise<void> 
     }
 }
 
+// How many proxies in front of us append to X-Forwarded-For (Render's load balancer: 1).
+const trustedHops = parseInt(process.env.TRUSTED_PROXY_HOPS || '1', 10)
+
+// RATE_LIMIT_CREATE_ROOM sobe o teto de salas por IP (o teste de fluxo cria dezenas a partir de 127.0.0.1).
+const createLimit = parseInt(process.env.RATE_LIMIT_CREATE_ROOM || '', 10)
+const createLimiter = new RateLimiter(createLimit > 0 ? { ...DEFAULT_LIMITS.createRoom, limit: createLimit } : DEFAULT_LIMITS.createRoom)
+const joinLimiter = new RateLimiter(DEFAULT_LIMITS.joinRoom)
+const lookupLimiter = new RateLimiter(DEFAULT_LIMITS.roomLookup)
+// Joins per socket too, so one connection cannot spam `room:join` between IP checks.
+const socketJoinLimiter = new RateLimiter({ limit: 10, windowMs: 30_000 })
+
 app.prepare().then(async () => {
     // Assigned below, once the transport (which needs `io`) exists.
     let manager: RoomManager
 
     const httpServer = createServer((req, res) => {
-        if (handleApiRequest(manager, req, res)) return
+        const ip = clientIp({ headers: req.headers, remoteAddress: req.socket.remoteAddress }, trustedHops)
+        if (handleApiRequest(manager, req, res, () => lookupLimiter.allow(ip))) return
         handle(req, res, parse(req.url!, true))
     })
 
@@ -71,7 +85,7 @@ app.prepare().then(async () => {
     }
 
     const store = createStore()
-    manager = new RoomManager(transport, { store, log: (m) => console.log(`[game] ${m}`) })
+    manager = new RoomManager(transport, { store, log: (m) => logger.info(m, { scope: 'game' }) })
     // Before accepting connections: returning clients must find their rooms.
     await loadRooms(manager, store)
     setInterval(() => manager.sweep(), 10_000).unref()
@@ -81,11 +95,16 @@ app.prepare().then(async () => {
     const shutdown = async (signal: string) => {
         if (shuttingDown) return
         shuttingDown = true
-        console.log(`> ${signal}: salvando as salas`)
+        logger.info('saving rooms before exit', { signal })
         const timeout = new Promise(resolve => setTimeout(resolve, 5000).unref())
         await Promise.race([manager.flush().then(() => store.close()), timeout]).catch(() => {})
         process.exit(0)
     }
+    process.on('unhandledRejection', err => logger.error('unhandled rejection', { err }))
+    process.on('uncaughtException', err => {
+        logger.error('uncaught exception', { err })
+        process.exit(1)
+    })
     process.on('SIGTERM', () => void shutdown('SIGTERM'))
     process.on('SIGINT', () => void shutdown('SIGINT'))
 
@@ -114,6 +133,8 @@ app.prepare().then(async () => {
     }
 
     io.on('connection', (socket: GameSocket) => {
+        logger.debug('socket connected', { socket: socket.id })
+        const ip = clientIp({ headers: socket.handshake.headers, remoteAddress: socket.handshake.address }, trustedHops)
         const token = socket.handshake.auth?.sessionToken as string | undefined
         // Async because a room restored from the store is re-read when its
         // first player comes back; the listeners below are bound meanwhile.
@@ -136,6 +157,7 @@ app.prepare().then(async () => {
         })
 
         socket.on('room:create', (nickname, callback) => {
+            if (!createLimiter.allow(ip)) return callback({ success: false, error: msg('rate_limited') })
             const existing = currentPlayerId(socket)
             if (existing) {
                 manager.leaveRoom(existing)
@@ -152,6 +174,7 @@ app.prepare().then(async () => {
         })
 
         socket.on('room:join', async (code, nickname, callback) => {
+            if (!joinLimiter.allow(ip) || !socketJoinLimiter.allow(socket.id)) return callback({ success: false, error: msg('rate_limited') })
             await manager.wake(String(code ?? ''))
             const existing = currentPlayerId(socket)
             if (existing) {
@@ -176,6 +199,7 @@ app.prepare().then(async () => {
         })
 
         socket.on('room:info', (code, callback) => {
+            if (!lookupLimiter.allow(ip)) return callback({ success: false, error: msg('rate_limited') })
             const result = manager.getRoomInfo(String(code ?? ''))
             callback(result.success ? { success: true, info: result.data } : { success: false, error: result.error })
         })
@@ -212,6 +236,13 @@ app.prepare().then(async () => {
             callback({ success: result.success, error: result.error })
         })
 
+        socket.on('room:shuffleTeams', (callback) => {
+            const playerId = currentPlayerId(socket)
+            if (!playerId) return callback?.({ success: false, error: msg('not_in_room') })
+            const result = manager.shuffleTeams(playerId)
+            callback?.({ success: result.success, error: result.error })
+        })
+
         const withPlayer = (fn: (playerId: string) => SimpleResult) =>
             (callback?: (result: SimpleResult) => void) => {
                 const playerId = currentPlayerId(socket)
@@ -246,7 +277,9 @@ app.prepare().then(async () => {
             if (playerId) manager.sendState(playerId)
         })
 
-        socket.on('disconnect', () => {
+        socket.on('disconnect', reason => {
+            logger.debug('socket disconnected', { socket: socket.id, reason })
+            socketJoinLimiter.reset(socket.id)
             const playerId = currentPlayerId(socket)
             unbind(socket)
             // Only mark offline if no newer socket took over this player.
@@ -255,6 +288,6 @@ app.prepare().then(async () => {
     })
 
     httpServer.listen(port, () => {
-        console.log(`> Syntonize ready on http://localhost:${port}`)
+        logger.info('server ready', { port, env: dev ? 'development' : 'production', store: store.name })
     })
 })

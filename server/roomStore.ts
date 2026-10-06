@@ -16,6 +16,8 @@ export const DEFAULT_ROOM_TTL_MS = 24 * 60 * 60_000
 export interface StoredSession {
     token: string
     playerId: string
+    /** Last time the token was issued or used (older snapshots lack it: `savedAt` stands in). */
+    lastUsedAt?: number
 }
 
 /** The phase timer running when the snapshot was taken (absolute end time). */

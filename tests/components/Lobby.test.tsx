@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import Lobby from '@/components/Lobby/Lobby'
 import LanguageSelect from '@/components/LanguageSelect/LanguageSelect'
-import { LOCALE_STORAGE_KEY } from '@/i18n'
+import { LOCALE_NAMES, LOCALE_STORAGE_KEY } from '@/i18n'
 import { I18nProvider } from '@/i18n/I18nProvider'
 import { DEFAULT_SETTINGS, LIMITS, SETTINGS_OPTIONS } from '@shared/types'
 import type { Player, Room, RoomSettings } from '@shared/types'
@@ -17,7 +17,7 @@ function lobbyRoom(extra: Partial<Room> = {}, settings: Partial<RoomSettings> = 
 function props(r: Room, me: Player, overrides: Partial<Parameters<typeof Lobby>[0]> = {}) {
     return {
         room: r, me, isHost: me.isHost,
-        onStartGame: vi.fn(), onKickPlayer: vi.fn(), onUpdateSettings: vi.fn(), onSetTeam: vi.fn(), onNotify: vi.fn(),
+        onStartGame: vi.fn(), onKickPlayer: vi.fn(), onUpdateSettings: vi.fn(), onSetTeam: vi.fn(), onShuffleTeams: vi.fn(), onNotify: vi.fn(),
         ...overrides,
     }
 }
@@ -122,6 +122,18 @@ describe('Lobby', () => {
             expect(screen.getByRole('button', { name: tr.t('lobby.start') })).toBeEnabled()
         })
 
+        it('"Embaralhar times" só aparece para o anfitrião e avisa o servidor', async () => {
+            const user = userEvent.setup()
+            const guest = props(lobbyRoom({}, teams), bia)
+            const { unmount } = renderPt(<Lobby {...guest} />)
+            expect(screen.queryByRole('button', { name: new RegExp(tr.t('teams.shuffle')) })).toBeNull()
+            unmount()
+            const host = props(lobbyRoom({}, teams), ana)
+            renderPt(<Lobby {...host} />)
+            await user.click(screen.getByRole('button', { name: new RegExp(tr.t('teams.shuffle')) }))
+            expect(host.onShuffleTeams).toHaveBeenCalledOnce()
+        })
+
         it('mostra a opção de compensação só em equipes', () => {
             const { unmount } = renderPt(<Lobby {...props(lobbyRoom(), ana)} />)
             expect(screen.queryByRole('radiogroup', { name: tr.t('lobby.catchUp') })).toBeNull()
@@ -158,7 +170,7 @@ describe('Lobby', () => {
 })
 
 describe('LanguageSelect', () => {
-    it('lista os idiomas e troca o do app', async () => {
+    it('mostra um botão por idioma, marca o atual e troca o do app', async () => {
         const user = userEvent.setup()
         window.localStorage.clear()
         render(
@@ -166,10 +178,11 @@ describe('LanguageSelect', () => {
                 <LanguageSelect />
             </I18nProvider>,
         )
-        const select = screen.getByRole('combobox')
-        expect(within(select).getAllByRole('option').length).toBeGreaterThanOrEqual(3)
-        await user.selectOptions(select, 'en')
-        expect(select).toHaveValue('en')
+        const group = screen.getByRole('radiogroup')
+        expect(within(group).getAllByRole('radio').length).toBeGreaterThanOrEqual(3)
+        await user.click(within(group).getByRole('radio', { name: LOCALE_NAMES.en }))
+        expect(within(group).getByRole('radio', { name: LOCALE_NAMES.en })).toBeChecked()
+        expect(within(group).getByRole('radio', { name: LOCALE_NAMES['pt-BR'] })).not.toBeChecked()
         expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('en')
         expect(document.documentElement.lang).toBe('en')
     })
