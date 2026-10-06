@@ -39,6 +39,8 @@ export function systemText(message: Extract<ChatMessage, { kind: 'system' }>, t:
         case 'round_revealed': return t('chat.system.roundRevealed', params)
         case 'game_finished':
             if (typeof params.name === 'string') return t('chat.system.finishedPlayer', params)
+            if (params.won === 1) return t('chat.system.finishedCoopWon')
+            if (params.won === 0) return t('chat.system.finishedCoopLost')
             if (params.team === 0 || params.team === 1) return t('chat.system.finishedTeam', { team: t(teamKey(params.team)) })
             return t('chat.system.finished')
     }

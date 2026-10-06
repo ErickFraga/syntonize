@@ -1,22 +1,11 @@
 .wrap {
-    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    min-height: 34px;
-    padding: 0 10px;
+    gap: 4px;
+    padding: 3px;
     border-radius: var(--radius-full);
     background: var(--surface);
     border: 1px solid var(--line);
-    color: var(--text-2);
-    cursor: pointer;
-    transition: border-color var(--t-fast), color var(--t-fast);
-}
-
-.wrap:hover,
-.wrap:focus-within {
-    border-color: var(--line-2);
-    color: var(--text);
 }
 
 .floating {
@@ -26,24 +15,30 @@
     z-index: 20;
 }
 
-.icon {
-    flex-shrink: 0;
-}
-
-.select {
-    appearance: none;
-    -webkit-appearance: none;
-    background: transparent;
+.option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 30px;
+    padding: 0 10px;
     border: 0;
-    color: inherit;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-2);
     font: inherit;
     font-size: 13px;
     font-weight: 800;
     cursor: pointer;
-    outline: none;
+    transition: background var(--t-fast), color var(--t-fast);
 }
 
-.select option {
+.option:hover {
     color: var(--text);
-    background: var(--surface-solid);
+}
+
+.active,
+.active:hover {
+    background: var(--accent-primary);
+    color: #1b0f2b;
 }

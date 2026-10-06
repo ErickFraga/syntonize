@@ -18,6 +18,8 @@ export default function TeamScoreboard({ room, meId }: TeamScoreboardProps) {
     const round = room.currentRound
     const target = room.settings.targetScore
     const active = round?.teamPlay?.team ?? null
+    const coop = room.settings.mode === 'coop'
+    const left = Math.max(0, target - room.teamScores[0])
 
     return (
         <div className={`card ${styles.board}`}>
@@ -26,10 +28,10 @@ export default function TeamScoreboard({ room, meId }: TeamScoreboardProps) {
                 <span className="chip">{t('common.goal', { n: target })}</span>
             </header>
 
-            {TEAM_IDS.map(team => {
+            {(coop ? [0 as const] : TEAM_IDS).map(team => {
                 const score = room.teamScores[team]
                 const pct = Math.max(0, Math.min(100, (score / target) * 100))
-                const members = activePlayers(room).filter(p => p.team === team)
+                const members = coop ? activePlayers(room) : activePlayers(room).filter(p => p.team === team)
                 return (
                     <section
                         key={team}
@@ -38,10 +40,11 @@ export default function TeamScoreboard({ room, meId }: TeamScoreboardProps) {
                     >
                         <div className={styles.teamHead}>
                             <span className={styles.dot} />
-                            <span className={styles.teamName}>{t(teamKey(team))}</span>
+                            <span className={styles.teamName}>{coop ? t('coop.team') : t(teamKey(team))}</span>
                             <span className={styles.score}>{score}</span>
                         </div>
                         <span className={styles.bar}><span className={styles.fill} style={{ width: `${pct}%` }} /></span>
+                        {coop && <span className="muted">{left > 0 ? t('coop.toGo', { count: left }) : t('coop.goalReached')}</span>}
                         <ul className={styles.members}>
                             {members.map(p => (
                                 <li key={p.id} className={`${styles.member} ${p.id === meId ? styles.me : ''} ${p.isConnected ? '' : styles.offline}`} title={p.nickname}>
