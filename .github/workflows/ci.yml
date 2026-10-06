@@ -1,4 +1,4 @@
-# Testes, tipagem, lint e build do Next em cada PR e em cada push na main e na release.
+# Testes (lógica e componentes), tipagem, lint e build do Next em cada PR e em cada push na main e na release.
 # Depois do build, o teste de fluxo (Playwright) joga uma partida com dois
 # navegadores e guarda um print de cada tela no artefato "prints-do-fluxo".
 # O `next build` só rodava no deploy do Render; aqui ele quebra antes do merge.
@@ -39,8 +39,15 @@ jobs:
       - name: Testes
         run: npm test
 
+      # React Testing Library no jsdom: Dial, Game, Chat, Lobby e o seletor de idioma.
+      - name: Testes de componente
+        run: npm run test:components
+
       - name: Tipagem do servidor
         run: npm run typecheck:server
+
+      - name: Tipagem dos testes de componente
+        run: npm run typecheck:components
 
       - name: Lint
         run: npm run lint
